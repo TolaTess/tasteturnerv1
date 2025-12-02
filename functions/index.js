@@ -676,6 +676,7 @@ exports.generateAndSaveWeeklyShoppingList = functions
           const updateData = {
             generatedItems: newGeneratedItems,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            processedMealIds: [...allMealIds], // Store meal IDs that were processed
           };
 
           // Only include manualItems if they exist (to preserve them)
@@ -5435,6 +5436,532 @@ Create a comprehensive daily food health journal entry in this format:
 
 The narrative should be warm, encouraging, and personalized. Focus on positive achievements while gently noting areas for improvement. Return ONLY valid JSON, no markdown or code blocks.`;
 }
+
+/**
+ * Helper function to get week ID in ISO format (YYYY-Www)
+ * @param {Date} date - Date to get week ID for
+ * @returns {string} Week ID in format "YYYY-Www"
+ */
+function _getWeekId(date) {
+  // Get Monday of the week
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  const monday = new Date(d.setDate(diff));
+  
+  const year = monday.getFullYear();
+  const jan1 = new Date(year, 0, 1);
+  const daysFromJan1 = Math.floor((monday - jan1) / (24 * 60 * 60 * 1000));
+  const weekNumber = Math.ceil((daysFromJan1 + 1) / 7);
+  
+  return `${year}-W${String(weekNumber).padStart(2, '0')}`;
+}
+
+/**
+ * Helper function to get week start (Monday) for a date
+ * @param {Date} date - Date to get week start for
+ * @returns {Date} Monday of the week
+ */
+function _getWeekStart(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  return new Date(d.setDate(diff));
+}
+
+/**
+ * Fetch weekly data for a user (aggregate 7 days)
+ * @param {string} userId - User ID
+ * @param {Date} weekStart - Monday of the week
+ * @returns {Promise<Object>} Aggregated weekly data
+ */
+async function _fetchUserWeeklyData(userId, weekStart) {
+  try {
+    const weeklyData = {
+      summary: {
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+      },
+      meals: {
+        breakfast: [],
+        lunch: [],
+        dinner: [],
+        snacks: [],
+      },
+      goals: {},
+      water: 0,
+      steps: 0,
+      routineCompletion: 0,
+      daysWithData: 0,
+    };
+
+    // Aggregate data for 7 days
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(weekStart);
+      date.setDate(date.getDate() + i);
+      const dailyData = await _fetchUserDailyData(userId, date);
+
+      // Aggregate nutrition
+      if (dailyData.summary) {
+        weeklyData.summary.calories += dailyData.summary.calories || 0;
+        weeklyData.summary.protein += dailyData.summary.protein || 0;
+        weeklyData.summary.carbs += dailyData.summary.carbs || 0;
+        weeklyData.summary.fat += dailyData.summary.fat || 0;
+        weeklyData.water += dailyData.water || 0;
+        weeklyData.steps += dailyData.steps || 0;
+        weeklyData.routineCompletion += dailyData.routineCompletion || 0;
+        
+        if (dailyData.summary.calories > 0) {
+          weeklyData.daysWithData++;
+        }
+      }
+
+      // Aggregate meals (deduplicate)
+      const mealSet = {
+        breakfast: new Set(weeklyData.meals.breakfast),
+        lunch: new Set(weeklyData.meals.lunch),
+        dinner: new Set(weeklyData.meals.dinner),
+        snacks: new Set(weeklyData.meals.snacks),
+      };
+
+      dailyData.meals.breakfast.forEach(m => mealSet.breakfast.add(m));
+      dailyData.meals.lunch.forEach(m => mealSet.lunch.add(m));
+      dailyData.meals.dinner.forEach(m => mealSet.dinner.add(m));
+      dailyData.meals.snacks.forEach(m => mealSet.snacks.add(m));
+
+      weeklyData.meals.breakfast = Array.from(mealSet.breakfast);
+      weeklyData.meals.lunch = Array.from(mealSet.lunch);
+      weeklyData.meals.dinner = Array.from(mealSet.dinner);
+      weeklyData.meals.snacks = Array.from(mealSet.snacks);
+
+      // Use goals from first day (should be consistent)
+      if (i === 0) {
+        weeklyData.goals = dailyData.goals;
+      }
+    }
+
+    // Average routine completion
+    weeklyData.routineCompletion = weeklyData.routineCompletion / 7;
+
+    return weeklyData;
+  } catch (error) {
+    console.error(`Error fetching weekly data for ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch plant diversity data for a week
+ * @param {string} userId - User ID
+ * @param {string} weekId - Week ID in format "YYYY-Www"
+ * @returns {Promise<Object|null>} Plant diversity data or null
+ */
+async function _fetchPlantDiversityData(userId, weekId) {
+  try {
+    const plantDoc = await firestore
+      .collection('users')
+      .doc(userId)
+      .collection('plant_tracking')
+      .doc(weekId)
+      .get();
+
+    if (!plantDoc.exists) {
+      return null;
+    }
+
+    const data = plantDoc.data();
+    const uniquePlants = data.uniquePlants?.length || 0;
+    const plantDetails = data.plantDetails || [];
+
+    // Calculate level
+    let level = 0;
+    if (uniquePlants >= 30) {
+      level = 3;
+    } else if (uniquePlants >= 20) {
+      level = 2;
+    } else if (uniquePlants >= 10) {
+      level = 1;
+    }
+
+    // Calculate progress
+    let progress = 0.0;
+    if (level === 0) {
+      progress = uniquePlants / 10.0;
+    } else if (level === 1) {
+      progress = (uniquePlants - 10) / 10.0;
+    } else if (level === 2) {
+      progress = (uniquePlants - 20) / 10.0;
+    } else {
+      progress = 1.0;
+    }
+    progress = Math.max(0.0, Math.min(1.0, progress));
+
+    // Category breakdown
+    const categoryBreakdown = {};
+    plantDetails.forEach(plant => {
+      const category = plant.category || 'unknown';
+      categoryBreakdown[category] = (categoryBreakdown[category] || 0) + 1;
+    });
+
+    return {
+      uniquePlants,
+      level,
+      progress,
+      categoryBreakdown,
+      plantNames: data.uniquePlants || [],
+    };
+  } catch (error) {
+    console.error(`Error fetching plant diversity for ${userId}, week ${weekId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Generate weekly journal prompt for Gemini
+ * @param {Object} weeklyData - Aggregated weekly data
+ * @param {Array<string>} userNotes - User notes from chat
+ * @param {Object} userGoals - User goals
+ * @param {string} userName - User name
+ * @param {string} weekId - Week ID
+ * @param {Date} weekStart - Week start date
+ * @param {Date} weekEnd - Week end date
+ * @param {Object|null} plantDiversity - Plant diversity data
+ * @returns {string} Prompt for Gemini
+ */
+function _generateWeeklyJournalPrompt(weeklyData, userNotes, userGoals, userName, weekId, weekStart, weekEnd, plantDiversity) {
+  const summary = weeklyData.summary;
+  const meals = weeklyData.meals;
+  const calories = summary.calories || 0;
+  const protein = summary.protein || 0;
+  const carbs = summary.carbs || 0;
+  const fat = summary.fat || 0;
+  const water = weeklyData.water || 0;
+  const steps = weeklyData.steps || 0;
+  const routineCompletion = weeklyData.routineCompletion || 0;
+  const daysWithData = weeklyData.daysWithData || 0;
+
+  // Calculate weekly averages
+  const avgCalories = daysWithData > 0 ? calories / daysWithData : 0;
+  const avgProtein = daysWithData > 0 ? protein / daysWithData : 0;
+  const avgCarbs = daysWithData > 0 ? carbs / daysWithData : 0;
+  const avgFat = daysWithData > 0 ? fat / daysWithData : 0;
+
+  // Calculate progress (based on weekly totals vs weekly goals)
+  const weeklyCalorieGoal = userGoals.calories * 7;
+  const weeklyProteinGoal = userGoals.protein * 7;
+  const weeklyCarbsGoal = userGoals.carbs * 7;
+  const weeklyFatGoal = userGoals.fat * 7;
+
+  const calorieProgress = weeklyCalorieGoal > 0 ? (calories / weeklyCalorieGoal * 100) : 0;
+  const proteinProgress = weeklyProteinGoal > 0 ? (protein / weeklyProteinGoal * 100) : 0;
+  const carbsProgress = weeklyCarbsGoal > 0 ? (carbs / weeklyCarbsGoal * 100) : 0;
+  const fatProgress = weeklyFatGoal > 0 ? (fat / weeklyFatGoal * 100) : 0;
+
+  const breakfastList = meals.breakfast.length > 0 ? meals.breakfast.join(', ') : 'None';
+  const lunchList = meals.lunch.length > 0 ? meals.lunch.join(', ') : 'None';
+  const dinnerList = meals.dinner.length > 0 ? meals.dinner.join(', ') : 'None';
+  const snacksList = meals.snacks.length > 0 ? meals.snacks.join(', ') : 'None';
+
+  const userNotesText = userNotes.length > 0
+    ? userNotes.join('\n')
+    : 'No notes from user this week.';
+
+  const weekStartStr = format(weekStart, 'MMM d');
+  const weekEndStr = format(weekEnd, 'MMM d, yyyy');
+
+  let plantDiversityText = '';
+  if (plantDiversity) {
+    plantDiversityText = `\nPLANT DIVERSITY (Rainbow Tracker):
+- Unique plants this week: ${plantDiversity.uniquePlants} / 30
+- Level: ${plantDiversity.level === 3 ? 'Gut Hero' : plantDiversity.level === 2 ? 'Healthy' : plantDiversity.level === 1 ? 'Beginner' : 'Getting Started'}
+- Progress to next level: ${(plantDiversity.progress * 100).toFixed(1)}%
+- Category breakdown: ${JSON.stringify(plantDiversity.categoryBreakdown)}`;
+  }
+
+  return `You are creating a weekly food health journal entry for ${userName} for the week of ${weekStartStr} - ${weekEndStr} (Week ${weekId}).
+
+WEEKLY NUTRITION DATA (7-day totals):
+- Total Calories: ${calories} / ${weeklyCalorieGoal} (${calorieProgress.toFixed(1)}% of weekly goal)
+- Average Daily Calories: ${avgCalories.toFixed(0)}
+- Total Protein: ${protein}g / ${weeklyProteinGoal}g (${proteinProgress.toFixed(1)}% of weekly goal)
+- Average Daily Protein: ${avgProtein.toFixed(1)}g
+- Total Carbs: ${carbs}g / ${weeklyCarbsGoal}g (${carbsProgress.toFixed(1)}% of weekly goal)
+- Average Daily Carbs: ${avgCarbs.toFixed(1)}g
+- Total Fat: ${fat}g / ${weeklyFatGoal}g (${fatProgress.toFixed(1)}% of weekly goal)
+- Average Daily Fat: ${avgFat.toFixed(1)}g
+- Total Water: ${water}ml (average: ${(water / 7).toFixed(0)}ml/day)
+- Total Steps: ${steps} (average: ${(steps / 7).toFixed(0)}/day)
+- Average Routine completion: ${routineCompletion.toFixed(1)}%
+- Days with logged meals: ${daysWithData} / 7${plantDiversityText}
+
+MEALS EATEN THIS WEEK (unique meals):
+Breakfast: ${breakfastList}
+Lunch: ${lunchList}
+Dinner: ${dinnerList}
+Snacks: ${snacksList}
+
+USER NOTES FROM CHAT:
+${userNotesText}
+
+Create a comprehensive weekly food health journal entry in this format:
+
+{
+  "weekId": "${weekId}",
+  "weekStart": "${format(weekStart, 'yyyy-MM-dd')}",
+  "weekEnd": "${format(weekEnd, 'yyyy-MM-dd')}",
+  "status": "completed",
+  "summary": {
+    "narrative": "A warm, encouraging 3-4 paragraph narrative summary of the week's food journey, highlighting achievements, patterns across the week, and gentle suggestions for the next week. Focus on weekly trends rather than daily details.",
+    "highlights": [
+      "Key achievement 1",
+      "Key achievement 2",
+      "Notable pattern or insight"
+    ],
+    "insights": [
+      "Nutritional insight 1",
+      "Nutritional insight 2"
+    ],
+    "suggestions": [
+      "Gentle suggestion for next week 1",
+      "Gentle suggestion for next week 2"
+    ]
+  },
+  "data": {
+    "nutrition": {
+      "calories": {"consumed": ${calories}, "goal": ${weeklyCalorieGoal}, "progress": ${calorieProgress.toFixed(1)}},
+      "protein": {"consumed": ${protein}, "goal": ${weeklyProteinGoal}, "progress": ${proteinProgress.toFixed(1)}},
+      "carbs": {"consumed": ${carbs}, "goal": ${weeklyCarbsGoal}, "progress": ${carbsProgress.toFixed(1)}},
+      "fat": {"consumed": ${fat}, "goal": ${weeklyFatGoal}, "progress": ${fatProgress.toFixed(1)}}
+    },
+    "activity": {
+      "water": {"consumed": ${water}, "goal": 14000, "progress": ${(water / 14000 * 100).toFixed(1)}},
+      "steps": {"consumed": ${steps}, "goal": 70000, "progress": ${(steps / 70000 * 100).toFixed(1)}},
+      "routineCompletion": ${routineCompletion}
+    },
+    "meals": {
+      "breakfast": ${JSON.stringify(meals.breakfast)},
+      "lunch": ${JSON.stringify(meals.lunch)},
+      "dinner": ${JSON.stringify(meals.dinner)},
+      "snacks": ${JSON.stringify(meals.snacks)}
+    },
+    "goals": {
+      "calories": {"goal": ${weeklyCalorieGoal}, "progress": ${calorieProgress.toFixed(1)}},
+      "protein": {"goal": ${weeklyProteinGoal}, "progress": ${proteinProgress.toFixed(1)}},
+      "carbs": {"goal": ${weeklyCarbsGoal}, "progress": ${carbsProgress.toFixed(1)}},
+      "fat": {"goal": ${weeklyFatGoal}, "progress": ${fatProgress.toFixed(1)}}
+    }
+  },
+  "userNotes": ${JSON.stringify(userNotes)}${plantDiversity ? `,
+  "plantDiversity": ${JSON.stringify(plantDiversity)}` : ''}
+}
+
+The narrative should be warm, encouraging, and personalized. Focus on weekly patterns and trends rather than daily details. Highlight consistency, variety, and progress over the week. Return ONLY valid JSON, no markdown or code blocks.`;
+}
+
+/**
+ * Scheduled function to generate weekly health journal entries
+ * Runs weekly on Sunday at 11:59 PM (end of week)
+ * Checks user's scheduledFor preference
+ */
+exports.generateWeeklyHealthJournal = onSchedule(
+  {
+    schedule: '59 23 * * 0', // Every Sunday at 11:59 PM
+    timeZone: 'America/New_York',
+  },
+  async (event) => {
+    console.log('=== generateWeeklyHealthJournal Scheduled Function Started ===');
+    const startTime = Date.now();
+
+    try {
+      // Get last week's dates (week that just ended)
+      const now = new Date();
+      const lastSunday = new Date(now);
+      lastSunday.setDate(lastSunday.getDate() - (lastSunday.getDay() || 7)); // Last Sunday
+      const weekStart = _getWeekStart(lastSunday);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const weekId = _getWeekId(weekStart);
+
+      console.log(`Generating journal entries for week: ${weekId} (${format(weekStart, 'yyyy-MM-dd')} to ${format(weekEnd, 'yyyy-MM-dd')})`);
+
+      // Get all users with health journal enabled
+      const usersSnapshot = await firestore
+        .collection('users')
+        .where('settings.healthJournalEnabled', '==', true)
+        .get();
+
+      console.log(`Found ${usersSnapshot.size} users with health journal enabled`);
+
+      if (usersSnapshot.size === 0) {
+        console.log('No users with health journal enabled');
+        return null;
+      }
+
+      const model = await _getGeminiModel();
+
+      // Process users in batches
+      const BATCH_SIZE = 20; // Smaller batch size for weekly (more data per user)
+      const allDocs = usersSnapshot.docs;
+      const totalBatches = Math.ceil(allDocs.length / BATCH_SIZE);
+
+      console.log(`Processing ${allDocs.length} users in ${totalBatches} batches of ${BATCH_SIZE}`);
+
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        const batchStart = batchIndex * BATCH_SIZE;
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, allDocs.length);
+        const batchDocs = allDocs.slice(batchStart, batchEnd);
+
+        console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (users ${batchStart + 1}-${batchEnd})`);
+
+        const batchPromises = batchDocs.map(async (userDoc) => {
+          const userId = userDoc.id;
+          const userData = userDoc.data();
+          const settings = userData.settings || {};
+
+          try {
+            // Check if journal already exists
+            const existingJournal = await firestore
+              .collection('users')
+              .doc(userId)
+              .collection('health_journal')
+              .doc(weekId)
+              .get();
+
+            if (existingJournal.exists && existingJournal.data()?.status === 'completed') {
+              console.log(`Journal already exists for user ${userId}, week ${weekId}`);
+              return;
+            }
+
+            // Check user's scheduledFor preference (if set)
+            const scheduledFor = settings.healthJournalScheduledFor;
+            if (scheduledFor) {
+              const scheduledTime = scheduledFor.toDate ? scheduledFor.toDate() : new Date(scheduledFor);
+              const now = new Date();
+              // Only generate if scheduled time has passed
+              if (scheduledTime > now) {
+                console.log(`Skipping user ${userId}: scheduled for ${scheduledTime}, current time: ${now}`);
+                return;
+              }
+            }
+
+            console.log(`Processing weekly journal for user: ${userId}`);
+
+            // Mark as generating
+            await firestore
+              .collection('users')
+              .doc(userId)
+              .collection('health_journal')
+              .doc(weekId)
+              .set({
+                status: 'generating',
+                weekId: weekId,
+                weekStart: admin.firestore.Timestamp.fromDate(weekStart),
+                weekEnd: admin.firestore.Timestamp.fromDate(weekEnd),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              }, { merge: true });
+
+            // Fetch weekly data
+            const weeklyData = await _fetchUserWeeklyData(userId, weekStart);
+
+            // Fetch buddy chat messages for the week
+            const userNotes = [];
+            for (let i = 0; i < 7; i++) {
+              const date = new Date(weekStart);
+              date.setDate(date.getDate() + i);
+              const dayNotes = await _fetchBuddyChatMessagesForDate(userId, date);
+              userNotes.push(...dayNotes);
+            }
+
+            // Fetch plant diversity data
+            const plantDiversity = await _fetchPlantDiversityData(userId, weekId);
+
+            // Get user name
+            const userName = userData.displayName || 'there';
+
+            // Generate prompt
+            const prompt = _generateWeeklyJournalPrompt(
+              weeklyData,
+              userNotes,
+              weeklyData.goals,
+              userName,
+              weekId,
+              weekStart,
+              weekEnd,
+              plantDiversity
+            );
+
+            // Generate journal entry with Gemini
+            const result = await model.generateContent({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                maxOutputTokens: 15000, // More tokens for weekly summary
+              },
+            });
+
+            const response = result.response.text();
+            console.log(`Raw AI response for ${userId}:`, response.substring(0, Math.min(response.length, 500)) + '...');
+
+            // Parse JSON response
+            const journalData = await processAIResponse(response, 'health_journal');
+
+            // Validate required fields
+            if (!journalData.summary || !journalData.data) {
+              throw new Error('Missing essential journal fields in AI response');
+            }
+
+            // Save journal entry
+            const journalRef = firestore
+              .collection('users')
+              .doc(userId)
+              .collection('health_journal')
+              .doc(weekId);
+
+            await journalRef.set({
+              ...journalData,
+              status: 'completed',
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              generatedBy: 'cloud_function',
+            }, { merge: true });
+
+            console.log(`Successfully generated weekly journal entry for user ${userId}, week ${weekId}`);
+          } catch (error) {
+            console.error(`Error generating weekly journal for user ${userId}:`, error);
+            
+            // Mark as failed
+            await firestore
+              .collection('users')
+              .doc(userId)
+              .collection('health_journal')
+              .doc(weekId)
+              .set({
+                status: 'pending',
+                error: error.message,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              }, { merge: true });
+          }
+        });
+
+        // Wait for current batch to complete
+        await Promise.all(batchPromises);
+
+        // Small delay between batches
+        if (batchIndex < totalBatches - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+        }
+      }
+
+      const executionTime = Date.now() - startTime;
+      console.log(`=== generateWeeklyHealthJournal Completed in ${executionTime}ms ===`);
+      return null;
+    } catch (error) {
+      console.error('Error in generateWeeklyHealthJournal:', error);
+      return null;
+    }
+  }
+);
 
 /**
  * Scheduled function to generate daily health journal entries

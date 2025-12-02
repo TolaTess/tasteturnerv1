@@ -10,6 +10,7 @@ import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
 import 'badge_service.dart';
 import 'cycle_adjustment_service.dart';
+import 'plant_detection_service.dart';
 
 class NutritionController extends GetxController {
   static NutritionController instance = Get.find();
@@ -46,6 +47,11 @@ class NutritionController extends GetxController {
 
   StreamSubscription? _summarySubscription;
   StreamSubscription? _metricsSubscription;
+
+  // Track when we're updating to prevent stream from overwriting
+  DateTime? _lastWaterUpdate;
+  DateTime? _lastStepsUpdate;
+  static const _updateCooldown = Duration(milliseconds: 500);
 
   @override
   void onClose() {
@@ -111,26 +117,61 @@ class NutritionController extends GetxController {
         .listen((snapshot) {
       if (snapshot.exists) {
         final data = snapshot.data()!;
+
         final waterValue = data['Water'];
         if (waterValue != null) {
-          currentWater.value = (waterValue is num)
+          final parsedWater = (waterValue is num)
               ? waterValue.toDouble()
               : (double.tryParse(waterValue.toString()) ?? 0.0);
+
+          // Only update if we haven't recently updated (prevent overwriting our own updates)
+          final now = DateTime.now();
+          if (_lastWaterUpdate == null ||
+              now.difference(_lastWaterUpdate!) > _updateCooldown ||
+              (parsedWater - currentWater.value).abs() > 0.01) {
+            currentWater.value = parsedWater;
+          } else {}
         } else {
-          currentWater.value = 0.0;
+          // Only set to 0 if we haven't recently updated
+          final now = DateTime.now();
+          if (_lastWaterUpdate == null ||
+              now.difference(_lastWaterUpdate!) > _updateCooldown) {
+            currentWater.value = 0.0;
+          }
         }
 
         final stepsValue = data['Steps'];
         if (stepsValue != null) {
-          currentSteps.value = (stepsValue is num)
+          final parsedSteps = (stepsValue is num)
               ? stepsValue.toDouble()
               : (double.tryParse(stepsValue.toString()) ?? 0.0);
+
+          // Only update if we haven't recently updated (prevent overwriting our own updates)
+          final now = DateTime.now();
+          if (_lastStepsUpdate == null ||
+              now.difference(_lastStepsUpdate!) > _updateCooldown ||
+              (parsedSteps - currentSteps.value).abs() > 0.01) {
+            currentSteps.value = parsedSteps;
+          }
         } else {
-          currentSteps.value = 0.0;
+          // Only set to 0 if we haven't recently updated
+          final now = DateTime.now();
+          if (_lastStepsUpdate == null ||
+              now.difference(_lastStepsUpdate!) > _updateCooldown) {
+            currentSteps.value = 0.0;
+          }
         }
       } else {
-        currentWater.value = 0.0;
-        currentSteps.value = 0.0;
+        // Only set to 0 if we haven't recently updated
+        final now = DateTime.now();
+        if (_lastWaterUpdate == null ||
+            now.difference(_lastWaterUpdate!) > _updateCooldown) {
+          currentWater.value = 0.0;
+        }
+        if (_lastStepsUpdate == null ||
+            now.difference(_lastStepsUpdate!) > _updateCooldown) {
+          currentSteps.value = 0.0;
+        }
       }
     });
 
@@ -239,6 +280,82 @@ class NutritionController extends GetxController {
     }
   }
 
+  /// Fetch water value for a specific date (doesn't update observables)
+  Future<double> getWaterForDate(String userId, DateTime date) async {
+    try {
+      final dateStr =
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+      final userMealsRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('meals')
+          .doc(dateStr);
+
+      final docSnapshot = await userMealsRef.get();
+
+      if (!docSnapshot.exists) {
+        return 0.0;
+      }
+
+      final data = docSnapshot.data();
+      if (data == null) {
+        return 0.0;
+      }
+
+      final waterValue = data['Water'];
+      if (waterValue != null) {
+        if (waterValue is num) {
+          return waterValue.toDouble();
+        } else if (waterValue is String) {
+          return double.tryParse(waterValue) ?? 0.0;
+        }
+      }
+      return 0.0;
+    } catch (e) {
+      debugPrint('Error fetching water for date: $e');
+      return 0.0;
+    }
+  }
+
+  /// Fetch steps value for a specific date (doesn't update observables)
+  Future<double> getStepsForDate(String userId, DateTime date) async {
+    try {
+      final dateStr =
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+      final userMealsRef = firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('meals')
+          .doc(dateStr);
+
+      final docSnapshot = await userMealsRef.get();
+
+      if (!docSnapshot.exists) {
+        return 0.0;
+      }
+
+      final data = docSnapshot.data();
+      if (data == null) {
+        return 0.0;
+      }
+
+      final stepsValue = data['Steps'];
+      if (stepsValue != null) {
+        if (stepsValue is num) {
+          return stepsValue.toDouble();
+        } else if (stepsValue is String) {
+          return double.tryParse(stepsValue) ?? 0.0;
+        }
+      }
+      return 0.0;
+    } catch (e) {
+      debugPrint('Error fetching steps for date: $e');
+      return 0.0;
+    }
+  }
+
   // Initialize settings based on user data
   void loadSettings(Map<String, dynamic>? settings) {
     if (settings == null) {
@@ -247,17 +364,18 @@ class NutritionController extends GetxController {
       return;
     }
 
-    double baseCalories = (settings['foodGoal'] ?? '0').toString().trim().isEmpty
-        ? 0.0
-        : double.tryParse(settings['foodGoal'].toString()) ?? 0.0;
-    
+    double baseCalories =
+        (settings['foodGoal'] ?? '0').toString().trim().isEmpty
+            ? 0.0
+            : double.tryParse(settings['foodGoal'].toString()) ?? 0.0;
+
     // Apply cycle adjustments if enabled
     final cycleDataRaw = settings['cycleTracking'];
     Map<String, dynamic>? cycleData;
     if (cycleDataRaw != null && cycleDataRaw is Map) {
       cycleData = Map<String, dynamic>.from(cycleDataRaw);
     }
-    
+
     if (cycleData != null && (cycleData['isEnabled'] as bool? ?? false)) {
       final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
       if (lastPeriodStartStr != null) {
@@ -265,25 +383,31 @@ class NutritionController extends GetxController {
         if (lastPeriodStart != null) {
           final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
           final cycleService = CycleAdjustmentService.instance;
-          final phase = cycleService.getCurrentPhase(lastPeriodStart, cycleLength);
-          
+          final phase =
+              cycleService.getCurrentPhase(lastPeriodStart, cycleLength);
+
           final baseGoals = {
             'calories': baseCalories,
-            'protein': double.tryParse(settings['proteinGoal']?.toString() ?? '0') ?? 0.0,
-            'carbs': double.tryParse(settings['carbsGoal']?.toString() ?? '0') ?? 0.0,
-            'fat': double.tryParse(settings['fatGoal']?.toString() ?? '0') ?? 0.0,
+            'protein':
+                double.tryParse(settings['proteinGoal']?.toString() ?? '0') ??
+                    0.0,
+            'carbs':
+                double.tryParse(settings['carbsGoal']?.toString() ?? '0') ??
+                    0.0,
+            'fat':
+                double.tryParse(settings['fatGoal']?.toString() ?? '0') ?? 0.0,
           };
-          
+
           final adjustedGoals = cycleService.getAdjustedGoals(baseGoals, phase);
           targetCalories.value = adjustedGoals['calories'] ?? baseCalories;
-          
+
           // Update macro goals if needed (for future use)
           // Note: Currently only calories are adjusted in the UI
           return;
         }
       }
     }
-    
+
     targetCalories.value = baseCalories;
 
     targetWater.value =
@@ -297,25 +421,38 @@ class NutritionController extends GetxController {
             : double.tryParse(settings['targetSteps'].toString()) ?? 0.0;
   }
 
-  Future<void> updateCurrentWater(String userId, double newCurrentWater) async {
+  Future<void> updateCurrentWater(String userId, double newCurrentWater,
+      {DateTime? date}) async {
     try {
+      // Mark that we're updating to prevent stream from overwriting
+      _lastWaterUpdate = DateTime.now();
+
+      // Update the local observable FIRST for immediate UI feedback
+      // Only update if we're updating today's date, otherwise don't update the observable
+      final targetDate = date ?? DateTime.now();
       final today = DateTime.now();
-      final date =
-          "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+      final isToday = targetDate.year == today.year &&
+          targetDate.month == today.month &&
+          targetDate.day == today.day;
+
+      if (isToday) {
+        currentWater.value = newCurrentWater;
+      }
+
+      final dateToUse = date ?? DateTime.now();
+      final dateStr =
+          "${dateToUse.year}-${dateToUse.month.toString().padLeft(2, '0')}-${dateToUse.day.toString().padLeft(2, '0')}";
 
       final userMealsRef = firestore
           .collection('userMeals')
           .doc(userId)
           .collection('meals')
-          .doc(date);
+          .doc(dateStr);
 
-      // Update Firestore with the new water value, replacing any existing value
+      // Update Firestore with the new water value as a number (not string)
       await userMealsRef.set({
-        'Water': newCurrentWater.toString(),
+        'Water': newCurrentWater, // Save as number, not string
       }, SetOptions(merge: true));
-
-      // Update the local observable
-      currentWater.value = newCurrentWater;
 
       // Use BadgeService for goal achievement
       await BadgeService.instance.checkGoalAchievement(
@@ -329,25 +466,38 @@ class NutritionController extends GetxController {
     }
   }
 
-  Future<void> updateCurrentSteps(String userId, double newCurrentSteps) async {
+  Future<void> updateCurrentSteps(String userId, double newCurrentSteps,
+      {DateTime? date}) async {
     try {
+      // Mark that we're updating to prevent stream from overwriting
+      _lastStepsUpdate = DateTime.now();
+
+      // Update the local observable FIRST for immediate UI feedback
+      // Only update if we're updating today's date, otherwise don't update the observable
+      final targetDate = date ?? DateTime.now();
       final today = DateTime.now();
-      final date =
-          "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+      final isToday = targetDate.year == today.year &&
+          targetDate.month == today.month &&
+          targetDate.day == today.day;
+
+      if (isToday) {
+        currentSteps.value = newCurrentSteps;
+      }
+
+      final dateToUse = date ?? DateTime.now();
+      final dateStr =
+          "${dateToUse.year}-${dateToUse.month.toString().padLeft(2, '0')}-${dateToUse.day.toString().padLeft(2, '0')}";
 
       final userMealsRef = firestore
           .collection('userMeals')
           .doc(userId)
           .collection('meals')
-          .doc(date);
+          .doc(dateStr);
 
-      // Update Firestore with the new steps value, replacing any existing value
+      // Update Firestore with the new steps value as a number (not string)
       await userMealsRef.set({
-        'Steps': newCurrentSteps.toString(),
+        'Steps': newCurrentSteps, // Save as number, not string
       }, SetOptions(merge: true));
-
-      // Update the local observable
-      currentSteps.value = newCurrentSteps;
 
       // Use BadgeService for goal achievement
       await BadgeService.instance.checkGoalAchievement(
@@ -560,6 +710,48 @@ class NutritionController extends GetxController {
 
       // Use BadgeService for meal logging
       await BadgeService.instance.checkMealLogged(userId, foodType);
+
+      // Track plants from meal ingredients for Rainbow Tracker
+      try {
+        // Fetch the meal document to get ingredients
+        if (meal.mealId.isNotEmpty && meal.mealId != 'Add Food') {
+          final mealDoc =
+              await firestore.collection('meals').doc(meal.mealId).get();
+          if (mealDoc.exists) {
+            final mealData = mealDoc.data()!;
+            final ingredients =
+                mealData['ingredients'] as Map<String, dynamic>?;
+            if (ingredients != null && ingredients.isNotEmpty) {
+              // Convert to Map<String, String> for plant tracking
+              final ingredientsMap = ingredients.map(
+                  (key, value) => MapEntry(key.toString(), value.toString()));
+
+              debugPrint(
+                  '🌱 Tracking plants from meal ${meal.name} (${meal.mealId}): ${ingredientsMap.keys.length} ingredients');
+
+              // Track plants from ingredients
+              await PlantDetectionService.instance.trackPlantsFromIngredients(
+                userId,
+                ingredientsMap,
+                today,
+              );
+
+              debugPrint('🌱 Plant tracking completed for meal ${meal.name}');
+            } else {
+              debugPrint(
+                  '🌱 No ingredients found in meal ${meal.name} (${meal.mealId})');
+            }
+          } else {
+            debugPrint('🌱 Meal document not found: ${meal.mealId}');
+          }
+        } else {
+          debugPrint(
+              '🌱 Skipping plant tracking for meal: ${meal.name} (mealId: ${meal.mealId})');
+        }
+      } catch (e) {
+        debugPrint('🌱 Error tracking plants from meal: $e');
+        // Don't fail the meal logging if plant tracking fails
+      }
 
       fetchMealsForToday(userId, today);
     } catch (e) {

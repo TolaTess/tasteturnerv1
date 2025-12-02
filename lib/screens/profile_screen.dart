@@ -6,7 +6,6 @@ import 'package:get/get.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import '../constants.dart';
 import '../data_models/post_model.dart';
-import '../data_models/profilescreen_data.dart';
 import '../detail_screen/challenge_detail_screen.dart';
 import '../helper/utils.dart';
 import '../pages/edit_goal.dart';
@@ -19,7 +18,6 @@ import 'badges_screen.dart';
 import '../pages/settings_screen.dart';
 import '../service/post_service.dart';
 import '../service/badge_service.dart';
-import '../data_models/badge_system_model.dart' as BadgeModel;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'daily_summary_screen.dart';
 import '../helper/onboarding_prompt_helper.dart';
@@ -41,7 +39,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> searchContentDatas = [];
   late Future<Map<String, dynamic>> chartDataFuture;
   final userId = userService.userId ?? '';
-  bool isLoading = true;
   bool isPostsLoading = true;
   bool isMealsLoading = false;
   bool showMeals = false; // Toggle between posts and meals
@@ -138,16 +135,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Points are now handled by BadgeService
   }
 
-  Future<Map<String, dynamic>> fetchChartData(String userid) async {
-    final caloriesByDate =
-        await dailyDataController.fetchCaloriesByDate(userid);
-    List<String> dateLabels = [];
-    List<FlSpot> chartData = prepareChartData(caloriesByDate, dateLabels);
+  /// Handle errors with consistent snackbar display
+  void _handleError(String message, {String? details}) {
+    if (!mounted || !context.mounted) return;
+    debugPrint('Error: $message${details != null ? ' - $details' : ''}');
+    showTastySnackbar(
+      'Error',
+      message,
+      context,
+      backgroundColor: Colors.red,
+    );
+  }
 
-    return {
-      'chartData': chartData,
-      'dateLabels': dateLabels,
-    };
+  Future<Map<String, dynamic>> fetchChartData(String userid) async {
+    try {
+      final caloriesByDate =
+          await dailyDataController.fetchCaloriesByDate(userid);
+      List<String> dateLabels = [];
+      List<FlSpot> chartData = prepareChartData(caloriesByDate, dateLabels);
+
+      return {
+        'chartData': chartData,
+        'dateLabels': dateLabels,
+      };
+    } catch (e) {
+      debugPrint('Error fetching chart data: $e');
+      // Return empty data on error
+      return {
+        'chartData': <FlSpot>[],
+        'dateLabels': <String>[],
+      };
+    }
   }
 
   List<FlSpot> prepareChartData(
@@ -169,6 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -200,11 +219,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           isPostsLoading = false;
         });
         if (result.error != null) {
-          debugPrint('Error fetching user posts: ${result.error}');
+          _handleError('Failed to load posts. Please try again.',
+              details: result.error);
         }
       }
     } catch (e) {
-      debugPrint('Error fetching content: $e');
+      _handleError('Failed to load posts. Please try again.',
+          details: e.toString());
       if (mounted) {
         setState(() {
           searchContentDatas = [];
@@ -251,7 +272,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error fetching user meals: $e');
+      _handleError('Failed to load meals. Please try again.',
+          details: e.toString());
       if (mounted) {
         setState(() {
           userMeals = [];
@@ -280,16 +302,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       double progress = (weightGained / totalWeightToGain) * 100;
       return progress.clamp(0.0, 100.0);
     }
-  }
-
-  // Helper function to convert Badge to BadgeAchievementData for compatibility
-  BadgeAchievementData _convertBadgeToLegacyFormat(BadgeModel.Badge badge) {
-    return BadgeAchievementData(
-      title: badge.title,
-      description: badge.description,
-      userids: [userId], // Current user
-      image: tastyImage, // Use default image
-    );
   }
 
   @override

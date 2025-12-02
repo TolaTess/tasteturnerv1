@@ -12,6 +12,7 @@ import '../service/health_journal_service.dart';
 import '../data_models/health_journal_model.dart';
 import '../service/nutrient_breakdown_service.dart';
 import '../data_models/user_meal.dart';
+import '../screens/rainbow_tracker_detail_screen.dart';
 import 'health_journal_widget.dart';
 import 'rainbow_tracker_widget.dart';
 
@@ -445,8 +446,13 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           RainbowTrackerWidget(
             weekStart: getWeekStart(widget.date),
             onTap: () {
-              // Navigate to dedicated Rainbow Tracker screen
-              // TODO: Implement navigation when screen is created
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => RainbowTrackerDetailScreen(
+                    weekStart: getWeekStart(widget.date),
+                  ),
+                ),
+              );
             },
           ),
 

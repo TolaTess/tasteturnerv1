@@ -15,7 +15,6 @@ import '../data_models/user_data_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../data_models/meal_model.dart';
-import '../data_models/user_meal.dart';
 import '../screens/friend_screen.dart';
 import '../service/meal_plan_controller.dart';
 import '../service/tasty_popup_service.dart';
@@ -46,7 +45,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   late PageController
       _calendarPageController; // Move PageController to widget level
   DateTime selectedDate = DateTime.now();
-  Set<String> selectedShoppingItems = {};
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Future<QuerySnapshot<Map<String, dynamic>>>? _buddyDataFuture;
   int get _tabCount => 2;
@@ -112,8 +110,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
       _categoryDatasIngredient = [currentUser, ...familyList];
       if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
-        selectedCategoryId = _categoryDatasIngredient[0]['id'] ?? '';
-        selectedCategory = _categoryDatasIngredient[0]['name'] ?? '';
+        final firstCategory = _categoryDatasIngredient[0];
+        selectedCategoryId = firstCategory['id']?.toString() ?? '';
+        selectedCategory = firstCategory['name']?.toString() ?? '';
       }
     }
 
@@ -151,20 +150,31 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     _onRefresh();
   }
 
+  /// Format date as yyyy-MM-dd for Firestore document ID
+  String _formatDate(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  /// Handle errors with consistent snackbar display
+  void _handleError(String message, {String? details}) {
+    if (!mounted || !context.mounted) return;
+    debugPrint('Error: $message${details != null ? ' - $details' : ''}');
+        showTastySnackbar(
+          'Error',
+      message,
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+
+
   Future<void> _onRefresh() async {
     if (!mounted) return;
     try {
       _mealPlanController.refresh();
     } catch (e) {
-      debugPrint('Error refreshing meal plan: $e');
-      if (mounted && context.mounted) {
-        showTastySnackbar(
-          'Error',
-          'Failed to refresh meal plan. Please try again.',
-          context,
-          backgroundColor: Colors.red,
-        );
-      }
+      _handleError('Failed to refresh meal plan. Please try again.',
+          details: e.toString());
     }
   }
 
@@ -240,7 +250,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
   @override
   void dispose() {
-    // _saveCurrentShoppingList();
     _tabController.removeListener(_handleTabIndex);
     _tabController.dispose();
     _calendarPageController.dispose(); // Dispose PageController
@@ -2202,7 +2211,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final String action = result['action'];
 
     // Format date as yyyy-MM-dd for Firestore document ID
-    final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+    final formattedDate = _formatDate(selectedDate);
     final userId = userService.userId;
 
     if (userId == null || userId.isEmpty) {
@@ -2767,52 +2776,3 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 }
 
-caseDayType(String dayType) {
-  switch (dayType.toLowerCase()) {
-    case 'welcome_day':
-      return 'This was your first day with TastyTurner!';
-    case 'family_dinner':
-      return 'This was a Family Dinner day.';
-    case 'workout_boost':
-      return 'This was a Workout Boost day.';
-    case 'special_celebration':
-      return 'You had a Special Celebration.';
-    default:
-      return 'This was a ${capitalizeFirstLetter(dayType.replaceAll('_', ' '))}.';
-  }
-}
-
-// Add SharedMealPlan class
-class SharedMealPlan {
-  final String date;
-  final String userId;
-  final List<UserMeal> meals;
-  final bool isSpecial;
-  final String? dayType;
-  final String sharedBy;
-
-  SharedMealPlan({
-    required this.date,
-    required this.userId,
-    required this.meals,
-    required this.isSpecial,
-    this.dayType,
-    required this.sharedBy,
-  });
-}
-
-// Helper to get meal type icon
-IconData getMealTypeIcon(String? type) {
-  switch ((type ?? '').toLowerCase()) {
-    case 'breakfast':
-      return Icons.emoji_food_beverage_outlined;
-    case 'lunch':
-      return Icons.lunch_dining_outlined;
-    case 'dinner':
-      return Icons.dinner_dining_outlined;
-    case 'snacks':
-      return Icons.cake_outlined;
-    default:
-      return Icons.question_mark;
-  }
-}

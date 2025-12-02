@@ -164,9 +164,15 @@ class RoutineController extends GetxController {
   }
 
   Future<void> toggleCompletion(String title, bool currentStatus) async {
-    if (!getCurrentDate(date)) {
+    // Allow updates for any date - the update methods now handle date parameter correctly
+    // Only restrict future dates (more than 1 day in the future)
+    final now = DateTime.now();
+    final daysDifference = date.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (daysDifference > 1) {
+      debugPrint('⚠️ Cannot update routine for dates more than 1 day in the future');
       return;
     }
+    
     try {
       final docRef = firestore
           .collection('userMeals')
@@ -180,23 +186,31 @@ class RoutineController extends GetxController {
       }
       updatedData[title] = !(currentStatus == true);
       if (title.contains('Water') && !currentStatus == true) {
+        // Toggling ON: Set water to waterTotal from user settings
+        final settings = userService.currentUser.value?.settings;
+        final double waterTotal = double.tryParse(
+                settings?['waterIntake']?.toString() ?? '0') ?? 0.0;
+        debugPrint('🔄 Routine Water Toggle ON - waterTotal: $waterTotal, setting to: $waterTotal');
         await dailyDataController.updateCurrentWater(
-            userId, dailyDataController.targetWater.value.toDouble());
+            userId, waterTotal, date: date);
       } else if (title.contains('Water') && currentStatus == true) {
-        await dailyDataController.updateCurrentWater(
-            userId,
-            dailyDataController.targetWater.value.toDouble() -
-                dailyDataController.currentWater.value.toDouble());
+        // Toggling OFF: Reset water to 0 (undo the action)
+        debugPrint('🔄 Routine Water Toggle OFF - resetting to 0.0');
+        await dailyDataController.updateCurrentWater(userId, 0.0, date: date);
       }
 
       if (title.contains('Steps') && !currentStatus == true) {
+        // Toggling ON: Set steps to stepsTotal from user settings
+        final settings = userService.currentUser.value?.settings;
+        final double stepsTotal = double.tryParse(
+                settings?['targetSteps']?.toString() ?? '0') ?? 0.0;
+        debugPrint('🔄 Routine Steps Toggle ON - stepsTotal: $stepsTotal, setting to: $stepsTotal');
         await dailyDataController.updateCurrentSteps(
-            userId, dailyDataController.targetSteps.value.toDouble());
+            userId, stepsTotal, date: date);
       } else if (title.contains('Steps') && currentStatus == true) {
-        await dailyDataController.updateCurrentSteps(
-            userId,
-            dailyDataController.targetSteps.value.toDouble() -
-                dailyDataController.currentSteps.value.toDouble());
+        // Toggling OFF: Reset steps to 0 (undo the action)
+        debugPrint('🔄 Routine Steps Toggle OFF - resetting to 0.0');
+        await dailyDataController.updateCurrentSteps(userId, 0.0, date: date);
       }
 
       if ((title.contains('Nutrition') || title.contains('Food')) &&

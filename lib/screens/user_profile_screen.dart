@@ -18,8 +18,20 @@ import '../data_models/badge_system_model.dart' as BadgeModel;
 import 'badges_screen.dart';
 import 'chat_screen.dart';
 import '../data_models/meal_model.dart';
-import '../detail_screen/recipe_detail.dart';
-import '../widgets/optimized_image.dart';
+import '../widgets/user_profile_meal_card.dart';
+
+// Constants for User Profile Screen
+class UserProfileConstants {
+  static const int maxBadgesDisplay = 5;
+  static const int maxItemsBeforeShowAll = 9;
+  static const int postsLimit = 50;
+  static const int mealsLimit = 50;
+  static const int gridCrossAxisCount = 3;
+  static const double scrollShrinkThreshold = 260.0;
+  static const double badgeSliderHeight = 13.0;
+  static const double mealCardHeight = 33.0;
+  static const double mealCardWidth = 33.0;
+}
 
 class UserProfileScreen extends StatefulWidget {
   final String userId;
@@ -50,7 +62,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   bool get isShrink {
     return _scrollController.hasClients &&
-        _scrollController.offset > (260 - kToolbarHeight);
+        _scrollController.offset > (UserProfileConstants.scrollShrinkThreshold - kToolbarHeight);
   }
 
   @override
@@ -84,7 +96,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       final postService = PostService.instance;
       final result = await postService.getUserPosts(
         userId: userId,
-        limit: 50, // Load more posts for profile
+        limit: UserProfileConstants.postsLimit,
         includeUserData: true,
       );
 
@@ -127,7 +139,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           .collection('meals')
           .where('userId', isEqualTo: userId)
           .orderBy('createdAt', descending: true)
-          .limit(50)
+          .limit(UserProfileConstants.mealsLimit)
           .get();
 
       if (mounted) {
@@ -408,12 +420,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       // Badges Slider
                       if (userBadges.isNotEmpty)
                         SizedBox(
-                          height: getPercentageHeight(13, context),
+                          height: getPercentageHeight(UserProfileConstants.badgeSliderHeight, context),
                           child: ListView.builder(
                             key: ValueKey('badges_list_${widget.userId}'),
-                            itemCount: userBadges.length > 5
-                                ? 5
-                                : userBadges.length, // Limit to 5 items
+                            itemCount: userBadges.length > UserProfileConstants.maxBadgesDisplay
+                                ? UserProfileConstants.maxBadgesDisplay
+                                : userBadges.length,
                             padding: EdgeInsets.only(
                                 left: getPercentageWidth(1, context)),
                             scrollDirection: Axis.horizontal,
@@ -533,8 +545,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             // Show meals
                             final itemCount = showAll
                                 ? userMeals.length
-                                : (userMeals.length > 9
-                                    ? 9
+                                : (userMeals.length > UserProfileConstants.maxItemsBeforeShowAll
+                                    ? UserProfileConstants.maxItemsBeforeShowAll
                                     : userMeals.length);
 
                             return Column(
@@ -582,7 +594,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     shrinkWrap: true,
                                     gridDelegate:
                                         SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 3,
+                                      crossAxisCount: UserProfileConstants.gridCrossAxisCount,
                                       mainAxisSpacing:
                                           getPercentageWidth(0.5, context),
                                       crossAxisSpacing:
@@ -595,11 +607,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     itemCount: itemCount,
                                     itemBuilder: (BuildContext ctx, index) {
                                       final meal = userMeals[index];
-                                      return _buildMealCard(meal, context);
+                                      return UserProfileMealCard(
+                                        meal: meal,
+                                        height: UserProfileConstants.mealCardHeight,
+                                        width: UserProfileConstants.mealCardWidth,
+                                      );
                                     },
                                   ),
                                 if (userMeals.isNotEmpty &&
-                                    userMeals.length > 9)
+                                    userMeals.length > UserProfileConstants.maxItemsBeforeShowAll)
                                   GestureDetector(
                                     onTap: () {
                                       setState(() {
@@ -625,8 +641,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             // Show posts (existing code)
                             final itemCount = showAll
                                 ? searchContentDatas.length
-                                : (searchContentDatas.length > 9
-                                    ? 9
+                                : (searchContentDatas.length > UserProfileConstants.maxItemsBeforeShowAll
+                                    ? UserProfileConstants.maxItemsBeforeShowAll
                                     : searchContentDatas.length);
 
                             return Column(
@@ -699,7 +715,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     shrinkWrap: true,
                                     gridDelegate:
                                         SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 3,
+                                      crossAxisCount: UserProfileConstants.gridCrossAxisCount,
                                       mainAxisSpacing:
                                           getPercentageWidth(0.5, context),
                                       crossAxisSpacing:
@@ -738,7 +754,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     },
                                   ),
                                 if (searchContentDatas.isNotEmpty &&
-                                    searchContentDatas.length > 9)
+                                    searchContentDatas.length > UserProfileConstants.maxItemsBeforeShowAll)
                                   GestureDetector(
                                     key: ValueKey(
                                         'show_all_toggle_${widget.userId}'),
@@ -776,86 +792,4 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildMealCard(Meal meal, BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final mediaPath = meal.mediaPaths.isNotEmpty
-        ? meal.mediaPaths.first
-        : extPlaceholderImage;
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RecipeDetailScreen(
-              mealData: meal,
-            ),
-          ),
-        );
-      },
-      child: Stack(
-        children: [
-          Container(
-            height: getPercentageHeight(33, context),
-            width: getPercentageWidth(33, context),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: mediaPath.isNotEmpty && mediaPath.contains('http')
-                  ? OptimizedImage(
-                      imageUrl: mediaPath,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      borderRadius: BorderRadius.circular(8),
-                    )
-                  : Image.asset(
-                      getAssetImageForItem(meal.category ?? 'default'),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Image.asset(
-                        extPlaceholderImage,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-            ),
-          ),
-          // Gradient overlay for better text visibility
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.6),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // Meal title overlay
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Padding(
-              padding: EdgeInsets.all(getPercentageWidth(1.5, context)),
-              child: Text(
-                meal.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.bodySmall?.copyWith(
-                  color: kWhite,
-                  fontWeight: FontWeight.w600,
-                  fontSize: getTextScale(2.8, context),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

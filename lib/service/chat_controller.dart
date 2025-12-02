@@ -530,6 +530,35 @@ class ChatController extends GetxController {
     }
   }
 
+  /// Increment calendar share count for non-premium users
+  Future<void> incrementCalendarShareCount() async {
+    try {
+      final currentUserId = userService.userId;
+      if (currentUserId == null || currentUserId.isEmpty) {
+        debugPrint("Cannot increment calendar share: userId is empty");
+        return;
+      }
+
+      final currentUser = userService.currentUser.value;
+      if (currentUser?.isPremium == true) {
+        // Premium users don't have share limits
+        return;
+      }
+
+      await firestore.collection('users').doc(currentUserId).set(
+        {
+          'calendarShares': FieldValue.increment(1),
+        },
+        SetOptions(merge: true),
+      );
+
+      // Log analytics event
+      FirebaseAnalytics.instance.logEvent(name: 'calendar_share_request');
+    } catch (e) {
+      debugPrint("Error incrementing calendar share count: $e");
+    }
+  }
+
   /// Save a message to Firestore for any chatId (for use in buddy_screen, program_screen, etc)
   static Future<void> saveMessageToFirestore({
     required String chatId,
@@ -1198,7 +1227,6 @@ Give 3-4 practical tips. Be encouraging!
       try {
         // Get ingredients from Firestore first
         final ingredients = await macroManager.getIngredientsByCategory('all');
-        final uniqueTypes = await macroManager.getUniqueTypes(ingredients);
         final mealList = await mealManager.fetchMealsByCategory('all');
 
         final messageId = const Uuid().v4();
@@ -1249,7 +1277,6 @@ Give 3-4 practical tips. Be encouraging!
           'Carbs',
           ingredients,
           mealList,
-          uniqueTypes,
           'All',
           true,
         );

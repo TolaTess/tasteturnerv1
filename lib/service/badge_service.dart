@@ -147,7 +147,6 @@ class BadgeService extends GetxController {
     try {
       // Check if this award has already been given today
       if (reason != null && await _hasBeenAwardedToday(userId, reason)) {
-        debugPrint('Award already given today for: $reason');
         return;
       }
 
@@ -382,8 +381,6 @@ class BadgeService extends GetxController {
       if (existingBadgeDoc.exists) {
         final existingData = existingBadgeDoc.data()!;
         if (existingData['isEarned'] == true) {
-          debugPrint(
-              'Badge ${badge.id} already earned for user $userId, skipping');
           return;
         }
       }
@@ -529,8 +526,6 @@ class BadgeService extends GetxController {
         final existingBadge = await transaction.get(badgeRef);
 
         if (existingBadge.exists && existingBadge.data()?['isEarned'] == true) {
-          debugPrint(
-              'Badge ${badge.id} already earned for user $userId (transaction check)');
           return; // Exit transaction without changes
         }
 

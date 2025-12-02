@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tasteturner/screens/buddy_screen.dart';
@@ -26,11 +28,6 @@ class ProgramScreen extends StatefulWidget {
 
 class _ProgramScreenState extends State<ProgramScreen> {
   late final ProgramService _programService;
-  String selectedDiet =
-      userService.currentUser.value?.settings['dietPreference'] ?? 'balanced';
-  String selectedGoal =
-      userService.currentUser.value?.settings['fitnessGoal'] ??
-          'Healthy Eating';
   bool isLoading = false;
   String aiCoachResponse = '';
   bool showCaloriesAndGoal = true;
@@ -116,15 +113,60 @@ class _ProgramScreenState extends State<ProgramScreen> {
     super.dispose();
   }
 
+  /// Load program details from Firestore
+  Future<Map<String, dynamic>?> _loadProgramDetails(String programId) async {
+    try {
+      final programDoc = await firestore
+          .collection('programs')
+          .doc(programId)
+          .get();
+
+      if (programDoc.exists) {
+        return {
+          'programId': programId,
+          ...programDoc.data()!,
+        };
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error loading program details for $programId: $e');
+      return null;
+    }
+  }
+
+  /// Show error snackbar with consistent styling
+  void _showErrorSnackbar(String message) {
+    if (!mounted) return;
+    Get.snackbar(
+      'Error',
+      message,
+      backgroundColor: Colors.red,
+      colorText: kWhite,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  /// Show success snackbar with consistent styling
+  void _showSuccessSnackbar(String message) {
+    if (!mounted) return;
+    Get.snackbar(
+      'Success',
+      message,
+      backgroundColor: kAccentLight,
+      colorText: kWhite,
+      duration: const Duration(seconds: 2),
+    );
+  }
+
   Future<void> _loadProgramTypes() async {
     try {
-      final snapshot = await firestore.collection('programs').get();
-      final types = snapshot.docs.where((doc) {
-        final data = doc.data();
-        // Filter out custom/private programs - they should not appear in the public list
-        final isPrivate = data['isPrivate'] as bool? ?? false;
-        return !isPrivate;
-      }).map((doc) {
+      // Use server-side filtering for better performance
+      final snapshot = await firestore
+          .collection('programs')
+          .where('isPrivate', isEqualTo: false)
+          .get();
+      
+      final types = snapshot.docs.map((doc) {
         final data = doc.data();
         return {
           'programId': doc.id,
@@ -153,12 +195,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
     } catch (e) {
       debugPrint('Error loading program types: $e');
       if (mounted) {
-        Get.snackbar(
-          'Error',
-          'Failed to load programs. Please try again.',
-          backgroundColor: Colors.red,
-          colorText: kWhite,
-        );
+        _showErrorSnackbar('Failed to load programs. Please try again.');
         // Fallback to default programs if loading fails
         programTypes.value = [
           {
@@ -182,8 +219,11 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
   Future<void> _loadProgramUserCounts(
       List<Map<String, dynamic>> programs) async {
+    if (!mounted) return;
+
     try {
       final Map<String, int> counts = {};
+      try {
       await Future.wait(
         programs.map((program) async {
           final programId = program['programId'] as String?;
@@ -197,7 +237,11 @@ class _ProgramScreenState extends State<ProgramScreen> {
             }
           }
         }),
-      );
+        ).timeout(const Duration(seconds: 30));
+      } on TimeoutException {
+        debugPrint('Warning: Program user counts loading timed out');
+      }
+
       if (mounted) {
         setState(() {
           _programUserCounts = counts;
@@ -205,6 +249,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       }
     } catch (e) {
       debugPrint('Error loading program user counts: $e');
+      // Fail silently - not critical for main functionality
     }
   }
 
@@ -217,12 +262,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
       if (programData == null) {
         if (mounted) {
-          Get.snackbar(
-            'Error',
-            'Program not found. Please try again.',
-            backgroundColor: Colors.red,
-            colorText: kWhite,
-          );
+          _showErrorSnackbar('Program not found. Please try again.');
         }
         return;
       }
@@ -230,12 +270,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       final programId = programData['programId'] as String?;
       if (programId == null || programId.isEmpty) {
         if (mounted) {
-          Get.snackbar(
-            'Error',
-            'Invalid program data. Please try again.',
-            backgroundColor: Colors.red,
-            colorText: kWhite,
-          );
+          _showErrorSnackbar('Invalid program data. Please try again.');
         }
         return;
       }
@@ -278,12 +313,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
           if (mounted) {
             setState(() => isLoading = false);
-            Get.snackbar(
-              'Success',
-              'You\'ve successfully joined the ${programData['name'] ?? 'program'} program!',
-              backgroundColor: kAccentLight,
-              colorText: kWhite,
-            );
+            _showSuccessSnackbar(
+                'You\'ve successfully joined the ${programData['name'] ?? 'program'} program!');
           }
         } catch (e) {
           if (mounted) {
@@ -291,24 +322,14 @@ class _ProgramScreenState extends State<ProgramScreen> {
             final errorMessage = e.toString().contains('already enrolled')
                 ? 'You are already enrolled in this program'
                 : 'Failed to join program. Please try again.';
-            Get.snackbar(
-              'Error',
-              errorMessage,
-              backgroundColor: Colors.red,
-              colorText: kWhite,
-            );
+            _showErrorSnackbar(errorMessage);
           }
         }
       }
     } catch (e) {
       debugPrint('Error in _showProgramQuestionnaire: $e');
       if (mounted) {
-        Get.snackbar(
-          'Error',
-          'An error occurred. Please try again.',
-          backgroundColor: Colors.red,
-          colorText: kWhite,
-        );
+        _showErrorSnackbar('An error occurred. Please try again.');
       }
     }
   }
@@ -329,8 +350,14 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
     try {
       final userName = userService.currentUser.value?.displayName ?? 'User';
+      final userDiet = userService.currentUser.value?.settings['dietPreference']
+              ?.toString() ??
+          'balanced';
+      final userGoal = userService.currentUser.value?.settings['fitnessGoal']
+              ?.toString() ??
+          'Healthy Eating';
       final prompt =
-          'Give me a meal plan strategy for user $userName with a $selectedDiet diet with the goal to $selectedGoal. User name is $userName';
+          'Give me a meal plan strategy for user $userName with a $userDiet diet with the goal to $userGoal. User name is $userName';
 
       final response = await geminiService.getResponse(
         prompt,
@@ -375,12 +402,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
             'Sorry, I encountered an error. Please try again later.';
       });
 
-      Get.snackbar(
-        'Error',
-        'Failed to get AI coach response. Please try again.',
-        backgroundColor: Colors.red,
-        colorText: kWhite,
-      );
+      _showErrorSnackbar('Failed to get AI coach response. Please try again.');
     }
   }
 
@@ -409,25 +431,15 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
             return GestureDetector(
               onTap: () async {
-                // Find complete program data from Firestore
-                try {
-                  final programDoc = await firestore
-                      .collection('programs')
-                      .doc(program.programId)
-                      .get();
-
-                  if (programDoc.exists) {
-                    final programData = {
-                      'programId': program.programId,
-                      ...programDoc.data()!,
-                    };
+                final programData = await _loadProgramDetails(program.programId);
+                if (programData != null && mounted) {
                     Get.to(() => ProgramDetailWidget(
                           program: programData,
                           isEnrolled: true,
                         ));
-                  } else {
+                } else if (mounted) {
                     // Fallback to basic program data
-                    final programData = {
+                  final fallbackData = {
                       'programId': program.programId,
                       'name': program.name,
                       'description': program.description,
@@ -439,16 +451,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       'options': [],
                     };
                     Get.to(() => ProgramDetailWidget(
-                          program: programData,
+                        program: fallbackData,
                         ));
-                  }
-                } catch (e) {
-                  Get.snackbar(
-                    'Error',
-                    'Unable to load program details',
-                    backgroundColor: Colors.red,
-                    colorText: kWhite,
-                  );
                 }
               },
               child: Container(
@@ -621,37 +625,17 @@ class _ProgramScreenState extends State<ProgramScreen> {
                           try {
                             await _programService
                                 .archiveProgram(program.programId);
-                            Get.snackbar(
-                              'Success',
-                              '${program.name} has been archived',
-                              backgroundColor: kAccentLight,
-                              colorText: kWhite,
-                            );
+                            _showSuccessSnackbar('${program.name} has been archived');
                           } catch (e) {
-                            Get.snackbar(
-                              'Error',
-                              'Failed to archive program: ${e.toString()}',
-                              backgroundColor: Colors.red,
-                              colorText: kWhite,
-                            );
+                            _showErrorSnackbar('Failed to archive program: ${e.toString()}');
                           }
                         } else if (value == 'leave') {
                           try {
                             await _programService
                                 .leaveProgram(program.programId);
-                            Get.snackbar(
-                              'Success',
-                              'You\'ve left the ${program.name} program',
-                              backgroundColor: kAccentLight,
-                              colorText: kWhite,
-                            );
+                            _showSuccessSnackbar('You\'ve left the ${program.name} program');
                           } catch (e) {
-                            Get.snackbar(
-                              'Error',
-                              'Failed to leave program: ${e.toString()}',
-                              backgroundColor: Colors.red,
-                              colorText: kWhite,
-                            );
+                            _showErrorSnackbar('Failed to leave program: ${e.toString()}');
                           }
                         }
                       },
@@ -716,30 +700,14 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
             return GestureDetector(
               onTap: () async {
-                // Find complete program data from Firestore
-                try {
-                  final programDoc = await firestore
-                      .collection('programs')
-                      .doc(program.programId)
-                      .get();
-
-                  if (programDoc.exists) {
-                    final programData = {
-                      'programId': program.programId,
-                      ...programDoc.data()!,
-                    };
+                final programData = await _loadProgramDetails(program.programId);
+                if (programData != null && mounted) {
                     Get.to(() => ProgramDetailWidget(
                           program: programData,
                           isEnrolled: true,
                         ));
-                  }
-                } catch (e) {
-                  Get.snackbar(
-                    'Error',
-                    'Unable to load program details',
-                    backgroundColor: Colors.red,
-                    colorText: kWhite,
-                  );
+                } else if (mounted) {
+                  _showErrorSnackbar('Unable to load program details');
                 }
               },
               child: Container(
@@ -809,19 +777,9 @@ class _ProgramScreenState extends State<ProgramScreen> {
                         try {
                           await _programService
                               .unarchiveProgram(program.programId);
-                          Get.snackbar(
-                            'Success',
-                            '${program.name} has been unarchived',
-                            backgroundColor: kAccentLight,
-                            colorText: kWhite,
-                          );
+                          _showSuccessSnackbar('${program.name} has been unarchived');
                         } catch (e) {
-                          Get.snackbar(
-                            'Error',
-                            'Failed to unarchive program: ${e.toString()}',
-                            backgroundColor: Colors.red,
-                            colorText: kWhite,
-                          );
+                          _showErrorSnackbar('Failed to unarchive program: ${e.toString()}');
                         }
                       },
                       child: Container(
@@ -847,19 +805,10 @@ class _ProgramScreenState extends State<ProgramScreen> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDarkMode = getThemeProvider(context).isDarkMode;
-    final accent = kAccent;
-    final user = userService.currentUser.value;
-    final String userDiet =
-        user?.settings['dietPreference']?.toString() ?? 'Balanced';
-    final String userGoal =
-        user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
-    final textTheme = Theme.of(context).textTheme;
-    final fontSize = getTextScale(5, context);
-    return Scaffold(
-      appBar: AppBar(
+  /// Build the AppBar
+  PreferredSizeWidget _buildAppBar(BuildContext context, bool isDarkMode,
+      TextTheme textTheme) {
+    return AppBar(
         backgroundColor: kAccent,
         toolbarHeight: getPercentageHeight(10, context),
         automaticallyImplyLeading: false,
@@ -911,7 +860,21 @@ class _ProgramScreenState extends State<ProgramScreen> {
           ],
         ),
         centerTitle: true,
-      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final user = userService.currentUser.value;
+    final String userDiet =
+        user?.settings['dietPreference']?.toString() ?? 'Balanced';
+    final String userGoal =
+        user?.settings['fitnessGoal']?.toString() ?? 'Healthy Eating';
+    final textTheme = Theme.of(context).textTheme;
+    final fontSize = getTextScale(5, context);
+    return Scaffold(
+      appBar: _buildAppBar(context, isDarkMode, textTheme),
       body: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
@@ -1028,8 +991,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
                 'See Recipes for your $userDiet diet',
                 maxLines: 2,
                 style: textTheme.headlineMedium?.copyWith(
-                  color: accent,
-                  fontWeight: FontWeight.w200,
+                  color: kAccent,
+                  fontWeight: FontWeight.w300,
                   fontSize: getTextScale(5, context),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1059,7 +1022,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
               Text(
                 'Speak to "Tasty" AI Coach',
                 style: textTheme.displaySmall?.copyWith(
-                  color: accent,
+                  color: kAccent,
                   fontSize: getTextScale(7, context),
                   fontWeight: FontWeight.w200,
                 ),
@@ -1081,7 +1044,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
               ),
               if (isLoading) ...[
                 SizedBox(height: getPercentageHeight(2, context)),
-                Center(child: CircularProgressIndicator(color: accent)),
+                Center(child: CircularProgressIndicator(color: kAccent)),
               ],
               if (aiCoachResponse.isNotEmpty) ...[
                 SizedBox(height: getPercentageHeight(2, context)),
@@ -1091,7 +1054,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       width: double.infinity,
                       padding: EdgeInsets.all(getPercentageWidth(3, context)),
                       decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.08),
+                        color: kAccent.withValues(alpha: 0.08),
                       ),
                       child: Text(
                         aiCoachResponse.contains('Error')
@@ -1188,7 +1151,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                             ? 'Explore More Programs'
                             : 'Customize Your Program',
                     style: textTheme.headlineMedium?.copyWith(
-                      color: accent,
+                      color: kAccent,
                     ),
                   )),
               SizedBox(height: getPercentageHeight(3, context)),
@@ -1197,7 +1160,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                     child: programTypes.isEmpty
                         ? Center(
                             child: CircularProgressIndicator(
-                              color: accent,
+                              color: kAccent,
                             ),
                           )
                         : OverlappingCardsView(

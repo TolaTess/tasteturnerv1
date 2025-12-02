@@ -2028,17 +2028,52 @@ class MacroManager extends GetxController {
       if (shoppingListTimestamp != null) {
         final shoppingListTime = shoppingListTimestamp.toDate();
         int newMealsCount = 0;
+        
+        // Get the meal IDs that were used to generate the shopping list (if stored)
+        final processedMealIdsData = shoppingListDoc.data()?['processedMealIds'];
+        final processedMealIds = processedMealIdsData != null
+            ? (processedMealIdsData as List<dynamic>)
+                .map((e) => e.toString())
+                .toSet()
+            : <String>{};
+        
+        // Check if we have processed meal IDs (new shopping lists) or not (old shopping lists)
+        final hasProcessedMealIds = processedMealIds.isNotEmpty;
+        
+        debugPrint('Shopping list timestamp: $shoppingListTime');
+        debugPrint('Has processedMealIds: $hasProcessedMealIds (${processedMealIds.length} meals)');
 
         // Check each meal plan document to see if it was updated after shopping list
         for (final dayDoc in mealsSnapshot.docs) {
           final mealPlanTimestamp = dayDoc.data()['timestamp'] as Timestamp?;
           if (mealPlanTimestamp != null) {
             final mealPlanTime = mealPlanTimestamp.toDate();
+            final mealPaths = dayDoc.data()['meals'] as List<dynamic>? ?? [];
+            
+            debugPrint('Date ${dayDoc.id}: mealPlanTime=$mealPlanTime, shoppingListTime=$shoppingListTime, isAfter=${mealPlanTime.isAfter(shoppingListTime)}, meals=${mealPaths.length}');
+            
             if (mealPlanTime.isAfter(shoppingListTime)) {
               // This meal plan was updated after shopping list was generated
-              final mealPaths = dayDoc.data()['meals'] as List<dynamic>? ?? [];
-              newMealsCount += mealPaths.length;
+              
+              if (hasProcessedMealIds) {
+                // Count only meals that weren't already processed (accurate counting)
+                // Extract meal ID from path (format: "mealId" or "mealId/userId")
+                for (final mealPath in mealPaths) {
+                  final mealId = mealPath.toString().split('/').first;
+                  if (!processedMealIds.contains(mealId)) {
+                    newMealsCount++;
+                    debugPrint('  New meal found: $mealId');
+                  }
+                }
+              } else {
+                // Old shopping list without processedMealIds - count all meals in updated days
+                // This is less accurate but still detects new meals
+                newMealsCount += mealPaths.length;
+                debugPrint('  Counting all ${mealPaths.length} meals in updated day (old shopping list)');
+              }
             }
+          } else {
+            debugPrint('Date ${dayDoc.id}: No timestamp found');
           }
         }
 
@@ -2046,7 +2081,11 @@ class MacroManager extends GetxController {
           debugPrint(
               'Found $newMealsCount new meals added after shopping list was generated');
           return newMealsCount;
+        } else {
+          debugPrint('No new meals found - all meal plans are older than shopping list or already processed');
         }
+      } else {
+        debugPrint('Shopping list has no updatedAt timestamp');
       }
 
       // 7. If we can't determine, return 0 (shopping list exists and seems up to date)

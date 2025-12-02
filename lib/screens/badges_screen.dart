@@ -5,6 +5,7 @@ import '../constants.dart';
 import '../data_models/badge_system_model.dart' as BadgeModel;
 import '../helper/utils.dart';
 import '../service/badge_service.dart';
+import '../service/plant_detection_service.dart';
 
 class BadgesScreen extends StatefulWidget {
   BadgesScreen({Key? key}) : super(key: key);
@@ -18,15 +19,30 @@ class _BadgesScreenState extends State<BadgesScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   final BadgeService badgeService = Get.find<BadgeService>();
+  final PlantDetectionService plantService = PlantDetectionService.instance;
+
+  // Plant diversity state
+  int _currentPlantCount = 0;
+  int _rainbowLevel = 0;
+  String _rainbowLevelName = 'Getting Started';
+  bool _isLoadingPlants = true;
+
+  // Constants
+  static const int animationDurationMs = 800;
+  static const double fadeAnimationStart = 0.0;
+  static const double fadeAnimationEnd = 1.0;
+  static const double progressMin = 0.0;
+  static const double progressMax = 1.0;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: animationDurationMs),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _fadeAnimation =
+        Tween<double>(begin: fadeAnimationStart, end: fadeAnimationEnd).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.forward();
@@ -37,6 +53,65 @@ class _BadgesScreenState extends State<BadgesScreen>
       badgeService.loadUserStreak(userService.userId!);
       badgeService.loadUserPoints(userService.userId!);
       badgeService.loadUserProgress(userService.userId!);
+      _loadPlantDiversityData();
+    }
+  }
+
+  Future<void> _loadPlantDiversityData() async {
+    try {
+      final userId = userService.userId ?? '';
+      if (userId.isEmpty) {
+        setState(() {
+          _isLoadingPlants = false;
+        });
+        return;
+      }
+
+      final weekStart = getWeekStart(DateTime.now());
+      final score =
+          await plantService.getPlantDiversityScore(userId, weekStart);
+
+      if (mounted) {
+        setState(() {
+          _currentPlantCount = score.uniquePlants;
+          _rainbowLevel = score.level;
+          _rainbowLevelName = _getLevelName(score.level);
+          _isLoadingPlants = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading plant diversity: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingPlants = false;
+        });
+      }
+    }
+  }
+
+  String _getLevelName(int level) {
+    switch (level) {
+      case 1:
+        return 'Beginner';
+      case 2:
+        return 'Healthy';
+      case 3:
+        return 'Gut Hero';
+      default:
+        return 'Getting Started';
+    }
+  }
+
+  Color _getLevelColor(int level) {
+    switch (level) {
+      case 1:
+        return kGreen;
+      case 2:
+        return kBlue;
+      case 3:
+        return kAccent;
+      default:
+        return kLightGrey;
     }
   }
 
@@ -90,50 +165,75 @@ class _BadgesScreenState extends State<BadgesScreen>
     return SliverToBoxAdapter(
       child: Container(
         margin: EdgeInsets.all(getPercentageWidth(4, context)),
-        child: Row(
+        child: Column(
           children: [
-            // Streak Card
-            Expanded(
-              child: _buildStatCard(
-                context: context,
-                icon: Icons.local_fire_department,
-                iconColor: Colors.orange,
-                title: 'Streak',
-                value: '${badgeService.streakDays}',
-                subtitle: 'days',
-                isDarkMode: isDarkMode,
-                textTheme: textTheme,
-              ),
-            ),
-            SizedBox(width: getPercentageWidth(2, context)),
+            // First row: Streak, Points, Badges
+            Row(
+              children: [
+                // Streak Card
+                Expanded(
+                  child: _buildStatCard(
+                    context: context,
+                    icon: Icons.local_fire_department,
+                    iconColor: Colors.orange,
+                    title: 'Streak',
+                    value: '${badgeService.streakDays}',
+                    subtitle: 'days',
+                    isDarkMode: isDarkMode,
+                    textTheme: textTheme,
+                  ),
+                ),
+                SizedBox(width: getPercentageWidth(2, context)),
 
-            // Points Card
-            Expanded(
-              child: _buildStatCard(
-                context: context,
-                icon: Icons.star,
-                iconColor: Colors.amber,
-                title: 'Points',
-                value: '${badgeService.totalPoints}',
-                subtitle: 'earned',
-                isDarkMode: isDarkMode,
-                textTheme: textTheme,
-              ),
-            ),
-            SizedBox(width: getPercentageWidth(2, context)),
+                // Points Card
+                Expanded(
+                  child: _buildStatCard(
+                    context: context,
+                    icon: Icons.star,
+                    iconColor: Colors.amber,
+                    title: 'Points',
+                    value: '${badgeService.totalPoints}',
+                    subtitle: 'earned',
+                    isDarkMode: isDarkMode,
+                    textTheme: textTheme,
+                  ),
+                ),
+                SizedBox(width: getPercentageWidth(2, context)),
 
-            // Badges Card
-            Expanded(
-              child: _buildStatCard(
-                context: context,
-                icon: Icons.emoji_events,
-                iconColor: Colors.deepPurple,
-                title: 'Badges',
-                value: '${badgeService.earnedBadges.length}',
-                subtitle: 'earned',
-                isDarkMode: isDarkMode,
-                textTheme: textTheme,
-              ),
+                // Badges Card
+                Expanded(
+                  child: _buildStatCard(
+                    context: context,
+                    icon: Icons.emoji_events,
+                    iconColor: Colors.deepPurple,
+                    title: 'Badges',
+                    value: '${badgeService.earnedBadges.length}',
+                    subtitle: 'earned',
+                    isDarkMode: isDarkMode,
+                    textTheme: textTheme,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: getPercentageHeight(2, context)),
+            // Second row: Rainbow Level
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    context: context,
+                    icon: Icons.eco,
+                    iconColor: _getLevelColor(_rainbowLevel),
+                    title: 'Rainbow Level',
+                    value: _isLoadingPlants ? '...' : _rainbowLevelName,
+                    subtitle: _isLoadingPlants
+                        ? 'loading'
+                        : '$_currentPlantCount / 30 plants',
+                    isDarkMode: isDarkMode,
+                    textTheme: textTheme,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -338,6 +438,12 @@ class _BadgesScreenState extends State<BadgesScreen>
     );
   }
 
+  /// Calculate progress percentage with division by zero protection
+  double _calculateProgressPercentage(int currentProgress, int target) {
+    if (target == 0) return 0.0;
+    return (currentProgress / target).clamp(progressMin, progressMax);
+  }
+
   Widget _buildBadgeCard(BuildContext context, BadgeModel.Badge badge,
       bool isDarkMode, TextTheme textTheme) {
     final progress = badgeService.userProgress.firstWhereOrNull(
@@ -345,7 +451,8 @@ class _BadgesScreenState extends State<BadgesScreen>
     );
     final isEarned = progress?.isEarned == true;
     final currentProgress = progress?.currentProgress ?? 0;
-    final progressPercentage = currentProgress / badge.criteria.target;
+    final progressPercentage =
+        _calculateProgressPercentage(currentProgress, badge.criteria.target);
 
     return Container(
       margin: EdgeInsets.symmetric(
@@ -427,7 +534,7 @@ class _BadgesScreenState extends State<BadgesScreen>
                       children: [
                         Expanded(
                           child: LinearProgressIndicator(
-                            value: progressPercentage.clamp(0.0, 1.0),
+                            value: progressPercentage,
                             backgroundColor:
                                 (isDarkMode ? kLightGrey : kDarkGrey)
                                     .withValues(alpha: 0.2),
@@ -510,56 +617,40 @@ class _BadgesScreenState extends State<BadgesScreen>
     return grouped;
   }
 
+  // Category title mapping
+  static const Map<BadgeModel.BadgeCategory, String> _categoryTitles = {
+    BadgeModel.BadgeCategory.consistency: '🔥 Consistency Badges',
+    BadgeModel.BadgeCategory.nutrition: '🥗 Nutrition Badges',
+    BadgeModel.BadgeCategory.social: '👥 Social Badges',
+    BadgeModel.BadgeCategory.exploration: '🎯 Exploration Badges',
+    BadgeModel.BadgeCategory.achievement: '🏆 Achievement Badges',
+    BadgeModel.BadgeCategory.special: '⭐ Special Badges',
+  };
+
   String _getCategoryTitle(BadgeModel.BadgeCategory category) {
-    switch (category) {
-      case BadgeModel.BadgeCategory.consistency:
-        return '🔥 Consistency Badges';
-      case BadgeModel.BadgeCategory.nutrition:
-        return '🥗 Nutrition Badges';
-      case BadgeModel.BadgeCategory.social:
-        return '👥 Social Badges';
-      case BadgeModel.BadgeCategory.exploration:
-        return '🎯 Exploration Badges';
-      case BadgeModel.BadgeCategory.achievement:
-        return '🏆 Achievement Badges';
-      case BadgeModel.BadgeCategory.special:
-        return '⭐ Special Badges';
-    }
+    return _categoryTitles[category] ?? '🏆 Badges';
   }
 
+  // Icon name to IconData mapping
+  static const Map<String, IconData> _iconMap = {
+    'restaurant': Icons.restaurant,
+    'local_fire_department': Icons.local_fire_department,
+    'celebration': Icons.celebration,
+    'balance': Icons.balance,
+    'water_drop': Icons.water_drop,
+    'eco': Icons.eco,
+    'menu_book': Icons.menu_book,
+    'inventory_2': Icons.inventory_2,
+    'sports_mma': Icons.sports_mma,
+    'emoji_events': Icons.emoji_events,
+    'star': Icons.star,
+    'workspace_premium': Icons.workspace_premium,
+    'directions_walk': Icons.directions_walk,
+    'directions_run': Icons.directions_run,
+  };
+
   IconData _getIconFromString(String iconName) {
-    switch (iconName) {
-      case 'restaurant':
-        return Icons.restaurant;
-      case 'local_fire_department':
-        return Icons.local_fire_department;
-      case 'celebration':
-        return Icons.celebration;
-      case 'balance':
-        return Icons.balance;
-      case 'water_drop':
-        return Icons.water_drop;
-      case 'eco':
-        return Icons.eco;
-      case 'menu_book':
-        return Icons.menu_book;
-      case 'inventory_2':
-        return Icons.inventory_2;
-      case 'sports_mma':
-        return Icons.sports_mma;
-      case 'emoji_events':
-        return Icons.emoji_events;
-      case 'star':
-        return Icons.star;
-      case 'workspace_premium':
-        return Icons.workspace_premium;
-      case 'directions_walk':
-        return Icons.directions_walk;
-      case 'directions_run':
-        return Icons.directions_run;
-      default:
-        return Icons.emoji_events;
-    }
+    return _iconMap[iconName] ?? Icons.emoji_events;
   }
 
   Color _getDifficultyColor(BadgeModel.BadgeDifficulty difficulty) {

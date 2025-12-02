@@ -23,7 +23,6 @@ class MessageScreen extends StatefulWidget {
 
 class _MessageScreenState extends State<MessageScreen>
     with TickerProviderStateMixin {
-  int currentPage = 0;
   late ScrollController _scrollController;
   final GlobalKey _addBuddyKey = GlobalKey();
   final GlobalKey _addFriendButtonKey = GlobalKey();
@@ -51,18 +50,76 @@ class _MessageScreenState extends State<MessageScreen>
 
     // Initialize ChatController and load user chats
     try {
-      Get.find<ChatController>().loadUserChats(userService.userId ?? '');
-    } catch (e) {
-      // If controller is not found, initialize it
-      Get.put(ChatController()).loadUserChats(userService.userId ?? '');
-    }
+      final userId = userService.userId ?? '';
+      if (userId.isNotEmpty) {
+        try {
+          Get.find<ChatController>().loadUserChats(userId);
+        } catch (e) {
+          // If controller is not found, initialize it
+          Get.put(ChatController()).loadUserChats(userId);
+        }
 
-    friendController.getAllFriendData(userService.userId ?? '');
+        try {
+          friendController.getAllFriendData(userId);
+        } catch (e) {
+          debugPrint('Error loading friend data: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error initializing message screen: $e');
+    }
     super.initState();
     // Show tutorial popup after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddFriendTutorial();
     });
+  }
+
+  /// Handle errors with consistent snackbar display
+  void _handleError(String message, {String? details}) {
+    if (!mounted || !context.mounted) return;
+    debugPrint('Error: $message${details != null ? ' - $details' : ''}');
+    showTastySnackbar(
+      'Error',
+      message,
+      context,
+      backgroundColor: Colors.red,
+    );
+  }
+
+  /// Navigate to chat screen with friend data loading
+  Future<void> _navigateToChat(
+    BuildContext context,
+    String chatId,
+    String friendId,
+  ) async {
+    if (friendId.isEmpty || chatId.isEmpty) {
+      _handleError('Invalid chat or friend ID');
+      return;
+    }
+
+    try {
+      // Load friend data first
+      final friend = await friendController.getFriendData(friendId);
+      if (friend != null && mounted && context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              chatId: chatId,
+              friendId: friendId,
+              friend: friend,
+            ),
+          ),
+        );
+      } else {
+        _handleError('Friend data not found');
+      }
+    } catch (e) {
+      debugPrint('Error loading friend data for navigation: $e');
+      _handleError('Failed to load chat. Please try again.',
+          details: e.toString());
+    }
   }
 
   void _showAddFriendTutorial() {
@@ -204,12 +261,6 @@ class _MessageScreenState extends State<MessageScreen>
                 itemCount: filteredChats.length,
                 itemBuilder: (context, index) {
                   final chat = filteredChats[index];
-                  final participants =
-                      List<String>.from(chat['participants'] ?? []);
-                  final friendId = participants.firstWhere(
-                    (id) => id != userId,
-                    orElse: () => '',
-                  );
                   return ListTile(
                     tileColor: kAccent.withValues(alpha: 0.2),
                     leading: Icon(
@@ -245,14 +296,32 @@ class _MessageScreenState extends State<MessageScreen>
                       ),
                     ),
                     onTap: () async {
-                      await chatController.disableChats(chat['chatId'], true);
+                      try {
+                        final chatId = chat['chatId'] as String?;
+                        if (chatId == null || chatId.isEmpty) {
+                          throw Exception('Invalid chat ID');
+                        }
+                        await chatController.disableChats(chatId, true);
                       await chatController.loadUserChats(userId);
-                      if (mounted) Navigator.pop(context);
+                        if (mounted && context.mounted) {
+                          Navigator.pop(context);
                       showTastySnackbar(
                         'Success',
                         'Chat was restored',
                         context,
                       );
+                        }
+                      } catch (e) {
+                        debugPrint('Error restoring chat: $e');
+                        if (mounted && context.mounted) {
+                          showTastySnackbar(
+                            'Error',
+                            'Failed to restore chat. Please try again.',
+                            context,
+                            backgroundColor: Colors.red,
+                          );
+                        }
+                      }
                     },
                   );
                 },
@@ -341,12 +410,24 @@ class _MessageScreenState extends State<MessageScreen>
                         color: kAccent,
                       ),
                       onPressed: () {
+                        try {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => const FriendScreen(),
                           ),
                         );
+                        } catch (e) {
+                          debugPrint('Error navigating to friend screen: $e');
+                          if (context.mounted) {
+                            showTastySnackbar(
+                              'Error',
+                              'Failed to open friends screen. Please try again.',
+                              context,
+                              backgroundColor: Colors.red,
+                            );
+                          }
+                        }
                       },
                     ),
                   ),
@@ -406,56 +487,39 @@ class _MessageScreenState extends State<MessageScreen>
                                   const Icon(Icons.delete, color: Colors.white),
                             ),
                             onDismissed: (direction) async {
+                              try {
                               await chatController.disableChats(chatId, false);
-                              // Remove from local list for instant feedback
-                              nonBuddyChats.removeAt(index);
+                                // Update reactive list instead of modifying local list
                               chatController.userChats.removeWhere(
                                   (chat) => chat['chatId'] == chatId);
+                                if (mounted && context.mounted) {
                               showTastySnackbar(
                                 'Chat Disabled',
                                 'You can enable it in archived chats',
                                 context,
                               );
+                                }
+                              } catch (e) {
+                                debugPrint('Error disabling chat: $e');
+                                if (mounted && context.mounted) {
+                                  showTastySnackbar(
+                                    'Error',
+                                    'Failed to archive chat. Please try again.',
+                                    context,
+                                    backgroundColor: Colors.red,
+                                  );
+                                }
+                              }
                             },
                             child: MessageItem(
                               dataSrc: chatSummary,
+                              friendId: friendId,
                               press: () {
-                                if (friendId.isNotEmpty) {
-                                  // Wait for friend data if not already loaded
-                                  if (_MessageItemState().friendData.value !=
-                                      null) {
-                                    Navigator.push(
+                                _navigateToChat(
                                       context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ChatScreen(
-                                          chatId: chatSummary['chatId'],
-                                          friendId: friendId,
-                                          friend: _MessageItemState()
-                                              .friendData
-                                              .value!,
-                                        ),
-                                      ),
-                                    );
-                                  } else {
-                                    // Load friend data first
-                                    friendController
-                                        .getFriendData(friendId)
-                                        .then((friend) {
-                                      if (friend != null) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => ChatScreen(
-                                              chatId: chatSummary['chatId'],
-                                              friendId: friendId,
-                                              friend: friend,
-                                            ),
-                                          ),
+                                  chatSummary['chatId'],
+                                  friendId,
                                         );
-                                      }
-                                    });
-                                  }
-                                }
                               },
                             ),
                           );
@@ -485,11 +549,13 @@ class _MessageScreenState extends State<MessageScreen>
 class MessageItem extends StatefulWidget {
   final Map<String, dynamic> dataSrc;
   final VoidCallback press;
+  final String friendId;
 
   const MessageItem({
     super.key,
     required this.dataSrc,
     required this.press,
+    required this.friendId,
   });
 
   @override
@@ -506,16 +572,15 @@ class _MessageItemState extends State<MessageItem> {
   }
 
   void _loadFriendData() async {
-    final participants =
-        List<String>.from(widget.dataSrc['participants'] ?? []);
-    final friendId = participants.firstWhere(
-      (id) => id != userService.userId,
-      orElse: () => '',
-    );
-
-    if (friendId.isNotEmpty) {
-      final friend = await friendController.getFriendData(friendId);
+    if (widget.friendId.isNotEmpty) {
+      try {
+        final friend = await friendController.getFriendData(widget.friendId);
+        if (mounted) {
       friendData.value = friend;
+        }
+      } catch (e) {
+        debugPrint('Error loading friend data: $e');
+      }
     }
   }
 

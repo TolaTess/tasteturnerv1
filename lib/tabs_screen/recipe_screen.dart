@@ -25,28 +25,49 @@ class RecipeScreen extends StatefulWidget {
 class _RecipeScreenState extends State<RecipeScreen> {
   String selectedCategory = 'All';
   List<MacroData> fullLabelsList = [];
-  List<MacroData> availableLabelsList = [];
-  final Set<String> headerSet = {};
   List<Meal> mealList = [];
   List<Meal> myMealList = [];
   List<Meal> favouriteMealList = [];
-  Timer? _tastyPopupTimer;
   String selectedCategoryId = '';
   List<Map<String, dynamic>> _categoryDatasIngredient = [];
   bool showAllTechniques = false;
+  // Cached shuffled techniques to avoid shuffling on every build
+  List<Map<String, dynamic>>? _cachedShuffledTechniques;
 
   @override
   void initState() {
     super.initState();
 
+    try {
+      // Initialize techniques with error handling
+      if (helperController.macros.isNotEmpty) {
     _categoryDatasIngredient = [...helperController.macros];
     if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
       final firstCategory = _categoryDatasIngredient[0];
       selectedCategoryId = firstCategory['id']?.toString() ?? '';
       selectedCategory = firstCategory['name']?.toString() ?? 'All';
     }
+        // Cache shuffled techniques once
+        _cachedShuffledTechniques = List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
+      } else {
+        _categoryDatasIngredient = [];
+        _cachedShuffledTechniques = [];
+        debugPrint('Warning: helperController.macros is empty');
+      }
+    } catch (e) {
+      debugPrint('Error initializing techniques: $e');
+      _categoryDatasIngredient = [];
+      _cachedShuffledTechniques = [];
+    }
+
+    try {
     fullLabelsList = macroManager.ingredient;
     mealList = mealManager.meals;
+    } catch (e) {
+      debugPrint('Error initializing meal/ingredient data: $e');
+      fullLabelsList = [];
+      mealList = [];
+    }
 
     // Add null check for userId
     final userId = userService.userId;
@@ -102,10 +123,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
       setState(() {
         fullLabelsList = ingredients;
         favouriteMealList = favs;
-        headerSet.clear();
-        for (var item in fullLabelsList) {
-          headerSet.addAll(item.features.keys);
-        }
       });
     } catch (e) {
       debugPrint('Error updating ingredient list: $e');
@@ -122,26 +139,28 @@ class _RecipeScreenState extends State<RecipeScreen> {
 
   @override
   void dispose() {
-    _tastyPopupTimer?.cancel();
     super.dispose();
+  }
+
+  /// Get cached shuffled techniques or create new cache if needed
+  List<Map<String, dynamic>> _getShuffledTechniques() {
+    if (_cachedShuffledTechniques == null || _cachedShuffledTechniques!.isEmpty) {
+      _cachedShuffledTechniques = List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
+    }
+    return _cachedShuffledTechniques!;
   }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final dietPreference =
-        userService.currentUser.value?.settings['dietPreference'];
+        userService.currentUser.value?.settings['dietPreference'] ?? 'balanced';
 
-    // Filter techniques based on user's diet preference
-    // Create a copy before shuffling to avoid modifying the original list
-    final filteredTechniques = showAllTechniques
-        ? (List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle())
-        : (List<Map<String, dynamic>>.from(_categoryDatasIngredient)
-          ..shuffle());
-
+    // Use cached shuffled techniques instead of shuffling on every build
+    final shuffledTechniques = _getShuffledTechniques();
     final limitedTechniques = showAllTechniques
-        ? filteredTechniques
-        : filteredTechniques.take(5).toList();
+        ? shuffledTechniques
+        : shuffledTechniques.take(5).toList();
 
     return RefreshIndicator(
       color: kAccent,
@@ -251,7 +270,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                         children: [
                           if (dietPreference != 'balanced')
                             Text(
-                              dietPreference ?? '',
+                              dietPreference,
                               style: textTheme.displayMedium?.copyWith(),
                             ),
                           if (dietPreference != 'balanced')
@@ -269,6 +288,10 @@ class _RecipeScreenState extends State<RecipeScreen> {
                                 onPressed: () {
                                   setState(() {
                                     showAllTechniques = !showAllTechniques;
+                                    // Re-shuffle when toggling to provide variety
+                                    if (_cachedShuffledTechniques != null) {
+                                      _cachedShuffledTechniques = List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
+                                    }
                                   });
                                 },
                                 child: Text(
@@ -299,8 +322,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
                             (index) {
                               final technique = limitedTechniques[index];
                               return OverlappingCard(
-                                title: technique['name'] ?? '',
-                                subtitle: technique['description'] ??
+                                title: technique['name']?.toString() ?? 'Unknown Technique',
+                                subtitle: technique['description']?.toString() ??
                                     'No description available',
                                 color: colors[index % colors.length],
                                 onTap: () {

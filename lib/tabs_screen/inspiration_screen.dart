@@ -3,7 +3,6 @@ import 'package:tasteturner/constants.dart';
 import 'package:tasteturner/widgets/helper_widget.dart';
 import 'package:tasteturner/service/post_service.dart';
 
-import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/info_icon_widget.dart';
@@ -19,58 +18,121 @@ class _InspirationScreenState extends State<InspirationScreen> {
   final GlobalKey<SearchContentGridState> _gridKey =
       GlobalKey<SearchContentGridState>();
   final GlobalKey _addDietButtonKey = GlobalKey();
-  final GlobalKey _addUploadButtonKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
   String selectedGoal = 'all';
-  bool showChallengePosts = false;
   bool filterByRecipe = false;
 
-  loadExcludedIngredients() async {
+  /// Load excluded ingredients configuration with error handling
+  Future<void> loadExcludedIngredients() async {
+    if (!mounted) return;
+
+    try {
     await firebaseService.fetchGeneralData();
-    final excludedIngredients =
-        firebaseService.generalData['excludeIngredients'].toString().split(',');
-    if (excludedIngredients.contains('true')) {
-      setState(() {
-        showChallengePosts = true;
-      });
-    } else {
-      setState(() {
-        showChallengePosts = false;
-      });
+
+      if (!mounted) return;
+
+      // Safely handle excluded ingredients data
+      final excludeIngredientsData =
+          firebaseService.generalData['excludeIngredients'];
+      if (excludeIngredientsData != null) {
+        final excludedIngredientsString = excludeIngredientsData.toString();
+        if (excludedIngredientsString.isNotEmpty) {
+          final excludedIngredients = excludedIngredientsString.split(',');
+          // Note: Challenge posts feature is currently disabled
+          // This data is kept for potential future use
+          debugPrint('Excluded ingredients loaded: ${excludedIngredients.length}');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading excluded ingredients: $e');
+      // Fail silently - not critical for main functionality
     }
   }
 
+  /// Show success snackbar with consistent styling
+  void _showSuccessSnackbar(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: kWhite, size: 20),
+            const SizedBox(width: 8),
+            Text(message),
+          ],
+        ),
+        backgroundColor: kAccent,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+
+  /// Show info snackbar with consistent styling
+  void _showInfoSnackbar(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 1),
+        backgroundColor: kAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+
   Future<void> _refreshPosts() async {
+    if (!mounted) return;
+
+    try {
     // Clear cache and refresh
+      if (mounted) {
     setState(() {
       selectedGoal = 'all';
     });
+      }
+
     PostService.instance.clearCategoryCache('all');
 
-    // Trigger refresh in SearchContentGrid
-    if (_gridKey.currentState != null) {
-      await _gridKey.currentState!.fetchContent();
+      // Trigger refresh in SearchContentGrid with null check
+      final gridState = _gridKey.currentState;
+      if (gridState != null && mounted) {
+        await gridState.fetchContent();
     }
 
     // Show success feedback
+      if (mounted) {
+        _showSuccessSnackbar('Posts refreshed!');
+      }
+    } catch (e) {
+      debugPrint('Error refreshing posts: $e');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Row(
             children: [
-              Icon(Icons.check_circle, color: kWhite, size: 20),
+                Icon(Icons.error_outline, color: kWhite, size: 20),
               SizedBox(width: 8),
-              Text('Posts refreshed!'),
+                Text('Failed to refresh posts. Please try again.'),
             ],
           ),
-          backgroundColor: kAccent,
-          duration: Duration(seconds: 2),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
       );
+      }
     }
   }
 
@@ -102,25 +164,16 @@ class _InspirationScreenState extends State<InspirationScreen> {
             // Optional: Add any actions to perform after the tutorial is completed
           },
         ),
-        TutorialStep(
-          tutorialId: 'add_upload_button',
-          message: 'Tap here to upload your post!',
-          targetKey: _addUploadButtonKey,
-          onComplete: () {
-            // Optional: Add any actions to perform after the tutorial is completed
-          },
-        ),
+        // Upload button tutorial removed since feature is disabled
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final isDarkMode = getThemeProvider(context).isDarkMode;
-    final userGoal = userService.currentUser.value?.settings['dietPreference'];
-    return Scaffold(
-      appBar: AppBar(
+  /// Build the AppBar with title, info icon, and filter button
+  PreferredSizeWidget _buildAppBar(
+      BuildContext context, TextTheme textTheme, bool isDarkMode,
+      String? userGoal) {
+    return AppBar(
         backgroundColor: kAccent,
         toolbarHeight: getPercentageHeight(11, context),
         automaticallyImplyLeading: false,
@@ -128,8 +181,6 @@ class _InspirationScreenState extends State<InspirationScreen> {
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Prevent horizontal overflow by allowing the title content
-            // to scale down within the available AppBar width.
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Row(
@@ -167,13 +218,6 @@ class _InspirationScreenState extends State<InspirationScreen> {
                         'color': kAccent,
                       },
                       {
-                        'icon': Icons.add_a_photo,
-                        'title': 'Share Your Meals',
-                        'description':
-                            'Upload photos of your healthy meals to inspire others',
-                        'color': kAccent,
-                      },
-                      {
                         'icon': Icons.filter_list,
                         'title': 'Analyze Meals',
                         'description':
@@ -184,7 +228,20 @@ class _InspirationScreenState extends State<InspirationScreen> {
                     iconColor: isDarkMode ? kWhite : kDarkGrey,
                     tooltip: 'Inspiration Information',
                   ),
-                  IconButton(
+                _buildRecipeFilterButton(context, textTheme, isDarkMode),
+              ],
+            ),
+          ),
+          _buildDietMatchIndicator(context, textTheme, userGoal),
+        ],
+      ),
+    );
+  }
+
+  /// Build recipe filter button
+  Widget _buildRecipeFilterButton(
+      BuildContext context, TextTheme textTheme, bool isDarkMode) {
+    return IconButton(
                     icon: Icon(
                       filterByRecipe
                           ? Icons.restaurant_menu
@@ -195,28 +252,26 @@ class _InspirationScreenState extends State<InspirationScreen> {
                     ),
                     tooltip: 'Show posts with recipes only',
                     onPressed: () {
+        if (!mounted) return;
+
                       setState(() {
                         filterByRecipe = !filterByRecipe;
                       });
 
                       // Show feedback
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
+        _showInfoSnackbar(
                             filterByRecipe
                                 ? 'Showing posts with recipes only'
                                 : 'Showing all posts',
-                          ),
-                          duration: const Duration(seconds: 1),
-                          backgroundColor: kAccent,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Row(
+        );
+      },
+    );
+  }
+
+  /// Build diet match indicator
+  Widget _buildDietMatchIndicator(
+      BuildContext context, TextTheme textTheme, String? userGoal) {
+    return Row(
               key: _addDietButtonKey,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -225,44 +280,27 @@ class _InspirationScreenState extends State<InspirationScreen> {
                   color: kWhite,
                   size: getIconScale(3.5, context),
                 ),
-                SizedBox(width: 8),
+        const SizedBox(width: 8),
                 Text(
                   "Meals that match your $userGoal goal",
                   style: textTheme.bodySmall
                       ?.copyWith(fontSize: getTextScale(2.5, context)),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-      floatingActionButtonLocation: CustomFloatingActionButtonLocation(
-        verticalOffset: getPercentageHeight(5, context),
-        horizontalOffset: getPercentageWidth(2, context),
-      ),
-      floatingActionButton: FloatingActionButton(
-        key: _addUploadButtonKey,
-        onPressed: () {
-          // Upload functionality removed with battle feature
-          // TODO: Add regular post upload if needed
-        },
-        backgroundColor: kAccent,
-        child: Icon(Icons.add_a_photo, color: isDarkMode ? kWhite : kBlack),
-      ),
-      body: RefreshIndicator(
+    );
+  }
+
+  /// Build the main body content
+  Widget _buildBody(BuildContext context) {
+    return RefreshIndicator(
         onRefresh: _refreshPosts,
         color: kAccent,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         child: SingleChildScrollView(
           controller: _scrollController,
-          physics:
-              AlwaysScrollableScrollPhysics(), // Enables pull-to-refresh even when content is short
+        physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
-              // Challenge posts horizontal list
-              // if (showChallengePosts)
-              // ChallengePostsHorizontalList(),
-
               // Main content grid
               SearchContentGrid(
                 key: _gridKey,
@@ -274,7 +312,19 @@ class _InspirationScreenState extends State<InspirationScreen> {
             ],
           ),
         ),
-      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final userGoal = userService.currentUser.value?.settings['dietPreference'];
+
+    return Scaffold(
+      appBar: _buildAppBar(context, textTheme, isDarkMode, userGoal),
+      // Upload button removed - feature is disabled
+      body: _buildBody(context),
     );
   }
 }
