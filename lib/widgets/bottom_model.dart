@@ -9,7 +9,6 @@ void showSpinWheel(
   String type,
   List<MacroData> ingredientList,
   List<Meal> mealList,
-  List<String> macroList,
   String selectedCategory,
   bool bool,
 ) {
@@ -34,10 +33,8 @@ void showSpinWheel(
               height: MediaQuery.of(context).size.height * 0.90,
               color: Colors.white,
               child: SpinWheelPop(
-                // macro: type,
                 ingredientList: ingredientList,
                 mealList: mealList,
-                macroList: macroList,
                 selectedCategory: selectedCategory,
               )));
     },

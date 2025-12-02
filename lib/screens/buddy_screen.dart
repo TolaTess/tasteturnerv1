@@ -11,7 +11,7 @@ import '../helper/utils.dart';
 import '../pages/photo_manager.dart';
 import '../service/chat_controller.dart';
 import '../themes/theme_provider.dart';
-import 'chat_screen.dart';
+import '../widgets/chat_item.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/planning_form.dart';
 import '../screens/premium_screen.dart';
@@ -40,9 +40,6 @@ class _TastyScreenState extends State<TastyScreen>
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   String _recognizedText = '';
-
-  // Food Health Journey mode
-  bool _isHealthJourneyMode = false;
 
   // State for meal plan quick action buttons (shown when entering from buddy tab)
   bool _showMealPlanQuickActions = false;
@@ -196,7 +193,7 @@ class _TastyScreenState extends State<TastyScreen>
       }
     }
 
-    if (messagesToRemove.isNotEmpty) {
+    if (messagesToRemove.isNotEmpty && mounted) {
       setState(() {
         for (final msg in messagesToRemove) {
           messages.remove(msg);
@@ -230,28 +227,15 @@ class _TastyScreenState extends State<TastyScreen>
     }
   }
 
-  OutlineInputBorder outlineInputBorder(double radius) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(radius),
-      borderSide: const BorderSide(color: Colors.transparent),
-    );
-  }
-
-  /// Save message to Firestore under chatId/{mode}_messages
-  Future<void> _saveMessageToFirestore(String content, String senderId,
-      {List<String>? imageUrls,
-      Map<String, dynamic>? actionButtons,
-      String? messageId}) async {
-    if (chatId == null || chatId!.isEmpty) return;
-
-    final currentMode = chatController.currentMode.value;
-    await chatController.saveMessageToMode(
-      mode: currentMode,
-      content: content,
-      senderId: senderId,
-      imageUrls: imageUrls,
-      actionButtons: actionButtons,
-      messageId: messageId,
+  /// Handle errors with consistent snackbar display
+  void _handleError(String message, {String? details}) {
+    if (!mounted || !context.mounted) return;
+    debugPrint('Error: $message${details != null ? ' - $details' : ''}');
+    showTastySnackbar(
+      'Error',
+      message,
+      context,
+      backgroundColor: Colors.red,
     );
   }
 
@@ -259,15 +243,16 @@ class _TastyScreenState extends State<TastyScreen>
   Future<void> _saveChatSummary() async {
     if (chatId == null ||
         !canUseAI() ||
+        chatController.messages.isEmpty ||
         chatController.messages.last.senderId == 'buddy') return;
 
-    final messages = chatController.messages;
-    final chatContent = messages.map((m) => m.messageContent).join('\n');
-    final summaryPrompt = "Summarize this conversation: $chatContent";
-    final summary =
-        await geminiService.getResponse(summaryPrompt, maxTokens: 512);
-
     try {
+      final messages = chatController.messages;
+      final chatContent = messages.map((m) => m.messageContent).join('\n');
+      final summaryPrompt = "Summarize this conversation: $chatContent";
+      final summary =
+          await geminiService.getResponse(summaryPrompt, maxTokens: 512);
+
       // Prepare update data
       final updateData = {
         'lastMessage': summary,
@@ -285,6 +270,7 @@ class _TastyScreenState extends State<TastyScreen>
       await firestore.collection('chats').doc(chatId).update(updateData);
     } catch (e) {
       debugPrint("Failed to save chat summary: $e");
+      // Don't show error to user as this happens in background
     }
   }
 
@@ -608,61 +594,6 @@ class _TastyScreenState extends State<TastyScreen>
                   );
                 }),
 
-                // Food Health Journey mode banner
-                if (_isHealthJourneyMode)
-                  Container(
-                    width: double.infinity,
-                    margin: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(2, context),
-                      vertical: getPercentageHeight(1, context),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(3, context),
-                      vertical: getPercentageHeight(1.5, context),
-                    ),
-                    decoration: BoxDecoration(
-                      color: kAccent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: kAccent.withValues(alpha: 0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.eco,
-                          color: kAccent,
-                          size: getIconScale(6, context),
-                        ),
-                        SizedBox(width: getPercentageWidth(2, context)),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Food Health Journey Mode Active",
-                                style: textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: kAccent,
-                                ),
-                              ),
-                              SizedBox(
-                                  height: getPercentageHeight(0.3, context)),
-                              Text(
-                                "Tasty will provide personalized nutrition guidance and track your progress",
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: themeProvider.isDarkMode
-                                      ? kWhite.withValues(alpha: 0.8)
-                                      : kDarkGrey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 Expanded(
                   child: Obx(() {
                     final messages = chatController.messages;
@@ -674,7 +605,8 @@ class _TastyScreenState extends State<TastyScreen>
                         return SingleChildScrollView(
                           child: Column(
                             children: [
-                              _buildMealPlanQuickActions(themeProvider.isDarkMode),
+                              _buildMealPlanQuickActions(
+                                  themeProvider.isDarkMode),
                             ],
                           ),
                         );
@@ -746,8 +678,7 @@ class _TastyScreenState extends State<TastyScreen>
                     onSend: () async {
                       final messageText = textController.text.trim();
                       if (messageText.isNotEmpty) {
-                        await chatController.sendMessageToAI(
-                            messageText, context);
+                        chatController.sendMessageToAI(messageText, context);
                         textController.clear();
                       }
                     },
@@ -788,56 +719,57 @@ class _TastyScreenState extends State<TastyScreen>
     }
   }
 
-  // Helper method to check if user can send a message
-  bool _canUserSendMessage() {
-    final messages = chatController.messages;
-    return messages.isEmpty ||
-        messages.last.senderId == 'buddy' ||
-        messages.last.senderId == 'systemMessage';
-  }
-
-  // Helper method to get appropriate hint text
-  String _getInputHintText() {
-    final messages = chatController.messages;
-    if (messages.isNotEmpty &&
-        messages.last.senderId != 'buddy' &&
-        messages.last.senderId != 'systemMessage') {
-      return 'Waiting for AI response...';
-    }
-    return 'Type your message...';
-  }
-
   Future<void> _initializeChatWithBuddy() async {
-    if (!canUseAI()) return;
+    if (!canUseAI() || !mounted) return;
 
-    if (chatId != null && chatId!.isNotEmpty) {
-      // Existing chat - set chatId and initialize mode
-      chatController.chatId = chatId!;
-      await chatController.initializeChat('buddy');
+    try {
+      if (chatId != null && chatId!.isNotEmpty) {
+        // Existing chat - set chatId and initialize mode
+        chatController.chatId = chatId!;
+        await chatController.initializeChat('buddy');
 
-      // Sync tab controller with current mode
-      final modes = ['tasty', 'planner', 'meal'];
-      final modeIndex = modes.indexOf(chatController.currentMode.value);
-      if (modeIndex >= 0 && modeIndex < 3) {
-        _tabController.index = modeIndex;
-      }
+        if (!mounted) return;
 
-      chatController.markMessagesAsRead(chatId!, 'buddy');
-    } else {
-      // New chat - create it and listen
-      await chatController.initializeChat('buddy');
-      setState(() {
-        chatId = chatController.chatId;
-      });
-      if (chatId != null) {
-        userService.setBuddyChatId(chatId!);
+        // Sync tab controller with current mode
+        final modes = ['tasty', 'planner', 'meal'];
+        final modeIndex = modes.indexOf(chatController.currentMode.value);
+        if (modeIndex >= 0 && modeIndex < 3) {
+          _tabController.index = modeIndex;
+        }
+
         chatController.markMessagesAsRead(chatId!, 'buddy');
+      } else {
+        // New chat - create it and listen
+        await chatController.initializeChat('buddy');
+
+        if (!mounted) return;
+
+        setState(() {
+          chatId = chatController.chatId;
+        });
+        if (chatId != null && chatId!.isNotEmpty) {
+          try {
+            userService.setBuddyChatId(chatId!);
+            chatController.markMessagesAsRead(chatId!, 'buddy');
+          } catch (e) {
+            debugPrint('Error setting buddy chat ID: $e');
+            _handleError('Failed to initialize chat. Please try again.',
+                details: e.toString());
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error initializing chat with buddy: $e');
+      if (mounted) {
+        _handleError('Failed to initialize chat. Please try again.',
+            details: e.toString());
       }
     }
   }
 
   // Show meal plan welcome with quick action buttons (when entering from buddy tab)
   void _showMealPlanWelcomeWithOptions() {
+    if (!mounted) return;
     setState(() {
       _showMealPlanQuickActions = true;
     });
@@ -905,7 +837,9 @@ class _TastyScreenState extends State<TastyScreen>
                 Text(
                   'Choose a quick option below or type your own request:',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode ? kWhite.withValues(alpha: 0.7) : kBlack.withValues(alpha: 0.7),
+                        color: isDarkMode
+                            ? kWhite.withValues(alpha: 0.7)
+                            : kBlack.withValues(alpha: 0.7),
                       ),
                 ),
                 const SizedBox(height: 16),

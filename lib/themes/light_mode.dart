@@ -87,14 +87,17 @@ class ThemeManager {
 
       bodyLarge: baseTextTheme.bodyLarge?.copyWith(
         fontSize: getTextScale(4, context),
+        fontWeight: FontWeight.w600,
         color: kBlack,
       ),
       bodyMedium: baseTextTheme.bodyMedium?.copyWith(
         fontSize: getTextScale(3.5, context),
+        fontWeight: FontWeight.w400,
         color: kBlack,
       ),
       bodySmall: baseTextTheme.bodySmall?.copyWith(
         fontSize: getTextScale(3, context),
+        fontWeight: FontWeight.w400,
         color: kBlack,
       ),
 
