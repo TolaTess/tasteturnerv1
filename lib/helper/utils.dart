@@ -711,6 +711,13 @@ String getCurrentWeek() {
   return 'week_${thursday.year}-${weekNumber.toString().padLeft(2, '0')}';
 }
 
+/// Get the start of the week (Monday) for a given date
+DateTime getWeekStart(DateTime date) {
+  final daysFromMonday = date.weekday - 1; // Monday = 1, so subtract 1
+  return DateTime(date.year, date.month, date.day)
+      .subtract(Duration(days: daysFromMonday));
+}
+
 String getRandomBio(List<String> type) {
   // Generate a random index
   final random = Random();
@@ -1633,4 +1640,55 @@ Widget buildOptimizedNetworkImage({
     placeholder: placeholder,
     errorWidget: errorWidget,
   );
+}
+
+/// Date navigation utilities for home screen
+class DateNavigationUtils {
+  /// Get the date 7 days ago from now
+  static DateTime getSevenDaysAgo() {
+    return DateTime.now().subtract(const Duration(days: 7));
+  }
+
+  /// Check if a date can be navigated backward (not more than 7 days ago)
+  static bool canNavigateBackward(DateTime currentDate) {
+    return currentDate.isAfter(getSevenDaysAgo());
+  }
+
+  /// Get the previous date (one day before current date)
+  static DateTime getPreviousDate(DateTime currentDate) {
+    return DateTime(
+      currentDate.year,
+      currentDate.month,
+      currentDate.day,
+    ).subtract(const Duration(days: 1));
+  }
+
+  /// Get the next date (one day after current date)
+  static DateTime getNextDate(DateTime currentDate) {
+    return DateTime(
+      currentDate.year,
+      currentDate.month,
+      currentDate.day,
+    ).add(const Duration(days: 1));
+  }
+
+  /// Check if next date would be in the future (beyond today)
+  static bool isNextDateInFuture(DateTime currentDate) {
+    final now = DateTime.now();
+    final nextDate = getNextDate(currentDate);
+    return nextDate.isAfter(DateTime(now.year, now.month, now.day));
+  }
+
+  /// Get today's date (without time component)
+  static DateTime getTodayDate() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  /// Check if date is today
+  static bool isToday(DateTime date) {
+    final today = getTodayDate();
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    return dateOnly.isAtSameMomentAs(today);
+  }
 }

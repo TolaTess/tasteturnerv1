@@ -1956,3 +1956,35 @@ class _RotatingLoadingDialogState extends State<_RotatingLoadingDialog> {
     );
   }
 }
+
+/// Get a human-readable description for a day type
+String caseDayType(String dayType) {
+  switch (dayType.toLowerCase()) {
+    case 'welcome_day':
+      return 'This was your first day with TastyTurner!';
+    case 'family_dinner':
+      return 'This was a Family Dinner day.';
+    case 'workout_boost':
+      return 'This was a Workout Boost day.';
+    case 'special_celebration':
+      return 'You had a Special Celebration.';
+    default:
+      return 'This was a ${capitalizeFirstLetter(dayType.replaceAll('_', ' '))}.';
+  }
+}
+
+/// Helper to get meal type icon
+IconData getMealTypeIcon(String? type) {
+  switch ((type ?? '').toLowerCase()) {
+    case 'breakfast':
+      return Icons.emoji_food_beverage_outlined;
+    case 'lunch':
+      return Icons.lunch_dining_outlined;
+    case 'dinner':
+      return Icons.dinner_dining_outlined;
+    case 'snacks':
+      return Icons.cake_outlined;
+    default:
+      return Icons.question_mark;
+  }
+}

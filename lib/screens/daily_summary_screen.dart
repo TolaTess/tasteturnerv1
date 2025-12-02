@@ -19,6 +19,51 @@ class DailySummaryScreen extends StatefulWidget {
 class _DailySummaryScreenState extends State<DailySummaryScreen> {
   late DateTime selectedDate;
 
+  // Constants
+  static const int maxDaysBack = 365;
+
+  /// Format date as yyyy-MM-dd for Firestore document ID
+  String _formatDateForFirestore(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  /// Check if the selected date is today
+  bool _isToday(DateTime date) {
+    return _formatDateForFirestore(date) == _formatDateForFirestore(DateTime.now());
+  }
+
+  /// Navigate to previous day
+  void _goToPreviousDay() {
+    if (!mounted) return;
+    setState(() {
+      selectedDate = selectedDate.subtract(const Duration(days: 1));
+    });
+  }
+
+  /// Navigate to next day (only if not at today)
+  void _goToNextDay() {
+    if (!mounted) return;
+    // Check if we can go forward (not at today)
+    if (selectedDate.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+      setState(() {
+        selectedDate = selectedDate.add(const Duration(days: 1));
+      });
+    }
+  }
+
+  /// Navigate to today
+  void _goToToday() {
+    if (!mounted) return;
+    setState(() {
+      selectedDate = DateTime.now();
+    });
+  }
+
+  /// Check if next day navigation is enabled
+  bool _canGoToNextDay() {
+    return selectedDate.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -29,8 +74,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-    final isToday = DateFormat('yyyy-MM-dd').format(selectedDate) ==
-        DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final isToday = _isToday(selectedDate);
 
     return Scaffold(
       appBar: AppBar(
@@ -48,11 +92,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
         actions: [
           if (!isToday)
             IconButton(
-              onPressed: () {
-                setState(() {
-                  selectedDate = DateTime.now();
-                });
-              },
+              onPressed: _goToToday,
               icon: Icon(
                 Icons.today,
                 color: kWhite,
@@ -71,12 +111,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    onPressed: () {
-                      setState(() {
-                        selectedDate =
-                            selectedDate.subtract(const Duration(days: 1));
-                      });
-                    },
+                    onPressed: _goToPreviousDay,
                     icon: Icon(
                       Icons.chevron_left,
                       color: kAccent,
@@ -89,7 +124,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                         context: context,
                         initialDate: selectedDate,
                         firstDate:
-                            DateTime.now().subtract(const Duration(days: 365)),
+                            DateTime.now().subtract(const Duration(days: maxDaysBack)),
                         lastDate: DateTime.now(),
                         builder: (context, child) {
                           return Theme(
@@ -138,19 +173,10 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                     ),
                   ),
                   IconButton(
-                    onPressed: selectedDate.isBefore(
-                            DateTime.now().subtract(const Duration(days: 1)))
-                        ? () {
-                            setState(() {
-                              selectedDate =
-                                  selectedDate.add(const Duration(days: 1));
-                            });
-                          }
-                        : null,
+                    onPressed: _canGoToNextDay() ? _goToNextDay : null,
                     icon: Icon(
                       Icons.chevron_right,
-                      color: selectedDate.isBefore(
-                              DateTime.now().subtract(const Duration(days: 1)))
+                      color: _canGoToNextDay()
                           ? kAccent
                           : kAccent.withValues(alpha: 0.3),
                       size: getIconScale(6, context),
@@ -164,8 +190,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
             Expanded(
               child: SingleChildScrollView(
                 child: DailySummaryWidget(
-                  key: ValueKey(DateFormat('yyyy-MM-dd')
-                      .format(selectedDate)), // Force rebuild when date changes
+                  key: ValueKey(_formatDateForFirestore(selectedDate)), // Force rebuild when date changes
                   date: selectedDate,
                   showPreviousDay: !isToday,
                 ),

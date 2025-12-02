@@ -1,0 +1,685 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart' show debugPrint;
+import 'package:get/get.dart';
+import '../constants.dart';
+import '../data_models/meal_model.dart';
+import '../helper/utils.dart';
+
+enum PlantCategory {
+  vegetable,
+  fruit,
+  grain,
+  legume,
+  nutSeed,
+  herbSpice,
+}
+
+class PlantIngredient {
+  final String name;
+  final PlantCategory category;
+  final double points; // 1.0 for most, 0.25 for herbs/spices
+  final DateTime firstSeen;
+
+  PlantIngredient({
+    required this.name,
+    required this.category,
+    required this.points,
+    required this.firstSeen,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'category': category.name,
+      'points': points,
+      'firstSeen': Timestamp.fromDate(firstSeen),
+    };
+  }
+
+  factory PlantIngredient.fromMap(Map<String, dynamic> map) {
+    return PlantIngredient(
+      name: map['name'] as String? ?? '',
+      category: PlantCategory.values.firstWhere(
+        (e) => e.name == map['category'],
+        orElse: () => PlantCategory.vegetable,
+      ),
+      points: (map['points'] as num?)?.toDouble() ?? 1.0,
+      firstSeen: (map['firstSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+}
+
+class PlantDiversityScore {
+  final int uniquePlants;
+  final int level; // 1-3 (10, 20, 30+)
+  final double progress; // 0.0 to 1.0
+  final Map<PlantCategory, int> categoryBreakdown;
+
+  PlantDiversityScore({
+    required this.uniquePlants,
+    required this.level,
+    required this.progress,
+    required this.categoryBreakdown,
+  });
+}
+
+class PlantDetectionService extends GetxController {
+  static PlantDetectionService get instance {
+    try {
+      return Get.find<PlantDetectionService>();
+    } catch (e) {
+      return Get.put(PlantDetectionService());
+    }
+  }
+
+  // Plant keyword lists for categorization
+  static const List<String> _vegetables = [
+    'spinach',
+    'kale',
+    'lettuce',
+    'broccoli',
+    'cauliflower',
+    'carrot',
+    'celery',
+    'cucumber',
+    'tomato',
+    'pepper',
+    'onion',
+    'garlic',
+    'mushroom',
+    'zucchini',
+    'eggplant',
+    'cabbage',
+    'brussels',
+    'asparagus',
+    'green beans',
+    'peas',
+    'corn',
+    'potato',
+    'sweet potato',
+    'beet',
+    'radish',
+    'turnip',
+    'artichoke',
+    'avocado',
+    'pumpkin',
+    'squash',
+    'okra',
+    'chard',
+    'collard',
+    'mustard',
+  ];
+
+  static const List<String> _fruits = [
+    'apple',
+    'banana',
+    'orange',
+    'grape',
+    'strawberry',
+    'blueberry',
+    'raspberry',
+    'blackberry',
+    'cherry',
+    'peach',
+    'pear',
+    'plum',
+    'apricot',
+    'mango',
+    'pineapple',
+    'watermelon',
+    'cantaloupe',
+    'honeydew',
+    'kiwi',
+    'papaya',
+    'pomegranate',
+    'cranberry',
+    'date',
+    'fig',
+    'grapefruit',
+    'lemon',
+    'lime',
+    'tangerine',
+    'coconut',
+    'olive',
+  ];
+
+  static const List<String> _grains = [
+    'rice',
+    'wheat',
+    'oats',
+    'quinoa',
+    'barley',
+    'millet',
+    'buckwheat',
+    'rye',
+    'corn',
+    'amaranth',
+    'teff',
+    'sorghum',
+    'bulgur',
+    'couscous',
+    'farro',
+    'spelt',
+    'freekeh',
+  ];
+
+  static const List<String> _legumes = [
+    'bean', 'lentil', 'chickpea', 'soy', 'tofu', 'tempeh', 'edamame',
+    'black bean', 'kidney bean', 'pinto bean', 'navy bean', 'lima bean',
+    'fava bean', 'split pea', 'black-eyed pea', 'mung bean', 'adzuki',
+    'peanut', // Technically a legume
+  ];
+
+  static const List<String> _nutsSeeds = [
+    'almond',
+    'walnut',
+    'cashew',
+    'pistachio',
+    'pecan',
+    'hazelnut',
+    'macadamia',
+    'brazil nut',
+    'pine nut',
+    'chia',
+    'flax',
+    'hemp',
+    'pumpkin seed',
+    'sunflower seed',
+    'sesame',
+    'poppy seed',
+    'pomegranate seed',
+  ];
+
+  static const List<String> _herbsSpices = [
+    'basil',
+    'oregano',
+    'thyme',
+    'rosemary',
+    'sage',
+    'parsley',
+    'cilantro',
+    'dill',
+    'mint',
+    'chive',
+    'tarragon',
+    'marjoram',
+    'turmeric',
+    'ginger',
+    'garlic',
+    'onion powder',
+    'cumin',
+    'coriander',
+    'paprika',
+    'cayenne',
+    'black pepper',
+    'white pepper',
+    'cardamom',
+    'cinnamon',
+    'nutmeg',
+    'clove',
+    'allspice',
+    'vanilla',
+    'saffron',
+    'bay leaf',
+    'fennel',
+    'star anise',
+  ];
+
+  /// Detect plants from a meal's ingredients
+  List<PlantIngredient> detectPlantsFromMeal(Meal meal) {
+    final plants = <PlantIngredient>[];
+    final seenNames = <String>{};
+
+    for (final ingredientEntry in meal.ingredients.entries) {
+      final ingredientName = ingredientEntry.key.toLowerCase().trim();
+
+      // Skip if already seen (case-insensitive)
+      if (seenNames.contains(ingredientName)) continue;
+      seenNames.add(ingredientName);
+
+      final category = _categorizeIngredient(ingredientName);
+      if (category != null) {
+        final points = category == PlantCategory.herbSpice ? 0.25 : 1.0;
+        plants.add(PlantIngredient(
+          name: ingredientEntry.key, // Keep original casing
+          category: category,
+          points: points,
+          firstSeen: meal.createdAt,
+        ));
+      }
+    }
+
+    return plants;
+  }
+
+  /// Detect plants from ingredient map (for UserMeal or other sources)
+  List<PlantIngredient> detectPlantsFromIngredients(
+    Map<String, String> ingredients,
+    DateTime date,
+  ) {
+    final plants = <PlantIngredient>[];
+    final seenNames = <String>{};
+
+    debugPrint('🌱 Detecting plants from ${ingredients.length} ingredients');
+
+    for (final ingredientEntry in ingredients.entries) {
+      final ingredientName = ingredientEntry.key.toLowerCase().trim();
+
+      // Skip if already seen (case-insensitive)
+      if (seenNames.contains(ingredientName)) continue;
+      seenNames.add(ingredientName);
+
+      final category = _categorizeIngredient(ingredientName);
+      if (category != null) {
+        final points = category == PlantCategory.herbSpice ? 0.25 : 1.0;
+        plants.add(PlantIngredient(
+          name: ingredientEntry.key, // Keep original casing
+          category: category,
+          points: points,
+          firstSeen: date,
+        ));
+        debugPrint(
+            '🌱 Detected plant: ${ingredientEntry.key} -> ${category.name}');
+      } else {
+        debugPrint('🌱 Not a plant: ${ingredientEntry.key}');
+      }
+    }
+
+    debugPrint('🌱 Total plants detected: ${plants.length}');
+    return plants;
+  }
+
+  /// Categorize an ingredient into a plant category
+  PlantCategory? _categorizeIngredient(String ingredientName) {
+    final lowerName = ingredientName.toLowerCase();
+
+    // Check herbs/spices first (most specific)
+    for (final herb in _herbsSpices) {
+      if (lowerName.contains(herb)) {
+        return PlantCategory.herbSpice;
+      }
+    }
+
+    // Check nuts/seeds
+    for (final nut in _nutsSeeds) {
+      if (lowerName.contains(nut)) {
+        return PlantCategory.nutSeed;
+      }
+    }
+
+    // Check legumes
+    for (final legume in _legumes) {
+      if (lowerName.contains(legume)) {
+        return PlantCategory.legume;
+      }
+    }
+
+    // Check grains
+    for (final grain in _grains) {
+      if (lowerName.contains(grain)) {
+        return PlantCategory.grain;
+      }
+    }
+
+    // Check fruits
+    for (final fruit in _fruits) {
+      if (lowerName.contains(fruit)) {
+        return PlantCategory.fruit;
+      }
+    }
+
+    // Check vegetables
+    for (final vegetable in _vegetables) {
+      if (lowerName.contains(vegetable)) {
+        return PlantCategory.vegetable;
+      }
+    }
+
+    // If no match, return null (not a plant or unknown)
+    return null;
+  }
+
+  /// Get unique plants for a week
+  Future<List<PlantIngredient>> getUniquePlantsForWeek(
+    String userId,
+    DateTime weekStart,
+  ) async {
+    try {
+      final weekId = _getWeekId(weekStart);
+      final docRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('plant_tracking')
+          .doc(weekId);
+
+      final doc = await docRef.get();
+      if (!doc.exists) {
+        return [];
+      }
+
+      final data = doc.data()!;
+      final plantsList = (data['plantDetails'] as List<dynamic>?)
+              ?.map((e) => PlantIngredient.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [];
+
+      return plantsList;
+    } catch (e) {
+      debugPrint('Error getting unique plants for week: $e');
+      return [];
+    }
+  }
+
+  /// Get plant count for a week
+  Future<int> getPlantCountForWeek(String userId, DateTime weekStart) async {
+    final plants = await getUniquePlantsForWeek(userId, weekStart);
+    return plants.length;
+  }
+
+  /// Get plant diversity score for a week
+  Future<PlantDiversityScore> getPlantDiversityScore(
+    String userId,
+    DateTime weekStart,
+  ) async {
+    final plants = await getUniquePlantsForWeek(userId, weekStart);
+    final uniqueCount = plants.length;
+
+    // Calculate level (1: 10+, 2: 20+, 3: 30+)
+    int level = 0;
+    if (uniqueCount >= 30) {
+      level = 3;
+    } else if (uniqueCount >= 20) {
+      level = 2;
+    } else if (uniqueCount >= 10) {
+      level = 1;
+    }
+
+    // Calculate progress (0.0 to 1.0) towards next level
+    double progress = 0.0;
+    if (level == 0) {
+      progress = uniqueCount / 10.0; // Progress to level 1
+    } else if (level == 1) {
+      progress = (uniqueCount - 10) / 10.0; // Progress to level 2
+    } else if (level == 2) {
+      progress = (uniqueCount - 20) / 10.0; // Progress to level 3
+    } else {
+      progress = 1.0; // Maxed out
+    }
+    progress = progress.clamp(0.0, 1.0);
+
+    // Category breakdown
+    final categoryBreakdown = <PlantCategory, int>{};
+    for (final plant in plants) {
+      categoryBreakdown[plant.category] =
+          (categoryBreakdown[plant.category] ?? 0) + 1;
+    }
+
+    return PlantDiversityScore(
+      uniquePlants: uniqueCount,
+      level: level,
+      progress: progress,
+      categoryBreakdown: categoryBreakdown,
+    );
+  }
+
+  /// Track plants from a meal and update Firestore
+  Future<void> trackPlantsFromMeal(
+    String userId,
+    Meal meal,
+    DateTime mealDate,
+  ) async {
+    try {
+      final weekStart = getWeekStart(mealDate);
+      final weekId = _getWeekId(weekStart);
+      final detectedPlants = detectPlantsFromMeal(meal);
+
+      if (detectedPlants.isEmpty) return;
+
+      final docRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('plant_tracking')
+          .doc(weekId);
+
+      final doc = await docRef.get();
+      final existingPlants = <String, PlantIngredient>{};
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        final existingList = (data['plantDetails'] as List<dynamic>?)
+                ?.map((e) => PlantIngredient.fromMap(e as Map<String, dynamic>))
+                .toList() ??
+            [];
+
+        for (final plant in existingList) {
+          existingPlants[plant.name.toLowerCase()] = plant;
+        }
+      }
+
+      // Add new plants (case-insensitive deduplication)
+      for (final plant in detectedPlants) {
+        final key = plant.name.toLowerCase();
+        if (!existingPlants.containsKey(key)) {
+          existingPlants[key] = plant;
+        } else {
+          // Update firstSeen if this is earlier
+          final existing = existingPlants[key]!;
+          if (plant.firstSeen.isBefore(existing.firstSeen)) {
+            existingPlants[key] = plant;
+          }
+        }
+      }
+
+      // Calculate total points
+      final totalPoints = existingPlants.values
+          .map((p) => p.points)
+          .fold(0.0, (sum, points) => sum + points);
+
+      // Calculate previous and new levels
+      final previousCount = doc.exists
+          ? (doc.data()?['uniquePlants'] as List<dynamic>?)?.length ?? 0
+          : 0;
+      final newCount = existingPlants.length;
+
+      final previousLevel = _calculateLevel(previousCount);
+      final newLevel = _calculateLevel(newCount);
+
+      // Save to Firestore
+      await docRef.set({
+        'weekId': weekId,
+        'weekStart': Timestamp.fromDate(weekStart),
+        'uniquePlants': existingPlants.values.map((p) => p.name).toList(),
+        'plantDetails': existingPlants.values.map((p) => p.toMap()).toList(),
+        'totalPoints': totalPoints,
+        'currentLevel': newLevel,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Check for milestone achievement and send notification
+      if (newLevel > previousLevel && newLevel > 0) {
+        await _notifyMilestoneAchievement(userId, newLevel, newCount);
+      }
+    } catch (e) {
+      debugPrint('Error tracking plants from meal: $e');
+    }
+  }
+
+  /// Track plants from ingredient map
+  Future<void> trackPlantsFromIngredients(
+    String userId,
+    Map<String, String> ingredients,
+    DateTime mealDate,
+  ) async {
+    try {
+      final weekStart = getWeekStart(mealDate);
+      final weekId = _getWeekId(weekStart);
+      final detectedPlants = detectPlantsFromIngredients(ingredients, mealDate);
+
+      if (detectedPlants.isEmpty) return;
+
+      final docRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('plant_tracking')
+          .doc(weekId);
+
+      final doc = await docRef.get();
+      final existingPlants = <String, PlantIngredient>{};
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        final existingList = (data['plantDetails'] as List<dynamic>?)
+                ?.map((e) => PlantIngredient.fromMap(e as Map<String, dynamic>))
+                .toList() ??
+            [];
+
+        for (final plant in existingList) {
+          existingPlants[plant.name.toLowerCase()] = plant;
+        }
+      }
+
+      // Add new plants (case-insensitive deduplication)
+      for (final plant in detectedPlants) {
+        final key = plant.name.toLowerCase();
+        if (!existingPlants.containsKey(key)) {
+          existingPlants[key] = plant;
+        } else {
+          // Update firstSeen if this is earlier
+          final existing = existingPlants[key]!;
+          if (plant.firstSeen.isBefore(existing.firstSeen)) {
+            existingPlants[key] = plant;
+          }
+        }
+      }
+
+      // Calculate total points
+      final totalPoints = existingPlants.values
+          .map((p) => p.points)
+          .fold(0.0, (sum, points) => sum + points);
+
+      // Calculate previous and new levels
+      final previousCount = doc.exists 
+          ? (doc.data()?['uniquePlants'] as List<dynamic>?)?.length ?? 0
+          : 0;
+      final newCount = existingPlants.length;
+      
+      final previousLevel = _calculateLevel(previousCount);
+      final newLevel = _calculateLevel(newCount);
+
+      // Save to Firestore
+      await docRef.set({
+        'weekId': weekId,
+        'weekStart': Timestamp.fromDate(weekStart),
+        'uniquePlants': existingPlants.values.map((p) => p.name).toList(),
+        'plantDetails': existingPlants.values.map((p) => p.toMap()).toList(),
+        'totalPoints': totalPoints,
+        'currentLevel': newLevel,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Check for milestone achievement and send notification
+      if (newLevel > previousLevel && newLevel > 0) {
+        await _notifyMilestoneAchievement(userId, newLevel, newCount);
+      }
+    } catch (e) {
+      debugPrint('Error tracking plants from ingredients: $e');
+    }
+  }
+
+  /// Calculate level from plant count
+  int _calculateLevel(int count) {
+    if (count >= 30) {
+      return 3;
+    } else if (count >= 20) {
+      return 2;
+    } else if (count >= 10) {
+      return 1;
+    }
+    return 0;
+  }
+
+  /// Notify user when they reach a rainbow milestone
+  Future<void> _notifyMilestoneAchievement(
+    String userId,
+    int level,
+    int plantCount,
+  ) async {
+    try {
+      // Check if we've already notified for this level this week
+      final weekStart = getWeekStart(DateTime.now());
+      final weekId = _getWeekId(weekStart);
+      final docRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('plant_tracking')
+          .doc(weekId);
+
+      final doc = await docRef.get();
+      final notifiedLevels = (doc.data()?['notifiedLevels'] as List<dynamic>?)
+              ?.map((e) => e as int)
+              .toList() ??
+          [];
+
+      // If we've already notified for this level, skip
+      if (notifiedLevels.contains(level)) {
+        debugPrint('🌱 Already notified for level $level this week');
+        return;
+      }
+
+      // Get level name and message
+      String levelName;
+      String message;
+      switch (level) {
+        case 1:
+          levelName = 'Beginner';
+          message =
+              'Congratulations! You\'ve reached Beginner level with $plantCount unique plants! 🌱';
+          break;
+        case 2:
+          levelName = 'Healthy';
+          message =
+              'Amazing! You\'ve reached Healthy level with $plantCount unique plants! 🥗';
+          break;
+        case 3:
+          levelName = 'Gut Hero';
+          message =
+              'Incredible! You\'ve reached Gut Hero level with $plantCount unique plants! 🏆';
+          break;
+        default:
+          return; // Should not happen
+      }
+
+      // Send notification
+      await notificationService.showNotification(
+        id: 2000 + level, // Unique ID for each level
+        title: '🌈 Rainbow Milestone: $levelName!',
+        body: message,
+      );
+
+      // Mark this level as notified
+      notifiedLevels.add(level);
+      await docRef.set({
+        'notifiedLevels': notifiedLevels,
+      }, SetOptions(merge: true));
+
+      debugPrint(
+          '🌱 Sent milestone notification for level $level ($levelName)');
+    } catch (e) {
+      debugPrint('🌱 Error sending milestone notification: $e');
+    }
+  }
+
+  /// Get week ID in ISO format (YYYY-Www)
+  String _getWeekId(DateTime date) {
+    // Get ISO week number
+    final weekStart = getWeekStart(date);
+    final year = weekStart.year;
+
+    // Calculate week number: days from Jan 1 to week start / 7, rounded up
+    final jan1 = DateTime(year, 1, 1);
+    final daysFromJan1 = weekStart.difference(jan1).inDays;
+    final weekNumber = ((daysFromJan1 + 1) / 7).ceil();
+
+    return '${year}-W${weekNumber.toString().padLeft(2, '0')}';
+  }
+}

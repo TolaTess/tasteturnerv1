@@ -7,6 +7,19 @@ import '../service/symptom_correlation_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/primary_button.dart';
 
+// Constants for action item thresholds
+class ActionItemConstants {
+  static const double calorieLowThreshold = 0.8; // 80% of goal
+  static const double calorieHighThreshold = 1.2; // 120% of goal
+  static const double macroLowThreshold = 0.8; // 80% of goal
+  static const double macroHighThreshold = 1.2; // 120% of goal
+  static const double routineLowThreshold = 50.0; // 50% completion
+  static const double routineMediumThreshold = 80.0; // 80% completion
+  static const double waterGoal = 2000.0; // ml
+  static const int symptomFrequencyThreshold = 3; // times per week
+  static const int symptomAnalysisDays = 7; // days to analyze
+}
+
 class TomorrowActionItemsScreen extends StatefulWidget {
   final Map<String, dynamic> todaySummary;
   final String tomorrowDate;
@@ -100,9 +113,11 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       final symptomTypes = ['bloating', 'headache', 'fatigue', 'nausea'];
       
       for (var symptomType in symptomTypes) {
-        final count = await symptomCorrelationService.getSymptomCount(userId, symptomType, 7);
+        final count = await symptomCorrelationService.getSymptomCount(
+            userId, symptomType, ActionItemConstants.symptomAnalysisDays);
         
-        if (count >= 3 && correlationsBySymptom.containsKey(symptomType)) {
+        if (count >= ActionItemConstants.symptomFrequencyThreshold && 
+            correlationsBySymptom.containsKey(symptomType)) {
           final symptomCorrelations = correlationsBySymptom[symptomType]!;
           final topIngredients = symptomCorrelations
               .take(3)
@@ -193,7 +208,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _generateActionItems() {
+  List<Map<String, dynamic>> _generateActionItems({required bool isTomorrow}) {
     final List<Map<String, dynamic>> actionItems = [];
 
     // Get today's data
@@ -202,7 +217,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     final carbs = _parseMacro(widget.todaySummary['carbs']);
     final fat = _parseMacro(widget.todaySummary['fat']);
     final water = _parseMacro(widget.todaySummary['water']);
-    final steps = _parseMacro(widget.todaySummary['steps']);
+    // Note: steps removed as it was unused - can be added back if step-based action items are needed
     final routineCompletionPercentage =
         _parseMacro(widget.todaySummary['routineCompletionPercentage']);
 
@@ -213,12 +228,11 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     final carbsGoal = _parseMacro(settings?['carbsGoal']);
     final fatGoal = _parseMacro(settings?['fatGoal']);
 
-    // check if tomorrow is today
-    final isTomorrow = DateFormat('yyyy-MM-dd').format(tomorrowDate) ==
-        DateFormat('yyyy-MM-dd').format(DateTime.now());
-
     // Analyze today's performance and suggest tomorrow's actions
-    if (calories < calorieGoal * 0.8) {
+    // Add division by zero check
+    if (calorieGoal <= 0) {
+      // If no calorie goal set, skip calorie analysis
+    } else if (calories < calorieGoal * ActionItemConstants.calorieLowThreshold) {
       actionItems.add({
         'title': 'Increase Calorie Intake',
         'description':
@@ -227,7 +241,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
         'color': kAccent,
         'priority': 'high',
       });
-    } else if (calories > calorieGoal * 1.2) {
+    } else if (calories > calorieGoal * ActionItemConstants.calorieHighThreshold) {
       actionItems.add({
         'title': 'Reduce Calorie Intake',
         'description':
@@ -237,118 +251,81 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
         'priority': 'high',
       });
     } else {
+      // Add division by zero check
+      final caloriePercentage = calorieGoal > 0 
+          ? ((calories / calorieGoal) * 100).round() 
+          : 0;
       actionItems.add({
         'title': 'Calorie Intake',
         'description':
-            'You\'ve hit ${((calories / calorieGoal) * 100).round()}% of your calorie intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar calorie intake tomorrow.'} ',
+            'You\'ve hit $caloriePercentage% of your calorie intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar calorie intake tomorrow.'} ',
         'icon': Icons.restaurant,
         'color': kGreen,
         'priority': 'low',
       });
     }
 
-    if (protein < proteinGoal * 0.8) {
-      actionItems.add({
-        'title': 'Boost Protein',
-        'description':
-            'Add more protein-rich foods like lean meats, eggs, or legumes to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
-        'icon': Icons.fitness_center,
-        'color': kBlue,
-        'priority': 'medium',
-      });
-    } else if (protein > proteinGoal * 1.2) {
-      actionItems.add({
-        'title': 'Reduce Protein',
-        'description':
-            '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce protein intake to stay within your goal.',
-        'icon': Icons.fitness_center,
-        'color': kRed,
-        'priority': 'medium',
-      });
-    } else {
-      actionItems.add({
-        'title': 'Protein Intake',
-        'description':
-            'You\'ve hit ${((protein / proteinGoal) * 100).round()}% of your protein intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar protein intake tomorrow.'} ',
-        'icon': Icons.fitness_center,
-        'color': kGreen,
-        'priority': 'low',
-      });
-    }
+    // Refactored macro analysis using helper method
+    _addMacroActionItem(
+      actionItems,
+      current: protein,
+      goal: proteinGoal,
+      macroName: 'Protein',
+      lowTitle: 'Boost Protein',
+      lowDescription: 'Add more protein-rich foods like lean meats, eggs, or legumes to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
+      highTitle: 'Reduce Protein',
+      highDescription: '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce protein intake to stay within your goal.',
+      successTitle: 'Protein Intake',
+      icon: Icons.fitness_center,
+      color: kBlue,
+      isTomorrow: isTomorrow,
+    );
 
-    if (carbs < carbsGoal * 0.8) {
-      actionItems.add({
-        'title': 'Include More Carbs',
-        'description':
-            'Add healthy carbohydrates like whole grains, fruits, or vegetables to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
-        'icon': Icons.grain,
-        'color': kGreen,
-        'priority': 'medium',
-      });
-    } else if (carbs > carbsGoal * 1.2) {
-      actionItems.add({
-        'title': 'Reduce Carbs',
-        'description':
-            '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce carb intake to stay within your goal.',
-        'icon': Icons.grain,
-        'color': kRed,
-        'priority': 'medium',
-      });
-    } else {
-      actionItems.add({
-        'title': 'Carbs Intake',
-        'description':
-            'You\'ve hit ${((carbs / carbsGoal) * 100).round()}% of your carbs intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar carbs intake tomorrow.'} ',
-        'icon': Icons.grain,
-        'color': kGreen,
-        'priority': 'low',
-      });
-    }
+    _addMacroActionItem(
+      actionItems,
+      current: carbs,
+      goal: carbsGoal,
+      macroName: 'Carbs',
+      lowTitle: 'Include More Carbs',
+      lowDescription: 'Add healthy carbohydrates like whole grains, fruits, or vegetables to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
+      highTitle: 'Reduce Carbs',
+      highDescription: '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce carb intake to stay within your goal.',
+      successTitle: 'Carbs Intake',
+      icon: Icons.grain,
+      color: kGreen,
+      isTomorrow: isTomorrow,
+    );
 
-    if (fat < fatGoal * 0.8) {
-      actionItems.add({
-        'title': 'Healthy Fats',
-        'description':
-            'Include healthy fats like nuts, avocados, or olive oil in ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
-        'icon': Icons.water_drop,
-        'color': kPurple,
-        'priority': 'medium',
-      });
-    } else if (fat > fatGoal * 1.2) {
-      actionItems.add({
-        'title': 'Reduce Fat',
-        'description':
-            '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce fat intake to stay within your goal.',
-        'icon': Icons.water_drop,
-        'color': kRed,
-        'priority': 'medium',
-      });
-    } else {
-      actionItems.add({
-        'title': 'Fat Intake',
-        'description':
-            'You\'ve hit ${((fat / fatGoal) * 100).round()}% of your fat intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar fat intake tomorrow.'} ',
-        'icon': Icons.water_drop,
-        'color': kGreen,
-        'priority': 'low',
-      });
-    }
+    _addMacroActionItem(
+      actionItems,
+      current: fat,
+      goal: fatGoal,
+      macroName: 'Fat',
+      lowTitle: 'Healthy Fats',
+      lowDescription: 'Include healthy fats like nuts, avocados, or olive oil in ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
+      highTitle: 'Reduce Fat',
+      highDescription: '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce fat intake to stay within your goal.',
+      successTitle: 'Fat Intake',
+      icon: Icons.water_drop,
+      color: kPurple,
+      isTomorrow: isTomorrow,
+    );
 
     // Routine completion suggestions
-    if (routineCompletionPercentage < 50) {
+    if (routineCompletionPercentage < ActionItemConstants.routineLowThreshold) {
       actionItems.add({
         'title': 'Improve Routine Consistency',
         'description':
-            'You completed ${routineCompletionPercentage.round()}% of your routine ${isTomorrow ? 'today' : 'today'}. Try to complete at least 50% of your routine tasks ${isTomorrow ? 'today' : 'tomorrow'} for better consistency.',
+            'You completed ${routineCompletionPercentage.round()}% of your routine ${isTomorrow ? 'today' : 'today'}. Try to complete at least ${ActionItemConstants.routineLowThreshold.round()}% of your routine tasks ${isTomorrow ? 'today' : 'tomorrow'} for better consistency.',
         'icon': Icons.checklist,
         'color': Colors.orange,
         'priority': 'high',
       });
-    } else if (routineCompletionPercentage < 80) {
+    } else if (routineCompletionPercentage < ActionItemConstants.routineMediumThreshold) {
       actionItems.add({
         'title': 'Boost Routine Completion',
         'description':
-            'You completed ${routineCompletionPercentage.round()}% of your routine ${isTomorrow ? 'today' : 'today'}. Aim for 80% completion ${isTomorrow ? 'today' : 'tomorrow'} to maintain optimal daily habits.',
+            'You completed ${routineCompletionPercentage.round()}% of your routine ${isTomorrow ? 'today' : 'today'}. Aim for ${ActionItemConstants.routineMediumThreshold.round()}% completion ${isTomorrow ? 'today' : 'tomorrow'} to maintain optimal daily habits.',
         'icon': Icons.checklist,
         'color': kAccent,
         'priority': 'medium',
@@ -377,11 +354,11 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     }
 
     // General wellness suggestions
-    if (water < 2000) {
+    if (water < ActionItemConstants.waterGoal) {
       actionItems.add({
         'title': 'Stay Hydrated',
         'description':
-            'Aim to drink at least 2000 ml of water ${isTomorrow ? 'today' : 'tomorrow'} to support your metabolism.',
+            'Aim to drink at least ${ActionItemConstants.waterGoal.round()} ml of water ${isTomorrow ? 'today' : 'tomorrow'} to support your metabolism.',
         'icon': Icons.local_drink,
         'color': kBlue,
         'priority': 'medium',
@@ -404,6 +381,54 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     }
 
     return actionItems;
+  }
+
+  /// Helper method to add macro action items (reduces code duplication)
+  void _addMacroActionItem(
+    List<Map<String, dynamic>> actionItems, {
+    required double current,
+    required double goal,
+    required String macroName,
+    required String lowTitle,
+    required String lowDescription,
+    required String highTitle,
+    required String highDescription,
+    required String successTitle,
+    required IconData icon,
+    required Color color,
+    required bool isTomorrow,
+  }) {
+    // Skip if goal is zero or invalid
+    if (goal <= 0) return;
+
+    if (current < goal * ActionItemConstants.macroLowThreshold) {
+      actionItems.add({
+        'title': lowTitle,
+        'description': lowDescription,
+        'icon': icon,
+        'color': color,
+        'priority': 'medium',
+      });
+    } else if (current > goal * ActionItemConstants.macroHighThreshold) {
+      actionItems.add({
+        'title': highTitle,
+        'description': highDescription,
+        'icon': icon,
+        'color': kRed,
+        'priority': 'medium',
+      });
+    } else {
+      // Add division by zero check (already checked goal > 0 above)
+      final percentage = ((current / goal) * 100).round();
+      actionItems.add({
+        'title': successTitle,
+        'description':
+            'You\'ve hit $percentage% of your ${macroName.toLowerCase()} intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar ${macroName.toLowerCase()} intake tomorrow.'} ',
+        'icon': icon,
+        'color': kGreen,
+        'priority': 'low',
+      });
+    }
   }
 
   double _parseMacro(dynamic value) {
@@ -430,14 +455,14 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-    final actionItems = _generateActionItems();
-    // check if tomorrow is today
-    final isTomorrow = DateFormat('yyyy-MM-dd').format(tomorrowDate) ==
-        DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    // check if we're viewing today's action items
-    final isToday = DateFormat('yyyy-MM-dd').format(tomorrowDate) ==
-        DateFormat('yyyy-MM-dd').format(DateTime.now());
+    
+    // Optimize date calculations - calculate once and reuse
+    final tomorrowDateStr = DateFormat('yyyy-MM-dd').format(tomorrowDate);
+    final todayDateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final isTomorrow = tomorrowDateStr == todayDateStr;
+    final isToday = isTomorrow; // Same calculation, reuse variable
+    
+    final actionItems = _generateActionItems(isTomorrow: isTomorrow);
 
     return Scaffold(
       appBar: AppBar(

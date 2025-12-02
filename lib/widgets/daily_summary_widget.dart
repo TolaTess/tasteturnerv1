@@ -13,6 +13,7 @@ import '../data_models/health_journal_model.dart';
 import '../service/nutrient_breakdown_service.dart';
 import '../data_models/user_meal.dart';
 import 'health_journal_widget.dart';
+import 'rainbow_tracker_widget.dart';
 
 class DailySummaryWidget extends StatefulWidget {
   final DateTime date;
@@ -36,10 +37,25 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   Map<String, dynamic> summaryData = {};
   Map<String, dynamic> goals = {};
   HealthJournalEntry? journalEntry;
+  String? currentWeekId;
+  String journalStatus = 'pending';
   Map<String, List<Map<String, dynamic>>> nutrientBreakdowns = {};
   Map<String, List<UserMeal>> mealsWithContext = {}; // mealType -> List<UserMeal>
   Map<String, int> contextCounts = {}; // context -> count
   List<SymptomEntry> currentSymptoms = []; // Symptoms for today
+
+  /// Get week ID in ISO format (YYYY-Www)
+  String _getWeekId(DateTime date) {
+    final weekStart = getWeekStart(date);
+    final year = weekStart.year;
+    
+    // Calculate week number: days from Jan 1 to week start / 7, rounded up
+    final jan1 = DateTime(year, 1, 1);
+    final daysFromJan1 = weekStart.difference(jan1).inDays;
+    final weekNumber = ((daysFromJan1 + 1) / 7).ceil();
+    
+    return '${year}-W${weekNumber.toString().padLeft(2, '0')}';
+  }
 
   @override
   void initState() {
@@ -71,10 +87,16 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       // Load routine completion data
       await _loadRoutineCompletionData(userId, dateString);
 
-      // Load health journal entry
-      final journal = await healthJournalService.fetchJournalEntry(userId, widget.date);
+      // Load weekly health journal entry
+      final weekId = _getWeekId(widget.date);
+      currentWeekId = weekId;
+      final status = await healthJournalService.getJournalStatus(userId, weekId);
+      journalStatus = status;
+      
+      final journal = await healthJournalService.fetchWeeklyJournalEntry(userId, weekId);
       if (journal != null) {
         journalEntry = journal;
+        journalStatus = journal.status;
       }
 
       // Load nutrient breakdowns
@@ -418,11 +440,56 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           SizedBox(height: getPercentageHeight(2, context)),
           _buildSymptomInputSection(context, isDarkMode, textTheme),
 
+          // Rainbow Tracker Widget
+          SizedBox(height: getPercentageHeight(2, context)),
+          RainbowTrackerWidget(
+            weekStart: getWeekStart(widget.date),
+            onTap: () {
+              // Navigate to dedicated Rainbow Tracker screen
+              // TODO: Implement navigation when screen is created
+            },
+          ),
+
           // Health Journal Entry
-          if (journalEntry != null) ...[
             SizedBox(height: getPercentageHeight(2, context)),
-            HealthJournalWidget(journalEntry: journalEntry!),
-          ],
+          HealthJournalWidget(
+            journalEntry: journalEntry,
+            weekId: currentWeekId,
+            status: journalStatus,
+            onPreviousWeek: (weekId) async {
+              // Load previous week's journal
+              final userId = userService.userId ?? '';
+              if (userId.isEmpty) return;
+              
+              final status = await healthJournalService.getJournalStatus(userId, weekId);
+              final journal = await healthJournalService.fetchWeeklyJournalEntry(userId, weekId);
+              
+              if (mounted) {
+                setState(() {
+                  currentWeekId = weekId;
+                  journalStatus = status;
+                  journalEntry = journal;
+                });
+                
+                // Show feedback if no journal exists for previous week
+                if (journal == null && status == 'pending') {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'No journal available for this week yet. It will be generated at your scheduled time.',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: kWhite,
+                        ),
+                      ),
+                      backgroundColor: kLightGrey,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              }
+            },
+            onNextWeek: null, // Next week not available for future weeks
+          ),
         ],
       ),
     );

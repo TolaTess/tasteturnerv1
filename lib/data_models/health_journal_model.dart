@@ -1,41 +1,73 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HealthJournalEntry {
-  final String date;
+  final String weekId; // Format: "2024-W01" (ISO week)
+  final String date; // Keep for backward compatibility
+  final DateTime weekStart;
+  final DateTime weekEnd;
+  final String status; // 'pending', 'generating', 'completed'
+  final DateTime? scheduledFor; // User's preferred generation time
   final JournalSummary summary;
   final JournalData data;
   final List<String> userNotes;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final PlantDiversityData? plantDiversity;
 
   HealthJournalEntry({
-    required this.date,
+    required this.weekId,
+    String? date, // Optional for backward compatibility
+    required this.weekStart,
+    required this.weekEnd,
+    this.status = 'pending',
+    this.scheduledFor,
     required this.summary,
     required this.data,
     required this.userNotes,
     required this.createdAt,
     this.updatedAt,
-  });
+    this.plantDiversity,
+  }) : date = date ?? weekId; // Use weekId as fallback for date
 
-  factory HealthJournalEntry.fromFirestore(String date, Map<String, dynamic> json) {
+  factory HealthJournalEntry.fromFirestore(String weekId, Map<String, dynamic> json) {
     return HealthJournalEntry(
-      date: date,
+      weekId: weekId,
+      date: json['date'] as String? ?? weekId,
+      weekStart: (json['weekStart'] as Timestamp?)?.toDate() ??
+          (json['date'] != null
+              ? DateTime.tryParse(json['date'] as String) ?? DateTime.now()
+              : DateTime.now()),
+      weekEnd: (json['weekEnd'] as Timestamp?)?.toDate() ??
+          ((json['weekStart'] as Timestamp?)?.toDate() != null
+              ? (json['weekStart'] as Timestamp).toDate().add(const Duration(days: 6))
+              : DateTime.now().add(const Duration(days: 6))),
+      status: json['status'] as String? ?? 'pending',
+      scheduledFor: (json['scheduledFor'] as Timestamp?)?.toDate(),
       summary: JournalSummary.fromMap(json['summary'] as Map<String, dynamic>? ?? {}),
       data: JournalData.fromMap(json['data'] as Map<String, dynamic>? ?? {}),
       userNotes: (json['userNotes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (json['updatedAt'] as Timestamp?)?.toDate(),
+      plantDiversity: json['plantDiversity'] != null
+          ? PlantDiversityData.fromMap(json['plantDiversity'] as Map<String, dynamic>)
+          : null,
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'date': date,
+      'weekId': weekId,
+      'date': date, // Keep for backward compatibility
+      'weekStart': Timestamp.fromDate(weekStart),
+      'weekEnd': Timestamp.fromDate(weekEnd),
+      'status': status,
+      if (scheduledFor != null) 'scheduledFor': Timestamp.fromDate(scheduledFor!),
       'summary': summary.toMap(),
       'data': data.toMap(),
       'userNotes': userNotes,
       'createdAt': Timestamp.fromDate(createdAt),
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
+      if (plantDiversity != null) 'plantDiversity': plantDiversity!.toMap(),
     };
   }
 }
@@ -338,6 +370,54 @@ class SymptomCorrelation {
       'symptom': symptom,
       'frequency': frequency,
       'confidence': confidence,
+    };
+  }
+}
+
+class PlantDiversityData {
+  final int uniquePlants;
+  final int level; // 1-3 (10, 20, 30+)
+  final double progress; // 0.0 to 1.0
+  final Map<String, int> categoryBreakdown; // category name -> count
+  final List<String> plantNames;
+
+  PlantDiversityData({
+    required this.uniquePlants,
+    required this.level,
+    required this.progress,
+    required this.categoryBreakdown,
+    required this.plantNames,
+  });
+
+  factory PlantDiversityData.fromMap(Map<String, dynamic> json) {
+    return PlantDiversityData(
+      uniquePlants: (json['uniquePlants'] as num?)?.toInt() ?? 0,
+      level: (json['level'] as num?)?.toInt() ?? 0,
+      progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
+      categoryBreakdown: json['categoryBreakdown'] is Map
+          ? Map<String, int>.from(
+              (json['categoryBreakdown'] as Map).map(
+                (key, value) => MapEntry(
+                  key.toString(),
+                  (value as num?)?.toInt() ?? 0,
+                ),
+              ),
+            )
+          : {},
+      plantNames: (json['plantNames'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'uniquePlants': uniquePlants,
+      'level': level,
+      'progress': progress,
+      'categoryBreakdown': categoryBreakdown,
+      'plantNames': plantNames,
     };
   }
 }
