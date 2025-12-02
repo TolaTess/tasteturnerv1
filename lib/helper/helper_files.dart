@@ -216,8 +216,8 @@ Widget buildAddMealTypeLegend(BuildContext context, String mealType,
   return Container(
     decoration: BoxDecoration(
       color: isSelected
-          ? mealTypeColor.withValues(alpha: 0.3)
-          : mealTypeColor.withValues(alpha: 0.15),
+          ? mealTypeColor.withValues(alpha: 0.5)
+          : mealTypeColor.withValues(alpha: 0.3),
       borderRadius: BorderRadius.circular(10),
       border: isSelected ? Border.all(color: mealTypeColor, width: 2) : null,
     ),
@@ -234,7 +234,7 @@ Widget buildAddMealTypeLegend(BuildContext context, String mealType,
           capitalizeFirstLetter(mealType),
           style: textTheme.bodyMedium?.copyWith(
             color: isSelected ? mealTypeColor : mealTypeColor,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
           ),
         ),
       ],

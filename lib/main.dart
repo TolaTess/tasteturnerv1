@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +6,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'constants.dart';
 import 'themes/theme_provider.dart';
@@ -30,6 +28,7 @@ import 'service/post_manager.dart';
 import 'service/post_service.dart';
 import 'service/helper_controller.dart';
 import 'service/user_service.dart';
+import 'service/macro_manager.dart';
 import 'data_models/message_screen_data.dart';
 
 void main() async {
@@ -71,7 +70,8 @@ void main() async {
   Get.lazyPut(() => ChatController());
   Get.lazyPut(() => ChatSummaryController());
   Get.lazyPut(() => FriendController());
-  // MacroManager is already registered in its own file
+  // Initialize MacroManager instance early to ensure it's registered before use
+  MacroManager.instance;
   Get.put(UserService(), permanent: true);
   Get.put(NotificationHandlerService(), permanent: true);
   Get.lazyPut(() => HybridNotificationService()); // Lazy load - can be deferred
@@ -86,25 +86,10 @@ void main() async {
 
   debugPrint('NotificationService registered - awaiting user preference');
 
-  // Initialize Firebase data in background
-  Future.microtask(() async {
-    try {
-      // Stage 1: Essential data only
-      await FirebaseService.instance.fetchGeneralData();
-    } catch (e) {
-      debugPrint('Error initializing Firebase data: $e');
-    }
-  });
-
-  // Initialize MobileAds in background to avoid blocking startup
-  Future.microtask(() async {
-    try {
-      await MobileAds.instance.initialize();
-      debugPrint('Ads initialized successfully');
-    } catch (e) {
-      debugPrint('Error initializing ads: $e');
-    }
-  });
+  // Note: fetchGeneralData and ads initialization moved to post-frame callbacks
+  // to avoid blocking app startup. They will be initialized after UI is rendered.
+  // fetchGeneralData is already called lazily by screens that need it.
+  // Ads will be initialized when first ad is requested.
 
   runApp(
     MultiProvider(

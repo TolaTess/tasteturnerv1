@@ -42,7 +42,7 @@ Widget buildTastyFloatingActionButton({
               context,
               themeProvider.isDarkMode,
               'Premium Feature',
-              'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice! Your free trial ended on ${userService.currentUser.value?.freeTrialDate}.'),
+              'Upgrade to premium to chat with your digital Sous Chef Turner 👋 and get personalized nutrition advice! Your free trial ended on ${userService.currentUser.value?.freeTrialDate}.'),
         );
       }
     },
@@ -1197,7 +1197,7 @@ Widget buildFullWidthHomeButton({
             context,
             isDarkMode,
             'Premium Feature',
-            'Upgrade to premium to chat with your AI buddy Tasty 👋 and get personalized nutrition advice!'),
+            'Upgrade to premium to chat with your digital Sous Chef Turner 👋 and get personalized nutrition advice!'),
       );
     }
   }
@@ -1243,7 +1243,7 @@ Widget buildFullWidthHomeButton({
                 child: Stack(
                   children: [
                     Text(
-                      'Analyze\n Your Meal',
+                      'Snap & Analyze',
                       style: textTheme.displaySmall?.copyWith(
                         color: canUseAI() ? kAccentLight : Colors.grey,
                         fontWeight: FontWeight.w600,
@@ -1280,7 +1280,7 @@ Widget buildFullWidthHomeButton({
           height: getPercentageHeight(4, context),
           color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
         ),
-        // Right side - Tasty screen navigation
+        // Right side - Sous Chef screen navigation
         Expanded(
           child: Material(
             color: Colors.transparent,
@@ -1298,7 +1298,7 @@ Widget buildFullWidthHomeButton({
                 child: Stack(
                   children: [
                     Text(
-                      'Chat with\nTasty AI',
+                      'Chat with Turner',
                       style: textTheme.displaySmall?.copyWith(
                         color: canUseAI() ? kAccentLight : Colors.grey,
                         fontWeight: FontWeight.w600,
@@ -1961,7 +1961,7 @@ class _RotatingLoadingDialogState extends State<_RotatingLoadingDialog> {
 String caseDayType(String dayType) {
   switch (dayType.toLowerCase()) {
     case 'welcome_day':
-      return 'This was your first day with TastyTurner!';
+      return 'This was your first day with TasteTurner!';
     case 'family_dinner':
       return 'This was a Family Dinner day.';
     case 'workout_boost':

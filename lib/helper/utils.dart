@@ -77,7 +77,7 @@ String removeDashWithSpace(String messageContent) {
 String removeAllTextJustNumbers(String value) {
   // Remove all non-numeric characters except hyphen
   String cleanValue = value.replaceAll(RegExp(r'[^0-9\-]'), '');
-  
+
   // Check if there's a range (contains hyphen)
   if (cleanValue.contains('-')) {
     List<String> range = cleanValue.split('-');
@@ -86,7 +86,7 @@ String removeAllTextJustNumbers(String value) {
       return range[1];
     }
   }
-  
+
   // If no range, just return the cleaned number
   return cleanValue.replaceAll('-', '');
 }
@@ -253,7 +253,7 @@ Future<void> _triggerAIImageAnalysis(
     await ChatController.saveMessageToFirestore(
       chatId: chatId,
       content:
-          "🔍 Analyzing your food... This will help me give you better suggestions!",
+          "🔍 Tasting your dish, Chef... This will help me give you better suggestions!",
       senderId: 'buddy',
     );
 
@@ -689,25 +689,26 @@ String featureCheck(String featureName) {
 // Cloud function: finds Thursday of the week, then calculates week from year start using Math.ceil
 String getCurrentWeek() {
   final now = DateTime.now();
-  
+
   // Use UTC dates to match cloud function
   final d = DateTime.utc(now.year, now.month, now.day);
-  
+
   // Get day of week: Dart's weekday is 1=Monday, 7=Sunday
   // Convert to cloud function format: 1=Monday, 7=Sunday (same as Dart!)
   int dayNum = d.weekday; // Already 1-7, where 7 is Sunday
-  
+
   // Move to Thursday of this week: add (4 - dayNum) days
   // Monday=1 -> add 3 days to get Thursday
   // Sunday=7 -> add -3 days (go back 3 days to Thursday)
   final thursday = d.add(Duration(days: 4 - dayNum));
-  
+
   // Calculate week number: (days from year start + 1) / 7, rounded up
   // This matches JavaScript's Math.ceil((d - yearStart) / 86400000 + 1) / 7)
   final yearStart = DateTime.utc(thursday.year, 1, 1);
   final daysFromYearStart = thursday.difference(yearStart).inDays + 1;
-  final weekNumber = ((daysFromYearStart) / 7).ceil(); // Equivalent to Math.ceil((days + 1) / 7)
-  
+  final weekNumber = ((daysFromYearStart) / 7)
+      .ceil(); // Equivalent to Math.ceil((days + 1) / 7)
+
   return 'week_${thursday.year}-${weekNumber.toString().padLeft(2, '0')}';
 }
 
@@ -862,7 +863,8 @@ Widget buildPicker(BuildContext context, int itemCount, int selectedValue,
       (index) => Center(
         child: Text(
           textAlign: TextAlign.center,
-          capitalizeFirstLetter(labels != null ? labels[index] : index.toString()),
+          capitalizeFirstLetter(
+              labels != null ? labels[index] : index.toString()),
           style: textTheme.bodyMedium?.copyWith(
             color: isColorChange ? kWhite : kDarkGrey,
           ),
@@ -1004,7 +1006,7 @@ const excludeIngredients = [
   'salt',
   'pepper',
   'onion',
-  'garlic', 
+  'garlic',
   'basil',
   'oregano',
   'thyme',
@@ -1145,7 +1147,8 @@ const excludeIngredients = [
   'sesameoil',
   'coconutmilk',
   'seed',
-  'seeds'
+  'seeds',
+  'nut'
 ];
 
 Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
@@ -1170,8 +1173,7 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const RecipeScreen(
-                ),
+                builder: (context) => const RecipeScreen(),
               ),
             );
           } else if (screen == 'spin') {
@@ -1428,6 +1430,7 @@ IconData getDayTypeIcon(String type) {
     case 'add your own':
       return Icons.add;
     case 'chef tasty':
+    case 'sous chef':
       return Icons.restaurant;
     case 'welcome day':
       return Icons.check_circle;
@@ -1453,6 +1456,7 @@ Color getDayTypeColor(String type, bool isDarkMode) {
     case 'add your own':
       return Colors.blueGrey;
     case 'chef tasty':
+    case 'sous chef':
       return Colors.red;
     case 'welcome day':
       return Colors.deepPurpleAccent;
@@ -1690,5 +1694,85 @@ class DateNavigationUtils {
     final today = getTodayDate();
     final dateOnly = DateTime(date.year, date.month, date.day);
     return dateOnly.isAtSameMomentAs(today);
+  }
+
+  /// Show "86'd" dialog when user is missing an ingredient
+  /// This implements the chef persona feature for ingredient substitutions
+  static Future<bool?> show86dDialog(
+    BuildContext context,
+    String missingIngredient,
+    String suggestedSubstitution, {
+    String? calorieInfo,
+  }) async {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Row(
+          children: [
+            Icon(
+              Icons.restaurant_menu,
+              color: kAccent,
+              size: getIconScale(5, context),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+            Expanded(
+              child: Text(
+                '86\'d Alert',
+                style: textTheme.titleLarge?.copyWith(
+                  color: isDarkMode ? kWhite : kBlack,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Chef, we\'re 86\'d on ${capitalizeFirstLetter(missingIngredient)}.',
+              style: textTheme.bodyLarge?.copyWith(
+                color: isDarkMode ? kWhite : kBlack,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(1, context)),
+            Text(
+              'I can sub in ${capitalizeFirstLetter(suggestedSubstitution)}${calorieInfo != null ? ' to save $calorieInfo calories' : ''} and keep the texture. Approved?',
+              style: textTheme.bodyMedium?.copyWith(
+                color: isDarkMode ? kWhite.withValues(alpha: 0.8) : kDarkGrey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              discard,
+              style: TextStyle(
+                color: isDarkMode ? kWhite.withValues(alpha: 0.7) : kDarkGrey,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kAccent,
+              foregroundColor: kWhite,
+            ),
+            child: Text(approve),
+          ),
+        ],
+      ),
+    );
   }
 }
