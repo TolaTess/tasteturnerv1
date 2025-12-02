@@ -12,6 +12,7 @@ class EmailSigninScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -25,7 +26,24 @@ class EmailSigninScreen extends StatelessWidget {
         toolbarHeight: getPercentageHeight(10, context),
         centerTitle: true,
       ),
-      body: SafeArea(
+      body: Container(
+     decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+           colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5) 
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: SafeArea(
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
@@ -52,6 +70,7 @@ class EmailSigninScreen extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

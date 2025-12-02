@@ -23,7 +23,7 @@ class _PostOnboardingWalkthroughState extends State<PostOnboardingWalkthrough>
     {
       'title': 'Track Your Meals',
       'description':
-          'Log your daily meals and track your nutrition progress with our easy-to-use diary',
+          'Log your daily meals and track your nutrition progress at The Pass',
       'icon': 'assets/images/svg/diary.svg',
       'color': kAccent,
     },

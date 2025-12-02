@@ -16,7 +16,8 @@ class HybridNotificationService extends GetxService {
   static HybridNotificationService get instance =>
       Get.find<HybridNotificationService>();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  // Lazy getter for FirebaseMessaging to prevent iOS permission request on service instantiation
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -241,8 +242,8 @@ class HybridNotificationService extends GetxService {
       // Set up meal plan reminder (9 PM daily)
       await _localNotificationService!.scheduleDailyReminder(
         id: 1,
-        title: 'Meal Plan Reminder',
-        body: 'Don\'t forget to plan your meals for tomorrow!',
+        title: 'Mise en Place Reminder',
+        body: 'Chef, we haven\'t planned tomorrow\'s menu yet. Shall I prep some suggestions?',
         hour: 21, // 9 PM
         minute: 0,
         payload: {'type': 'meal_plan_reminder'},
@@ -251,8 +252,8 @@ class HybridNotificationService extends GetxService {
       // Set up water reminder (11 AM daily)
       await _localNotificationService!.scheduleDailyReminder(
         id: 2,
-        title: 'Water Reminder',
-        body: 'Stay hydrated! Remember to drink water throughout the day.',
+        title: 'Hydration Check',
+        body: 'Chef, let\'s keep the station hydrated. Remember to track your water intake.',
         hour: 11, // 11 AM
         minute: 0,
         payload: {'type': 'water_reminder'},
@@ -261,9 +262,9 @@ class HybridNotificationService extends GetxService {
       // Set up evening review (9 PM daily)
       await _localNotificationService!.scheduleDailyReminder(
         id: 3,
-        title: 'Evening Review',
+        title: 'Post-Service Review',
         body:
-            'How did your day go? Review your progress and plan for tomorrow.',
+            'Service complete, Chef. Let\'s review today and prep for tomorrow.',
         hour: 21, // 9 PM
         minute: 15,
         payload: {'type': 'evening_review'},

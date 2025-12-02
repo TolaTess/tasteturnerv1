@@ -142,7 +142,7 @@ class _MessageScreenState extends State<MessageScreen>
         ),
         TutorialStep(
           tutorialId: 'add_buddy_button',
-          message: 'Tap here to speak to your AI buddy Tasty!',
+          message: 'Tap here to speak to your digital Sous Chef!',
           targetKey: _addBuddyKey,
         ),
       ],
@@ -342,12 +342,30 @@ class _MessageScreenState extends State<MessageScreen>
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: SafeArea(
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
             SliverAppBar(
               expandedHeight: MediaQuery.of(context).size.height > 1100
                   ? getPercentageHeight(6, context)
@@ -531,6 +549,7 @@ class _MessageScreenState extends State<MessageScreen>
               ),
             ),
           ],
+          ),
         ),
       ),
       floatingActionButtonLocation: CustomFloatingActionButtonLocation(

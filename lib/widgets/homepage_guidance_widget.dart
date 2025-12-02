@@ -44,7 +44,7 @@ class _HomepageGuidanceWidgetState extends State<HomepageGuidanceWidget>
     {
       'title': 'Track Your Meals',
       'description':
-          'Use the Diary section to log your daily meals and track your nutrition progress.',
+          'Use The Pass to review orders and log your daily meals and track your nutrition progress.',
       'icon': Icons.restaurant,
       'color': kAccent,
     },

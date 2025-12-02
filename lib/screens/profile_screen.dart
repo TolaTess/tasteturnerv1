@@ -326,8 +326,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final shouldShowGoals = ["Family Nutrition"].contains(fitnessGoal);
 
     return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(controller: _scrollController, slivers: [
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: SafeArea(
+          child: CustomScrollView(controller: _scrollController, slivers: [
           // AppBar
           SliverAppBar(
             pinned: true,
@@ -1185,6 +1202,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ), // Close Container widget
           ),
         ]),
+        ),
       ),
     );
   }

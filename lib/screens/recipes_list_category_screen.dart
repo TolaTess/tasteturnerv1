@@ -154,11 +154,6 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
     });
 
     try {
-      // Only fetch general data if we don't have any meals yet
-      if (mealManager.meals.isEmpty) {
-        await firebaseService.fetchGeneralData();
-      }
-
       // Determine what category/search to refresh based on current state
       String refreshTarget = _determineRefreshTarget();
 

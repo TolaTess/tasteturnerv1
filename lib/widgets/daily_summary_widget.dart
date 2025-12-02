@@ -13,6 +13,7 @@ import '../data_models/health_journal_model.dart';
 import '../service/nutrient_breakdown_service.dart';
 import '../data_models/user_meal.dart';
 import '../screens/rainbow_tracker_detail_screen.dart';
+import '../screens/add_food_screen.dart';
 import 'health_journal_widget.dart';
 import 'rainbow_tracker_widget.dart';
 
@@ -41,7 +42,8 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   String? currentWeekId;
   String journalStatus = 'pending';
   Map<String, List<Map<String, dynamic>>> nutrientBreakdowns = {};
-  Map<String, List<UserMeal>> mealsWithContext = {}; // mealType -> List<UserMeal>
+  Map<String, List<UserMeal>> mealsWithContext =
+      {}; // mealType -> List<UserMeal>
   Map<String, int> contextCounts = {}; // context -> count
   List<SymptomEntry> currentSymptoms = []; // Symptoms for today
 
@@ -49,12 +51,12 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   String _getWeekId(DateTime date) {
     final weekStart = getWeekStart(date);
     final year = weekStart.year;
-    
+
     // Calculate week number: days from Jan 1 to week start / 7, rounded up
     final jan1 = DateTime(year, 1, 1);
     final daysFromJan1 = weekStart.difference(jan1).inDays;
     final weekNumber = ((daysFromJan1 + 1) / 7).ceil();
-    
+
     return '${year}-W${weekNumber.toString().padLeft(2, '0')}';
   }
 
@@ -91,17 +93,20 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       // Load weekly health journal entry
       final weekId = _getWeekId(widget.date);
       currentWeekId = weekId;
-      final status = await healthJournalService.getJournalStatus(userId, weekId);
+      final status =
+          await healthJournalService.getJournalStatus(userId, weekId);
       journalStatus = status;
-      
-      final journal = await healthJournalService.fetchWeeklyJournalEntry(userId, weekId);
+
+      final journal =
+          await healthJournalService.fetchWeeklyJournalEntry(userId, weekId);
       if (journal != null) {
         journalEntry = journal;
         journalStatus = journal.status;
       }
 
       // Load nutrient breakdowns
-      final breakdowns = await nutrientBreakdownService.analyzeDailyNutrientBreakdowns(
+      final breakdowns =
+          await nutrientBreakdownService.analyzeDailyNutrientBreakdowns(
         userId,
         widget.date,
       );
@@ -195,13 +200,15 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       mealsMap.forEach((mealType, mealList) {
         if (mealList is List) {
           final meals = mealList
-              .map((mealData) => UserMeal.fromMap(Map<String, dynamic>.from(mealData)))
-              .where((meal) => meal.eatingContext != null && meal.eatingContext!.isNotEmpty)
+              .map((mealData) =>
+                  UserMeal.fromMap(Map<String, dynamic>.from(mealData)))
+              .where((meal) =>
+                  meal.eatingContext != null && meal.eatingContext!.isNotEmpty)
               .toList();
-          
+
           if (meals.isNotEmpty) {
             loadedMeals[mealType] = meals;
-            
+
             // Count contexts
             for (var meal in meals) {
               final context = meal.eatingContext!;
@@ -379,6 +386,14 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
 
           SizedBox(height: getPercentageHeight(2, context)),
 
+          // Check if in "Weeds" (macro gap situation)
+          if (_isInWeeds(calories.toDouble(), protein, carbs, fat, calorieGoal,
+              proteinGoal, carbsGoal, fatGoal)) ...[
+            _buildWeedsProtocol(context, calories.toDouble(), protein,
+                calorieGoal, proteinGoal),
+            SizedBox(height: getPercentageHeight(2, context)),
+          ],
+
           // Motivational Message
           _buildMotivationalMessage(
             context,
@@ -457,7 +472,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           ),
 
           // Health Journal Entry
-            SizedBox(height: getPercentageHeight(2, context)),
+          SizedBox(height: getPercentageHeight(2, context)),
           HealthJournalWidget(
             journalEntry: journalEntry,
             weekId: currentWeekId,
@@ -466,17 +481,19 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
               // Load previous week's journal
               final userId = userService.userId ?? '';
               if (userId.isEmpty) return;
-              
-              final status = await healthJournalService.getJournalStatus(userId, weekId);
-              final journal = await healthJournalService.fetchWeeklyJournalEntry(userId, weekId);
-              
+
+              final status =
+                  await healthJournalService.getJournalStatus(userId, weekId);
+              final journal = await healthJournalService
+                  .fetchWeeklyJournalEntry(userId, weekId);
+
               if (mounted) {
                 setState(() {
                   currentWeekId = weekId;
                   journalStatus = status;
                   journalEntry = journal;
                 });
-                
+
                 // Show feedback if no journal exists for previous week
                 if (journal == null && status == 'pending') {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -543,7 +560,8 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             children: contextCounts.entries.map((entry) {
               final eatingContext = entry.key;
               final count = entry.value;
-              return _buildContextChip(context, eatingContext, count, isDarkMode, textTheme);
+              return _buildContextChip(
+                  context, eatingContext, count, isDarkMode, textTheme);
             }).toList(),
           ),
         ],
@@ -559,7 +577,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     TextTheme textTheme,
   ) {
     final (emoji, label) = _getContextEmojiAndLabel(eatingContext);
-    
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: getPercentageWidth(3, buildContext),
@@ -1427,12 +1445,18 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             spacing: getPercentageWidth(2, context),
             runSpacing: getPercentageHeight(1, context),
             children: [
-              _buildSymptomButton(context, 'bloating', '💨', 'Bloating', isDarkMode, textTheme),
-              _buildSymptomButton(context, 'headache', '🤕', 'Headache', isDarkMode, textTheme),
-              _buildSymptomButton(context, 'fatigue', '😴', 'Fatigue', isDarkMode, textTheme),
-              _buildSymptomButton(context, 'nausea', '🤢', 'Nausea', isDarkMode, textTheme),
-              _buildSymptomButton(context, 'energy', '⚡', 'Energy', isDarkMode, textTheme),
-              _buildSymptomButton(context, 'good', '✅', 'Good', isDarkMode, textTheme),
+              _buildSymptomButton(
+                  context, 'bloating', '💨', 'Bloating', isDarkMode, textTheme),
+              _buildSymptomButton(
+                  context, 'headache', '🤕', 'Headache', isDarkMode, textTheme),
+              _buildSymptomButton(
+                  context, 'fatigue', '😴', 'Fatigue', isDarkMode, textTheme),
+              _buildSymptomButton(
+                  context, 'nausea', '🤢', 'Nausea', isDarkMode, textTheme),
+              _buildSymptomButton(
+                  context, 'energy', '⚡', 'Energy', isDarkMode, textTheme),
+              _buildSymptomButton(
+                  context, 'good', '✅', 'Good', isDarkMode, textTheme),
             ],
           ),
           // Display logged symptoms
@@ -1465,7 +1489,8 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(emoji, style: TextStyle(fontSize: getTextScale(3, context))),
+                      Text(emoji,
+                          style: TextStyle(fontSize: getTextScale(3, context))),
                       SizedBox(width: getPercentageWidth(1, context)),
                       Text(
                         '$label (${symptom.severity}/5)',
@@ -1494,9 +1519,10 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     TextTheme textTheme,
   ) {
     final isSelected = currentSymptoms.any((s) => s.type == symptomType);
-    
+
     return GestureDetector(
-      onTap: () => _showSymptomSeverityDialog(context, symptomType, emoji, label, isDarkMode, textTheme),
+      onTap: () => _showSymptomSeverityDialog(
+          context, symptomType, emoji, label, isDarkMode, textTheme),
       child: Container(
         padding: EdgeInsets.symmetric(
           horizontal: getPercentageWidth(3, context),
@@ -1508,9 +1534,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
               : kAccent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected
-                ? kAccent
-                : kAccent.withValues(alpha: 0.3),
+            color: isSelected ? kAccent : kAccent.withValues(alpha: 0.3),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -1544,13 +1568,14 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     TextTheme textTheme,
   ) async {
     int severity = 3; // Default severity
-    
+
     final result = await showDialog<int>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: Row(
             children: [
               Text(emoji, style: TextStyle(fontSize: getTextScale(5, context))),
@@ -1596,7 +1621,9 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
                         child: Text(
                           '$value',
                           style: textTheme.bodyLarge?.copyWith(
-                            color: severity == value ? kWhite : (isDarkMode ? kWhite : kBlack),
+                            color: severity == value
+                                ? kWhite
+                                : (isDarkMode ? kWhite : kBlack),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1644,9 +1671,10 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       final now = DateTime.now();
       final fourHoursAgo = now.subtract(const Duration(hours: 4));
       final twoHoursAgo = now.subtract(const Duration(hours: 2));
-      
-      final ingredients = await _getIngredientsFromRecentMeals(userId, twoHoursAgo, fourHoursAgo);
-      
+
+      final ingredients = await _getIngredientsFromRecentMeals(
+          userId, twoHoursAgo, fourHoursAgo);
+
       // Determine meal context (which meal was most recent)
       String? mealContext;
       if (now.hour >= 6 && now.hour < 11) {
@@ -1668,9 +1696,10 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       );
 
       await healthJournalService.addSymptomEntry(userId, widget.date, symptom);
-      
+
       // Reload journal entry to update UI
-      final updatedJournal = await healthJournalService.fetchJournalEntry(userId, widget.date);
+      final updatedJournal =
+          await healthJournalService.fetchJournalEntry(userId, widget.date);
       if (mounted) {
         setState(() {
           if (updatedJournal != null) {
@@ -1708,11 +1737,12 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   ) async {
     try {
       final ingredients = <String>{};
-      
+
       // Get meals from today and yesterday (in case symptom is logged late)
       final dates = [
         DateFormat('yyyy-MM-dd').format(widget.date),
-        DateFormat('yyyy-MM-dd').format(widget.date.subtract(const Duration(days: 1))),
+        DateFormat('yyyy-MM-dd')
+            .format(widget.date.subtract(const Duration(days: 1))),
       ];
 
       for (final dateStr in dates) {
@@ -1734,7 +1764,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             for (var mealData in mealList) {
               final mealMap = Map<String, dynamic>.from(mealData);
               final mealId = mealMap['mealId'] as String?;
-              
+
               if (mealId != null && mealId.isNotEmpty) {
                 // Fetch meal to get ingredients
                 _fetchMealIngredients(mealId, ingredients);
@@ -1751,12 +1781,14 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     }
   }
 
-  Future<void> _fetchMealIngredients(String mealId, Set<String> ingredients) async {
+  Future<void> _fetchMealIngredients(
+      String mealId, Set<String> ingredients) async {
     try {
       final mealDoc = await firestore.collection('meals').doc(mealId).get();
       if (mealDoc.exists) {
         final mealData = mealDoc.data()!;
-        final mealIngredients = mealData['ingredients'] as Map<String, dynamic>? ?? {};
+        final mealIngredients =
+            mealData['ingredients'] as Map<String, dynamic>? ?? {};
         ingredients.addAll(mealIngredients.keys);
       }
     } catch (e) {
@@ -1781,5 +1813,118 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       default:
         return ('📝', symptomType);
     }
+  }
+
+  // Check if user is "in the weeds" (macro gap situation)
+  bool _isInWeeds(
+      double calories,
+      double protein,
+      double carbs,
+      double fat,
+      double calorieGoal,
+      double proteinGoal,
+      double carbsGoal,
+      double fatGoal) {
+    // User is in the weeds if:
+    // - Low calories remaining (< 300) but high protein needed (> 30g remaining)
+    // - Or significantly under on protein (< 60% of goal) with low calories remaining
+    final remainingCalories = calorieGoal - calories;
+    final remainingProtein = proteinGoal - protein;
+
+    final isToday = DateFormat('yyyy-MM-dd').format(widget.date) ==
+        DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    if (!isToday) return false; // Only show for today
+
+    return (remainingCalories < 300 && remainingProtein > 30) ||
+        (remainingCalories < 500 && protein < proteinGoal * 0.6);
+  }
+
+  // Build "Weeds" protocol widget with "Order Fire" button
+  Widget _buildWeedsProtocol(BuildContext context, double calories,
+      double protein, double calorieGoal, double proteinGoal) {
+    final textTheme = Theme.of(context).textTheme;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final remainingCalories = (calorieGoal - calories).round();
+    final remainingProtein = (proteinGoal - protein).round();
+
+    return Container(
+      padding: EdgeInsets.all(getPercentageWidth(4, context)),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.orange.withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+                size: getIconScale(6, context),
+              ),
+              SizedBox(width: getPercentageWidth(2, context)),
+              Expanded(
+                child: Text(
+                  'In The Weeds',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+          Text(
+            remainingProtein > 30
+                ? 'Chef, we\'re in the weeds on protein today. You have $remainingCalories calories left but need ${remainingProtein}g protein. Don\'t worry, I\'ve got a fix.'
+                : 'Chef, the station needs attention. We\'re low on calories ($remainingCalories left) and protein is behind. Let me help you fix this.',
+            style: textTheme.bodyMedium?.copyWith(
+              color: isDarkMode ? kWhite : kDarkGrey,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(2, context)),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Navigate to meal suggestions or AI chat for macro fix
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddFoodScreen(
+                      date: widget.date,
+                    ),
+                  ),
+                );
+              },
+              icon: Icon(Icons.local_fire_department, color: kWhite),
+              label: Text(
+                'Order Fire',
+                style: TextStyle(
+                  color: kWhite,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                padding: EdgeInsets.symmetric(
+                  vertical: getPercentageHeight(1.5, context),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
