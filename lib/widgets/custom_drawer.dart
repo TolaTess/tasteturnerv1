@@ -11,7 +11,6 @@ import '../screens/premium_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/splash_screen.dart';
 import '../themes/theme_provider.dart';
-import '../service/notification_service.dart';
 import 'bottom_nav.dart';
 
 class CustomDrawer extends StatelessWidget {

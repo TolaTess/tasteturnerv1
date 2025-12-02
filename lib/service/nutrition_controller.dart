@@ -856,8 +856,8 @@ class NutritionController extends GetxController {
     // Breakfast reminder
     await notificationService.scheduleDailyReminder(
       id: 1001,
-      title: "Breakfast Time! 🍳",
-      body: "Time to log your breakfast and start your day right!",
+      title: "Morning, Chef 🍳",
+      body: "Mise en place is ready. We have a high-protein goal today. Shall I prep the breakfast suggestion?",
       hour: 8,
       minute: 0,
     );
@@ -865,8 +865,8 @@ class NutritionController extends GetxController {
     // Lunch reminder
     await notificationService.scheduleDailyReminder(
       id: 1002,
-      title: "Lunch Break! 🥗",
-      body: "Don't forget to log your lunch!",
+      title: "Lunch Service 🥗",
+      body: "Chef, lunch is on the pass. Ready to log it?",
       hour: 12,
       minute: 30,
     );
@@ -874,8 +874,8 @@ class NutritionController extends GetxController {
     // Dinner reminder
     await notificationService.scheduleDailyReminder(
       id: 1003,
-      title: "Dinner Time! 🍽️",
-      body: "Remember to log your dinner!",
+      title: "Dinner Service 🍽️",
+      body: "Chef, dinner service is ready. Let's log it to the pass.",
       hour: 19,
       minute: 0,
     );

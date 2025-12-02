@@ -1462,18 +1462,11 @@ class MacroManager extends GetxController {
     };
   }
 
-  /// Get excluded ingredients from Firebase
+  /// Get excluded ingredients from local constant
   Future<List<String>> _getExcludedIngredients() async {
     try {
-      await firebaseService.fetchGeneralData();
-      final excludedIngredients = firebaseService
-          .generalData['excludeIngredients']
-          .toString()
-          .split(',')
-          .map((e) => e.trim().toLowerCase())
-          .where((e) => e.isNotEmpty)
-          .toList();
-      return excludedIngredients;
+      // Use local excludeIngredients constant from utils.dart
+      return excludeIngredients.map((e) => e.trim().toLowerCase()).toList();
     } catch (e) {
       debugPrint('Error getting excluded ingredients: $e');
       return [];
@@ -1989,18 +1982,12 @@ class MacroManager extends GetxController {
         final mealCount = mealPaths.length;
         dateMealCounts[dayDoc.id] = mealCount;
         totalMealsCount += mealCount;
-        debugPrint(
-            'Date ${dayDoc.id}: $mealCount meals (${mealPaths.take(3).map((m) => m.toString().split('/').first).join(', ')}${mealPaths.length > 3 ? '...' : ''})');
       }
 
       if (totalMealsCount == 0) {
         debugPrint('No meals found in meal plans for the week');
         return 0;
       }
-
-      debugPrint(
-          'Found $totalMealsCount total meal entries across ${mealsSnapshot.docs.length} dates in meal plans for the week');
-      debugPrint('Date breakdown: $dateMealCounts');
 
       // 4. Check if shopping list exists and has items
       final shoppingListRef = firestore
@@ -2018,7 +2005,6 @@ class MacroManager extends GetxController {
 
       // 5. If shopping list is empty or doesn't exist, return meal count
       if (!hasShoppingList) {
-        debugPrint('Shopping list is empty, showing $totalMealsCount meals');
         return totalMealsCount;
       }
 
@@ -2028,20 +2014,18 @@ class MacroManager extends GetxController {
       if (shoppingListTimestamp != null) {
         final shoppingListTime = shoppingListTimestamp.toDate();
         int newMealsCount = 0;
-        
+
         // Get the meal IDs that were used to generate the shopping list (if stored)
-        final processedMealIdsData = shoppingListDoc.data()?['processedMealIds'];
+        final processedMealIdsData =
+            shoppingListDoc.data()?['processedMealIds'];
         final processedMealIds = processedMealIdsData != null
             ? (processedMealIdsData as List<dynamic>)
                 .map((e) => e.toString())
                 .toSet()
             : <String>{};
-        
+
         // Check if we have processed meal IDs (new shopping lists) or not (old shopping lists)
         final hasProcessedMealIds = processedMealIds.isNotEmpty;
-        
-        debugPrint('Shopping list timestamp: $shoppingListTime');
-        debugPrint('Has processedMealIds: $hasProcessedMealIds (${processedMealIds.length} meals)');
 
         // Check each meal plan document to see if it was updated after shopping list
         for (final dayDoc in mealsSnapshot.docs) {
@@ -2049,12 +2033,10 @@ class MacroManager extends GetxController {
           if (mealPlanTimestamp != null) {
             final mealPlanTime = mealPlanTimestamp.toDate();
             final mealPaths = dayDoc.data()['meals'] as List<dynamic>? ?? [];
-            
-            debugPrint('Date ${dayDoc.id}: mealPlanTime=$mealPlanTime, shoppingListTime=$shoppingListTime, isAfter=${mealPlanTime.isAfter(shoppingListTime)}, meals=${mealPaths.length}');
-            
+
             if (mealPlanTime.isAfter(shoppingListTime)) {
               // This meal plan was updated after shopping list was generated
-              
+
               if (hasProcessedMealIds) {
                 // Count only meals that weren't already processed (accurate counting)
                 // Extract meal ID from path (format: "mealId" or "mealId/userId")
@@ -2062,14 +2044,12 @@ class MacroManager extends GetxController {
                   final mealId = mealPath.toString().split('/').first;
                   if (!processedMealIds.contains(mealId)) {
                     newMealsCount++;
-                    debugPrint('  New meal found: $mealId');
                   }
                 }
               } else {
                 // Old shopping list without processedMealIds - count all meals in updated days
                 // This is less accurate but still detects new meals
                 newMealsCount += mealPaths.length;
-                debugPrint('  Counting all ${mealPaths.length} meals in updated day (old shopping list)');
               }
             }
           } else {
@@ -2078,18 +2058,13 @@ class MacroManager extends GetxController {
         }
 
         if (newMealsCount > 0) {
-          debugPrint(
-              'Found $newMealsCount new meals added after shopping list was generated');
           return newMealsCount;
-        } else {
-          debugPrint('No new meals found - all meal plans are older than shopping list or already processed');
         }
       } else {
         debugPrint('Shopping list has no updatedAt timestamp');
       }
 
       // 7. If we can't determine, return 0 (shopping list exists and seems up to date)
-      debugPrint('Shopping list appears to be up to date');
       return 0;
     } catch (e) {
       debugPrint('Error checking for new meal plan items: $e');

@@ -3300,8 +3300,8 @@ async function sendMealPlanReminders() {
 
           // Send meal plan reminder notification
           await sendNotification(userId, {
-            title: 'Meal Plan Reminder 🍽️',
-            body: 'You haven\'t planned any meals for tomorrow. Don\'t forget to add your meals!',
+            title: 'Mise en Place Reminder 🍽️',
+            body: 'Chef, we haven\'t planned tomorrow\'s menu yet. Shall I prep some suggestions?',
             data: {
               type: 'meal_plan_reminder',
               date: tomorrowStr,
@@ -3348,8 +3348,8 @@ async function sendWaterReminders() {
       try {
         // Send water reminder notification
         await sendNotification(userId, {
-          title: 'Water Reminder 💧',
-          body: 'Stay hydrated! Don\'t forget to track your water intake.',
+          title: 'Hydration Check 💧',
+          body: 'Chef, let\'s keep the station hydrated. Don\'t forget to track your water intake.',
           data: {
             type: 'water_reminder',
             action: 'navigate_to_water_tracking'
@@ -3426,8 +3426,8 @@ async function sendEveningReviews() {
 
           // Send evening review notification
           await sendNotification(userId, {
-            title: 'Evening Review 🌙',
-            body: 'Review your goals and plan for tomorrow!',
+            title: 'Post-Service Review 🌙',
+            body: 'Service complete, Chef. Let\'s review today and prep for tomorrow.',
             data: {
               type: 'evening_review',
               date: tomorrowStr,
@@ -5360,7 +5360,7 @@ function _generateJournalPrompt(dailyData, userNotes, userGoals, userName, dateS
     ? userNotes.join('\n')
     : 'No notes from user today.';
 
-  return `You are creating a daily food health journal entry for ${userName} on ${dateStr}.
+  return `You are Turner, the Sous Chef, creating a Post-Service Review for Chef ${userName} on ${dateStr}. This is your end-of-day recap where you review how service went.
 
 DAILY NUTRITION DATA:
 - Calories: ${calories} / ${userGoals.calories} (${calorieProgress.toFixed(1)}% of goal)
@@ -5434,7 +5434,7 @@ Create a comprehensive daily food health journal entry in this format:
   "userNotes": ${JSON.stringify(userNotes)}
 }
 
-The narrative should be warm, encouraging, and personalized. Focus on positive achievements while gently noting areas for improvement. Return ONLY valid JSON, no markdown or code blocks.`;
+The narrative should be written as Turner, the Sous Chef, addressing the Head Chef. Use kitchen terminology naturally (service, station, mise en place, etc.). Be warm, encouraging, and solution-oriented. Focus on positive achievements while gently noting areas for improvement. End with "Service complete" or "The kitchen is closed" language. Address the user as "Chef" throughout. Return ONLY valid JSON, no markdown or code blocks.`;
 }
 
 /**
@@ -5680,7 +5680,7 @@ function _generateWeeklyJournalPrompt(weeklyData, userNotes, userGoals, userName
 - Category breakdown: ${JSON.stringify(plantDiversity.categoryBreakdown)}`;
   }
 
-  return `You are creating a weekly food health journal entry for ${userName} for the week of ${weekStartStr} - ${weekEndStr} (Week ${weekId}).
+  return `You are Turner, the Sous Chef, creating a Weekly Service Review for Chef ${userName} for the week of ${weekStartStr} - ${weekEndStr} (Week ${weekId}). This is your end-of-week recap where you review how service went across the entire week.
 
 WEEKLY NUTRITION DATA (7-day totals):
 - Total Calories: ${calories} / ${weeklyCalorieGoal} (${calorieProgress.toFixed(1)}% of weekly goal)
@@ -5757,7 +5757,7 @@ Create a comprehensive weekly food health journal entry in this format:
   "plantDiversity": ${JSON.stringify(plantDiversity)}` : ''}
 }
 
-The narrative should be warm, encouraging, and personalized. Focus on weekly patterns and trends rather than daily details. Highlight consistency, variety, and progress over the week. Return ONLY valid JSON, no markdown or code blocks.`;
+The narrative should be written as Turner, the Sous Chef, addressing the Head Chef. Use kitchen terminology naturally (service, station, mise en place, etc.). Be warm, encouraging, and solution-oriented. Focus on weekly patterns and trends rather than daily details. Highlight consistency, variety, and progress over the week. Address the user as "Chef" throughout. Return ONLY valid JSON, no markdown or code blocks.`;
 }
 
 /**

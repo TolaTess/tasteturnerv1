@@ -58,9 +58,9 @@ class ChallengeService extends GetxService {
   /// Load data from Firestore (fallback implementation)
   Future<void> _loadFromFirestore() async {
     try {
-      // Get challenge details from general collection
-      await firebaseService.fetchGeneralData();
-      final challengeDetails = firebaseService.generalData['challenge_details'] ?? '';
+      // Note: fetchGeneralData removed - challenge_details no longer available from general collection
+      // Using empty string as fallback
+      final challengeDetails = '';
 
       // Calculate current week range
       final now = DateTime.now();

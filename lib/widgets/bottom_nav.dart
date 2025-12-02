@@ -47,6 +47,8 @@ class _BottomNavSecState extends State<BottomNavSec> {
     return Scaffold(
       body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
+        unselectedLabelStyle: TextStyle(fontSize: getTextScale(2.9, context), fontWeight: FontWeight.w500),
+        selectedLabelStyle: TextStyle(fontSize: getTextScale(3.3, context), fontWeight: FontWeight.w500),
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
@@ -76,7 +78,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
                 width: getPercentageWidth(3, context),
                 height: getPercentageHeight(3, context),
                 colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
-            label: 'Home',
+            label: 'Kitchen',
           ),
           BottomNavigationBarItem(
             icon: SvgPicture.asset(
@@ -110,7 +112,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
                 width: getPercentageWidth(3, context),
                 height: getPercentageHeight(3, context),
                 colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
-            label: 'Explore',
+            label: 'Inspiration',
           ),
           BottomNavigationBarItem(
             icon: SvgPicture.asset(
@@ -144,7 +146,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
                 width: getPercentageWidth(3, context),
                 height: getPercentageHeight(3, context),
                 colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
-            label: 'Planner',
+            label: 'Schedule',
           ),
         ],
       ),

@@ -71,7 +71,10 @@ class UserDetailsSection extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            capitalizeFirstLetter(user['name'] ?? ''),
+                            user['name'] ==
+                                    userService.currentUser.value?.displayName
+                                ? 'Chef ${capitalizeFirstLetter(user['name'] ?? '')}'
+                                : capitalizeFirstLetter(user['name'] ?? ''),
                             style: textTheme.displaySmall?.copyWith(
                                 fontSize: getPercentageWidth(6, context)),
                           ),
@@ -117,8 +120,9 @@ class UserDetailsSection extends StatelessWidget {
                 ),
                 child: Text(
                   '${user['foodGoal']} kcal',
-                  style: textTheme.bodyMedium
-                      ?.copyWith(fontSize: getPercentageWidth(3, context), ),
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontSize: getPercentageWidth(3, context),
+                  ),
                 ),
               ),
             // Edit button as floating action

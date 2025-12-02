@@ -3076,34 +3076,52 @@ class GeminiService {
             if (part.containsKey('text')) {
               final text = part['text'] as String?;
 
+              // If text is null or empty, check finish reason
+              if (text == null || text.trim().isEmpty) {
+                // Return empty string for MAX_TOKENS to allow caller to handle gracefully
+                if (finishReason == 'MAX_TOKENS') {
+                  debugPrint('[Gemini] MAX_TOKENS with no text content - returning empty string');
+                  return '';
+                }
+                // For other cases with no text, return empty string
+                debugPrint('[Gemini] No text content in response - returning empty string');
+                return '';
+              }
+
               // Clean up any remaining newlines or extra spaces
-              final cleanedText = (text ?? "I couldn't understand that.")
+              final cleanedText = text
                   .trim()
                   .replaceAll(RegExp(r'\n+'), ' ')
                   .replaceAll(RegExp(r'\s+'), ' ');
 
               return cleanedText;
             } else {
-              // Check if it's a MAX_TOKENS finish reason
+              // No text field in part - return empty string for MAX_TOKENS, let caller handle
               if (finishReason == 'MAX_TOKENS') {
-                return 'Error: Response was cut off due to token limit. Please try rephrasing your question.';
+                debugPrint('[Gemini] MAX_TOKENS with no text field - returning empty string');
+                return '';
               }
-              return 'Error: No text content in API response';
+              debugPrint('[Gemini] No text field in part - returning empty string');
+              return '';
             }
           } else {
-            // Check if it's a MAX_TOKENS finish reason - this means we hit token limit
+            // No content parts - return empty string for MAX_TOKENS, let caller handle
             if (finishReason == 'MAX_TOKENS') {
-              return 'Error: Response was cut off due to token limit. Please try rephrasing your question.';
+              debugPrint('[Gemini] MAX_TOKENS with no content parts - returning empty string');
+              return '';
             }
-            return 'Error: No content parts in API response';
+            debugPrint('[Gemini] No content parts in response - returning empty string');
+            return '';
           }
         } else {
-          // Check finish reason even if no content
+          // No content in candidate - return empty string for MAX_TOKENS, let caller handle
           final finishReason = candidate['finishReason'] as String?;
           if (finishReason == 'MAX_TOKENS') {
-            return 'Error: Response was cut off due to token limit. Please try rephrasing your question.';
+            debugPrint('[Gemini] MAX_TOKENS with no content - returning empty string');
+            return '';
           }
-          return 'Error: No content in API response';
+          debugPrint('[Gemini] No content in candidate - returning empty string');
+          return '';
         }
       } else {
         return 'Error: No candidates in API response';
@@ -5118,7 +5136,8 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
   Future<Map<String, dynamic>> generateMealsFromIngredients(
       List<dynamic> displayedItems,
       BuildContext parentContext,
-      bool isDineIn) async {
+      bool isDineIn,
+      {String? cuisineFilter}) async {
     try {
       showLoadingDialog(parentContext, loadingText: loadingTextSearchMeals);
 
@@ -5126,11 +5145,17 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
       final ingredientNames =
           displayedItems.map((item) => item.title.toString()).toList();
 
+      // Build categories list - include cuisine filter if provided
+      final categories = <String>[];
+      if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
+        categories.add(cuisineFilter);
+      }
+
       // Check for existing meals with at least 2 matching ingredients
       final existingMeals =
           await mealManager.searchMealsByIngredientsAndCategories(
         ingredients: ingredientNames,
-        categories: [], // Allow all categories for ingredient-based search
+        categories: categories, // Include cuisine filter in search
         maxCalories: null, // No calorie limit for ingredient-based search
         dietType: null, // No diet restriction for ingredient-based search
       );
@@ -5166,9 +5191,18 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
 
         // Generate meals directly using generateMealTitlesAndIngredients
         // (no need to check existing meals again since we already did that)
+        // Build prompt with cuisine filter if provided
+        String prompt = 'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
+        String contextInfo = 'Stay within the ingredients provided';
+        
+        if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
+          prompt += ' in the style of $cuisineFilter cuisine';
+          contextInfo += '. The meals should reflect $cuisineFilter cooking style and flavors';
+        }
+        
         final mealData = await generateMealTitlesAndIngredients(
-          'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}',
-          'Stay within the ingredients provided',
+          prompt,
+          contextInfo,
           isIngredientBased: true,
           mealCount: 2,
           customDistribution: {
@@ -5314,7 +5348,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                   source == 'existing_database'
                       ? 'Select from Existing Meals'
                       : source == 'ai_generated'
-                          ? 'Select a Tasty AI Meal'
+                          ? 'Meal from Turner'
                           : 'Select a Meal',
                   style: textTheme.displaySmall?.copyWith(
                       fontSize: getPercentageWidth(7, context),
@@ -5512,16 +5546,26 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                                 final existingMealTitles = allExistingMeals
                                     .map((meal) => meal['title'])
                                     .toList();
-                                final contextWithExistingMeals = '''
+                                String contextWithExistingMeals = '''
 Stay within the ingredients provided.
 IMPORTANT: Do NOT generate these existing meals: ${existingMealTitles.join(', ')}
 Generate completely new and different meal ideas using the same ingredients.
 ''';
+                                
+                                // Add cuisine filter to context if provided
+                                if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
+                                  contextWithExistingMeals += '\nThe meals should reflect $cuisineFilter cooking style and flavors.';
+                                }
 
                                 debugPrint('Starting AI meal generation...');
+                                String prompt = 'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
+                                if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
+                                  prompt += ' in the style of $cuisineFilter cuisine';
+                                }
+                                
                                 final mealData =
                                     await generateMealTitlesAndIngredients(
-                                  'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}',
+                                  prompt,
                                   contextWithExistingMeals,
                                   isIngredientBased: true,
                                   mealCount: 2,
@@ -5634,7 +5678,7 @@ Generate completely new and different meal ideas using the same ingredients.
                               }
                             },
                       child: Text(
-                        isGeneratingAI ? 'Generating...' : 'Use Tasty AI',
+                        isGeneratingAI ? 'Generating...' : 'Turner the Sous Chef',
                         style: textTheme.bodyLarge?.copyWith(
                           color: (isProcessing || isGeneratingAI)
                               ? kLightGrey
@@ -5699,16 +5743,26 @@ Generate completely new and different meal ideas using the same ingredients.
                                   final existingMealTitles = allExistingMeals
                                       .map((meal) => meal['title'])
                                       .toList();
-                                  final contextWithExistingMeals = '''
+                                  String contextWithExistingMeals = '''
 Stay within the ingredients provided.
 IMPORTANT: Do NOT generate these existing meals: ${existingMealTitles.join(', ')}
 Generate completely new and different meal ideas using the same ingredients.
 ''';
+                                  
+                                  // Add cuisine filter to context if provided
+                                  if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
+                                    contextWithExistingMeals += '\nThe meals should reflect $cuisineFilter cooking style and flavors.';
+                                  }
 
                                   debugPrint('Starting AI meal generation...');
+                                  String prompt = 'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
+                                  if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
+                                    prompt += ' in the style of $cuisineFilter cuisine';
+                                  }
+                                  
                                   final mealData =
                                       await generateMealTitlesAndIngredients(
-                                    'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}',
+                                    prompt,
                                     contextWithExistingMeals,
                                     isIngredientBased: true,
                                     mealCount: 2,
@@ -5821,7 +5875,7 @@ Generate completely new and different meal ideas using the same ingredients.
                                 }
                               },
                         child: Text(
-                          isGeneratingAI ? 'Generating...' : 'Use Tasty AI',
+                          isGeneratingAI ? 'Generating...' : 'Turner the Sous Chef',
                           style: textTheme.bodyLarge?.copyWith(
                             color: (isProcessing || isGeneratingAI)
                                 ? kLightGrey

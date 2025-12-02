@@ -80,35 +80,4 @@ class FirebaseService extends GetxController {
   }
 
   // --------------------------ADD to DB-------------------------------------
-
-  Future<void> fetchGeneralData() async {
-    try {
-      // Add timeout to prevent hanging
-      final docSnapshot =
-          await firestore.collection('general').doc('data').get().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          debugPrint('Firestore fetchGeneralData timed out after 5 seconds');
-          throw TimeoutException(
-              'Firestore operation timed out', const Duration(seconds: 5));
-        },
-      );
-
-      if (docSnapshot.exists) {
-        final data = docSnapshot.data();
-        if (data != null) {
-          // Convert Map<Object?, Object?> to Map<String, dynamic>
-          generalData.value = Map<String, dynamic>.from(data);
-        } else {
-          generalData.value = {};
-        }
-      } else {
-        debugPrint('General data document does not exist');
-        generalData.value = {};
-      }
-    } catch (e) {
-      debugPrint('Error fetching general data: $e');
-      generalData.value = {};
-    }
-  }
 }

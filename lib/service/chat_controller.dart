@@ -28,7 +28,8 @@ class ChatController extends GetxController {
       _messagesSubscription;
 
   // Mode-based chat state
-  final RxString currentMode = 'tasty'.obs; // 'tasty', 'planner', 'meal'
+  final RxString currentMode =
+      'sous chef'.obs; // 'sous chef', 'planner', 'meal'
   final Map<String, List<ChatScreenData>> modeMessages = {};
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
       _modeMessagesSubscription;
@@ -53,24 +54,24 @@ class ChatController extends GetxController {
 
   // Welcome Messages
   final List<String> tastyWelcomeMessages = [
-    "Hey there! I'm Tasty, your personal food buddy. 🍎 What's on your mind?",
-    "Hi! Ready to talk food? I can help with recipes, nutrition info, or just chatting about your favorite meals! 🥦",
-    "Welcome back! Hungry for some knowledge? Ask me anything about food! 🍕",
-    "Hello! I'm here to help you eat better and feel great. What are we discussing today? 🥗"
+    "Morning, Chef. Turner here, your Sous Chef. What's on the pass today?",
+    "Chef, the station is ready. How can I assist with your nutrition goals today?",
+    "Welcome back, Chef. Mise en place is set. What are we working on?",
+    "Chef, I'm here to help you manage the kitchen. What do you need?"
   ];
 
   final List<String> plannerWelcomeMessages = [
-    "Let's plan your perfect meal program! 📅 Tell me about your goals.",
-    "Ready to design a nutrition plan that fits your lifestyle? Let's get started! 📝",
-    "I can help you create a personalized meal program. What are you aiming for? 🎯",
-    "Planning mode activated! Let's structure your nutrition for success. 🚀"
+    "Chef, let's design your meal program. What goals are we working toward?",
+    "Ready to structure your nutrition plan, Chef? Tell me what you're aiming for.",
+    "Chef, I can help you create a personalized program. What's the vision?",
+    "Planning mode activated, Chef. Let's build a program that fits your kitchen."
   ];
 
   final List<String> mealPlanWelcomeMessages = [
-    "Time to plan some delicious meals! 🍳 What kind of food are you in the mood for?",
-    "Let's organize your weekly eats. Any specific cravings or dietary needs? 🥑",
-    "Meal planning made easy! Tell me what you like, and I'll suggest some recipes. 🥘",
-    "Ready to fill your calendar with tasty dishes? Let's get planning! 🗓️"
+    "Chef, time to plan the week's menu. What are we cooking?",
+    "Let's organize the weekly menu, Chef. Any specific preferences or dietary needs?",
+    "Chef, tell me what you're in the mood for, and I'll suggest some dishes.",
+    "Ready to fill the calendar with great meals, Chef? Let's get planning."
   ];
 
   // Initialize chat and listen for messages
@@ -89,7 +90,7 @@ class ChatController extends GetxController {
     // Set up mode subcollections and migrate if needed
     await _setupModeSubcollections();
 
-    // Load current mode from chat document or default to 'tasty'
+    // Load current mode from chat document or default to 'sous chef'
     await _loadCurrentMode();
 
     // Listen to messages for current mode
@@ -153,7 +154,7 @@ class ChatController extends GetxController {
       if (chatDoc.exists) {
         final data = chatDoc.data();
         final mode = data?['currentMode'] as String?;
-        if (mode != null && ['tasty', 'planner', 'meal'].contains(mode)) {
+        if (mode != null && ['sous chef', 'planner', 'meal'].contains(mode)) {
           currentMode.value = mode;
         }
       }
@@ -164,7 +165,7 @@ class ChatController extends GetxController {
 
   // Switch to a different mode
   Future<void> switchMode(String mode) async {
-    if (!['tasty', 'planner', 'meal'].contains(mode)) {
+    if (!['sous chef', 'planner', 'meal'].contains(mode)) {
       debugPrint('Invalid mode: $mode');
       return;
     }
@@ -1353,14 +1354,28 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
 
           // Note: Planning mode is handled in _handlePlannerModeMessage
 
+          // Use higher token limit for system messages (initial greeting) to accommodate model "thoughts"
+          // The model uses ~511 tokens for thoughts, so we need at least 1024+ for actual response
+          final tokenLimit = isSystemMessage ? 2048 : 512;
+
           response = await geminiService.getResponse(
             prompt,
-            maxTokens: 512,
+            maxTokens: tokenLimit,
             role: buddyAiRole,
           );
 
+          // Handle empty or error responses
           if (response.contains("Error") || response.isEmpty) {
-            throw Exception("Failed to generate response");
+            // For system messages (initial greeting), use fallback welcome message
+            if (isSystemMessage) {
+              debugPrint("AI greeting failed, using fallback welcome message");
+              // Use a random welcome message as fallback
+              response = tastyWelcomeMessages[
+                  DateTime.now().microsecond % tastyWelcomeMessages.length];
+            } else {
+              // For regular messages, throw exception to show error handling
+              throw Exception("Failed to generate response");
+            }
           }
         }
 
@@ -1381,29 +1396,53 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
         );
       } catch (e) {
         debugPrint("Error getting AI response: $e");
-        showTastySnackbar(
-          'Please try again.',
-          'Failed to get AI response. Please try again.',
-          context,
-        );
-        // Add a fallback AI message so the user can type again
-        final fallbackContent =
-            "Sorry, I snoozed for a moment. Please try sending your message again.";
+        
+        // For system messages, use fallback welcome message instead of error
+        if (isSystemMessage) {
+          debugPrint("System message failed, using fallback welcome message");
+          final fallbackContent = tastyWelcomeMessages[
+              DateTime.now().microsecond % tastyWelcomeMessages.length];
+          
+          final message = ChatScreenData(
+            messageContent: fallbackContent,
+            senderId: 'buddy',
+            timestamp: Timestamp.now(),
+            imageUrls: [],
+            messageId: '',
+          );
+          messages.add(message);
 
-        final message = ChatScreenData(
-          messageContent: fallbackContent,
-          senderId: 'buddy',
-          timestamp: Timestamp.now(),
-          imageUrls: [],
-          messageId: '',
-        );
-        messages.add(message);
+          await saveMessageToMode(
+            mode: currentMode.value,
+            content: fallbackContent,
+            senderId: 'buddy',
+          );
+        } else {
+          // For regular messages, show error snackbar
+          showTastySnackbar(
+            'Please try again.',
+            'The station had a hiccup. Please try again.',
+            context,
+          );
+          // Add a fallback AI message so the user can type again
+          final fallbackContent =
+              "Chef, I had a moment there. Please send that again.";
 
-        await saveMessageToMode(
-          mode: currentMode.value,
-          content: fallbackContent,
-          senderId: 'buddy',
-        );
+          final message = ChatScreenData(
+            messageContent: fallbackContent,
+            senderId: 'buddy',
+            timestamp: Timestamp.now(),
+            imageUrls: [],
+            messageId: '',
+          );
+          messages.add(message);
+
+          await saveMessageToMode(
+            mode: currentMode.value,
+            content: fallbackContent,
+            senderId: 'buddy',
+          );
+        }
       }
     }
   }
@@ -1712,10 +1751,8 @@ Click "View Meals" to browse and add them to your calendar!""";
     // Wait for mode to stabilize
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // Verify we're still in tasty mode before proceeding
-    if (currentMode.value != 'tasty') {
-      debugPrint(
-          'Mode changed from tasty to ${currentMode.value}, skipping welcome message');
+    // Verify we're still in sous chef mode before proceeding
+    if (currentMode.value != 'sous chef') {
       return;
     }
 
@@ -1728,10 +1765,53 @@ Click "View Meals" to browse and add them to your calendar!""";
           lastWelcome.day == now.day;
 
       if (!isToday) {
-        final userContext = getUserContext();
-        final initialPrompt = _createInitialPrompt(userContext);
-        await sendMessageToAI(initialPrompt, context, isSystemMessage: true);
-        await _setLastGeminiWelcomeDate(now);
+        try {
+          final userContext = getUserContext();
+          final initialPrompt = _createInitialPrompt(userContext);
+          await sendMessageToAI(initialPrompt, context, isSystemMessage: true);
+          await _setLastGeminiWelcomeDate(now);
+          
+          // Verify that a message was actually added (fallback should have been used if AI failed)
+          // If still no messages, add fallback welcome message
+          if (messages.isEmpty) {
+            debugPrint("No messages after greeting attempt, adding fallback welcome message");
+            final fallbackContent = tastyWelcomeMessages[
+                DateTime.now().microsecond % tastyWelcomeMessages.length];
+            final message = ChatScreenData(
+              messageContent: fallbackContent,
+              senderId: 'buddy',
+              timestamp: Timestamp.now(),
+              imageUrls: [],
+              messageId: '',
+            );
+            messages.add(message);
+            await saveMessageToMode(
+              mode: currentMode.value,
+              content: fallbackContent,
+              senderId: 'buddy',
+            );
+          }
+        } catch (e) {
+          debugPrint("Error initializing tasty mode greeting: $e");
+          // Ensure we always have a welcome message even if everything fails
+          if (messages.isEmpty) {
+            final fallbackContent = tastyWelcomeMessages[
+                DateTime.now().microsecond % tastyWelcomeMessages.length];
+            final message = ChatScreenData(
+              messageContent: fallbackContent,
+              senderId: 'buddy',
+              timestamp: Timestamp.now(),
+              imageUrls: [],
+              messageId: '',
+            );
+            messages.add(message);
+            await saveMessageToMode(
+              mode: currentMode.value,
+              content: fallbackContent,
+              senderId: 'buddy',
+            );
+          }
+        }
       } else {
         // Show system message if it's today but no messages in current session
         _showSystemMessage();
@@ -1872,8 +1952,8 @@ Click "View Meals" to browse and add them to your calendar!""";
 
   String _createInitialPrompt(Map<String, dynamic> userContext) {
     return """
-Greet the user warmly and offer guidance based on:
-- Username: ${userContext['displayName']} to address the user
+Greet the user as "Chef" and offer guidance based on:
+- Username: ${userContext['displayName']} - address them as "Chef ${userContext['displayName']}" or just "Chef"
 - Goal: ${userContext['fitnessGoal']}
 - Summary of previous chat: ${userContext['chatSummary']}
 - Current Weight: ${userContext['currentWeight']}
@@ -1881,6 +1961,8 @@ Greet the user warmly and offer guidance based on:
 - Starting Weight: ${userContext['startingWeight']}
 - Food Goal: ${userContext['foodGoal']}
 - Diet Preference: ${userContext['dietPreference']}
+
+Remember: You are Turner, the Sous Chef. Be professional, solution-oriented, and use kitchen terminology naturally. Address the user as "Chef" throughout.
 """;
   }
 
@@ -1896,7 +1978,7 @@ Greet the user warmly and offer guidance based on:
         randomMessage = mealPlanWelcomeMessages[
             DateTime.now().microsecond % mealPlanWelcomeMessages.length];
         break;
-      default: // tasty
+      default: // sous chef
         randomMessage = tastyWelcomeMessages[
             DateTime.now().microsecond % tastyWelcomeMessages.length];
         break;
