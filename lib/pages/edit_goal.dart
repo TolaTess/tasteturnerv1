@@ -96,13 +96,15 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
 
       // Initialize cycle tracking from settings
       final cycleDataRaw = user.settings['cycleTracking'];
-      debugPrint('Loading cycle tracking data: $cycleDataRaw (type: ${cycleDataRaw.runtimeType})');
-      
+      debugPrint(
+          'Loading cycle tracking data: $cycleDataRaw (type: ${cycleDataRaw.runtimeType})');
+
       if (cycleDataRaw != null && cycleDataRaw is Map) {
         final cycleData = Map<String, dynamic>.from(cycleDataRaw);
         isCycleTrackingEnabled = cycleData['isEnabled'] as bool? ?? false;
-        cycleLengthController.text = (cycleData['cycleLength'] as num?)?.toString() ?? '28';
-        
+        cycleLengthController.text =
+            (cycleData['cycleLength'] as num?)?.toString() ?? '28';
+
         // Handle lastPeriodStart - could be String (ISO8601) or Timestamp
         final lastPeriodStartValue = cycleData['lastPeriodStart'];
         if (lastPeriodStartValue != null) {
@@ -112,7 +114,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
             lastPeriodStart = lastPeriodStartValue.toDate();
           }
         }
-        
+
         debugPrint('Cycle tracking loaded: isEnabled=$isCycleTrackingEnabled, '
             'lastPeriodStart=$lastPeriodStart, cycleLength=${cycleLengthController.text}');
       } else {
@@ -168,17 +170,18 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
         // Update both settings and familyMode
         await authController.updateUserData(
             {'settings': updatedSettings, 'familyMode': isFamilyModeEnabled});
-        
+
         debugPrint('Cycle tracking saved: isEnabled=$isCycleTrackingEnabled, '
             'lastPeriodStart=${lastPeriodStart?.toIso8601String()}, '
             'cycleLength=${cycleLengthController.text}');
 
-        Get.snackbar('Success', 'Settings updated successfully!',
+        Get.snackbar('Service Approved', 'Specs updated successfully, Chef!',
             snackPosition: SnackPosition.BOTTOM);
 
         Navigator.pop(context);
       } catch (e) {
-        Get.snackbar('Error', 'Failed to save settings. Please try again.',
+        Get.snackbar(
+            'Service Error', 'Failed to save specs, Chef. Please try again.',
             snackPosition: SnackPosition.BOTTOM,
             backgroundColor: Colors.red,
             colorText: Colors.white);
@@ -266,8 +269,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
       // Show success message
       if (mounted) {
         showTastySnackbar(
-          'Family Members Updated!',
-          'Your family members have been updated successfully.',
+          'Family Updated!',
+          'Your family members have been updated successfully, Chef.',
           context,
           backgroundColor: kAccentLight,
         );
@@ -275,8 +278,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
     } catch (e) {
       if (mounted) {
         showTastySnackbar(
-          'Error',
-          'Failed to save family members. Please try again.',
+          'Service Error',
+          'Failed to save family members, Chef. Please try again.',
           context,
           backgroundColor: Colors.red,
         );
@@ -296,8 +299,9 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
           child: const IconCircleButton(),
         ),
         title: Text(
-          "Edit Goals",
-          style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500),
+          "Edit Menu Specs",
+          style: textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.w500, fontSize: getTextScale(7, context)),
         ),
       ),
       body: Padding(
@@ -320,7 +324,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   textColor: kAccent,
                   collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
                   title: Text(
-                    "Daily Nutrition Goals",
+                    "Daily Service Targets",
                     style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w500,
                       color: isDarkMode ? kWhite : kDarkGrey,
@@ -330,97 +334,130 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(height: getPercentageHeight(0.5, context)),
+                        SizedBox(height: getPercentageHeight(1.5, context)),
                         GridView.count(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           crossAxisCount: 2,
-                          crossAxisSpacing: getPercentageWidth(2, context),
-                          mainAxisSpacing: getPercentageHeight(1.5, context),
-                          childAspectRatio: 3.2,
+                          crossAxisSpacing: getPercentageWidth(
+                              4, context), // increased spacing
+                          mainAxisSpacing: getPercentageHeight(
+                              3, context), // increased spacing
+                          childAspectRatio: 2.6, // slightly taller
                           children: [
-                            SafeTextFormField(
-                              controller: foodController,
-                              style: textTheme.bodyLarge?.copyWith(
-                                  color: isDarkMode ? kWhite : kDarkGrey),
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: "Calories",
-                                labelStyle: textTheme.bodyMedium?.copyWith(
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  vertical: getPercentageHeight(0.5, context)),
+                              child: SafeTextFormField(
+                                controller: foodController,
+                                style: textTheme.bodyLarge?.copyWith(
                                     color: isDarkMode ? kWhite : kDarkGrey),
-                                enabledBorder: outlineInputBorder(20),
-                                focusedBorder: outlineInputBorder(20),
-                                border: outlineInputBorder(20),
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: "Fuel (kcal)",
+                                  labelStyle: textTheme.bodyMedium?.copyWith(
+                                      color: isDarkMode ? kWhite : kDarkGrey),
+                                  enabledBorder: outlineInputBorder(20),
+                                  focusedBorder: outlineInputBorder(20),
+                                  border: outlineInputBorder(20),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      vertical: 18,
+                                      horizontal: 15), // added padding
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "Required";
+                                  }
+                                  return null;
+                                },
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Required";
-                                }
-                                return null;
-                              },
                             ),
-                            SafeTextFormField(
-                              controller: proteinController,
-                              style: textTheme.bodyLarge?.copyWith(
-                                  color: isDarkMode ? kWhite : kDarkGrey),
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: "Protein (g)",
-                                labelStyle: textTheme.bodyMedium?.copyWith(
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  vertical: getPercentageHeight(0.5, context)),
+                              child: SafeTextFormField(
+                                controller: proteinController,
+                                style: textTheme.bodyLarge?.copyWith(
                                     color: isDarkMode ? kWhite : kDarkGrey),
-                                enabledBorder: outlineInputBorder(20),
-                                focusedBorder: outlineInputBorder(20),
-                                border: outlineInputBorder(20),
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: "Protein (g)",
+                                  labelStyle: textTheme.bodyMedium?.copyWith(
+                                      color: isDarkMode ? kWhite : kDarkGrey),
+                                  enabledBorder: outlineInputBorder(20),
+                                  focusedBorder: outlineInputBorder(20),
+                                  border: outlineInputBorder(20),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      vertical: 18,
+                                      horizontal: 15), // added padding
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "Required";
+                                  }
+                                  return null;
+                                },
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Required";
-                                }
-                                return null;
-                              },
                             ),
-                            SafeTextFormField(
-                              controller: carbsController,
-                              style: textTheme.bodyLarge?.copyWith(
-                                  color: isDarkMode ? kWhite : kDarkGrey),
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: "Carbs (g)",
-                                labelStyle: textTheme.bodyMedium?.copyWith(
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  vertical: getPercentageHeight(0.5, context)),
+                              child: SafeTextFormField(
+                                controller: carbsController,
+                                style: textTheme.bodyLarge?.copyWith(
                                     color: isDarkMode ? kWhite : kDarkGrey),
-                                enabledBorder: outlineInputBorder(20),
-                                focusedBorder: outlineInputBorder(20),
-                                border: outlineInputBorder(20),
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: "Carbs (g)",
+                                  labelStyle: textTheme.bodyMedium?.copyWith(
+                                      color: isDarkMode ? kWhite : kDarkGrey),
+                                  enabledBorder: outlineInputBorder(20),
+                                  focusedBorder: outlineInputBorder(20),
+                                  border: outlineInputBorder(20),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      vertical: 18,
+                                      horizontal: 15), // added padding
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "Required";
+                                  }
+                                  return null;
+                                },
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Required";
-                                }
-                                return null;
-                              },
                             ),
-                            SafeTextFormField(
-                              controller: fatController,
-                              style: textTheme.bodyLarge?.copyWith(
-                                  color: isDarkMode ? kWhite : kDarkGrey),
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: "Fat (g)",
-                                labelStyle: textTheme.bodyMedium?.copyWith(
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  vertical: getPercentageHeight(0.5, context)),
+                              child: SafeTextFormField(
+                                controller: fatController,
+                                style: textTheme.bodyLarge?.copyWith(
                                     color: isDarkMode ? kWhite : kDarkGrey),
-                                enabledBorder: outlineInputBorder(20),
-                                focusedBorder: outlineInputBorder(20),
-                                border: outlineInputBorder(20),
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: "Fat (g)",
+                                  labelStyle: textTheme.bodyMedium?.copyWith(
+                                      color: isDarkMode ? kWhite : kDarkGrey),
+                                  enabledBorder: outlineInputBorder(20),
+                                  focusedBorder: outlineInputBorder(20),
+                                  border: outlineInputBorder(20),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      vertical: 18,
+                                      horizontal: 15), // added padding
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "Required";
+                                  }
+                                  return null;
+                                },
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Required";
-                                }
-                                return null;
-                              },
                             ),
                           ],
                         ),
+                        SizedBox(
+                            height: getPercentageHeight(
+                                1.5, context)), // extra bottom spacing
                       ],
                     ),
                   ],
@@ -555,7 +592,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                           ),
                           SizedBox(height: getPercentageHeight(1, context)),
                           Text(
-                            'Manage your family members\' nutrition goals',
+                            'Manage your family members\' service targets',
                             style: textTheme.bodySmall?.copyWith(
                               color: isDarkMode
                                   ? kLightGrey
@@ -581,7 +618,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               if (!widget.isRoutineExpand)
                 ExpansionTile(
                   initiallyExpanded: widget.isHealthExpand,
-                  title: Text("Health & Fitness",
+                  title: Text("Station Setup",
                       style: textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                           color: widget.isHealthExpand
@@ -655,7 +692,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       style: textTheme.bodyLarge
                           ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                       decoration: InputDecoration(
-                        labelText: "Nutrition Goal",
+                        labelText: "Service Goal",
                         labelStyle: textTheme.bodyMedium
                             ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
                         enabledBorder: outlineInputBorder(20),
@@ -700,7 +737,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               if (!widget.isRoutineExpand || widget.isWeightExpand)
                 ExpansionTile(
                   title: Text(
-                    "Weight Management",
+                    "Scale Tracking",
                     style: textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.w500),
                   ),
@@ -802,7 +839,9 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     subtitle: Text(
                       'Adjust macro goals based on your menstrual cycle phase',
                       style: textTheme.bodySmall?.copyWith(
-                        color: isDarkMode ? kLightGrey : kDarkGrey.withValues(alpha: 0.7),
+                        color: isDarkMode
+                            ? kLightGrey
+                            : kDarkGrey.withValues(alpha: 0.7),
                       ),
                     ),
                     value: isCycleTrackingEnabled,
@@ -825,7 +864,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       ),
                       subtitle: Text(
                         lastPeriodStart != null
-                            ? DateFormat('MMM dd, yyyy').format(lastPeriodStart!)
+                            ? DateFormat('MMM dd, yyyy')
+                                .format(lastPeriodStart!)
                             : 'Not set',
                         style: textTheme.bodySmall?.copyWith(
                           color: kAccent,
@@ -836,7 +876,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                         final picked = await showDatePicker(
                           context: context,
                           initialDate: lastPeriodStart ?? DateTime.now(),
-                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365)),
                           lastDate: DateTime.now(),
                         );
                         if (picked != null) {
@@ -862,11 +903,13 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                         border: outlineInputBorder(20),
                       ),
                       validator: (value) {
-                        if (isCycleTrackingEnabled && (value == null || value.isEmpty)) {
+                        if (isCycleTrackingEnabled &&
+                            (value == null || value.isEmpty)) {
                           return "Please enter your cycle length.";
                         }
                         final length = int.tryParse(value ?? '');
-                        if (isCycleTrackingEnabled && (length == null || length < 21 || length > 35)) {
+                        if (isCycleTrackingEnabled &&
+                            (length == null || length < 21 || length > 35)) {
                           return "Cycle length should be between 21-35 days.";
                         }
                         return null;
@@ -881,12 +924,16 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                             lastPeriodStart,
                             int.tryParse(cycleLengthController.text) ?? 28,
                           );
-                          final phaseName = cycleAdjustmentService.getPhaseName(phase);
-                          final phaseEmoji = cycleAdjustmentService.getPhaseEmoji(phase);
-                          final phaseColor = cycleAdjustmentService.getPhaseColor(phase);
-                          
+                          final phaseName =
+                              cycleAdjustmentService.getPhaseName(phase);
+                          final phaseEmoji =
+                              cycleAdjustmentService.getPhaseEmoji(phase);
+                          final phaseColor =
+                              cycleAdjustmentService.getPhaseColor(phase);
+
                           return Container(
-                            padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(3, context)),
                             decoration: BoxDecoration(
                               color: phaseColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
@@ -899,25 +946,33 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                               children: [
                                 Text(
                                   phaseEmoji,
-                                  style: TextStyle(fontSize: getTextScale(5, context)),
+                                  style: TextStyle(
+                                      fontSize: getTextScale(5, context)),
                                 ),
                                 SizedBox(width: getPercentageWidth(2, context)),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Current Phase: $phaseName',
                                         style: textTheme.bodyLarge?.copyWith(
-                                          color: isDarkMode ? kWhite : kDarkGrey,
+                                          color:
+                                              isDarkMode ? kWhite : kDarkGrey,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      SizedBox(height: getPercentageHeight(0.5, context)),
+                                      SizedBox(
+                                          height: getPercentageHeight(
+                                              0.5, context)),
                                       Text(
                                         _getPhaseDescription(phase),
                                         style: textTheme.bodySmall?.copyWith(
-                                          color: isDarkMode ? kLightGrey : kDarkGrey.withValues(alpha: 0.7),
+                                          color: isDarkMode
+                                              ? kLightGrey
+                                              : kDarkGrey.withValues(
+                                                  alpha: 0.7),
                                         ),
                                       ),
                                     ],
@@ -946,7 +1001,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
               if (!widget.isRoutineExpand)
                 AppButton(
                   onPressed: _saveSettings,
-                  text: "Save Settings",
+                  text: "Save Specs",
                   width: userService.currentUser.value?.isPremium == true
                       ? 100
                       : 40,

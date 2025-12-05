@@ -95,9 +95,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           child: const IconCircleButton(),
         ),
         centerTitle: true,
-        title: Text("Edit Profile",
+        title: Text("Edit Station",
             style:
-                textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500)),
+                textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500,
+                fontSize: getTextScale(7, context))),
       ),
       body: SafeArea(
         child: SizedBox(
@@ -166,15 +167,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           await File(compressedPath).delete();
 
                           showTastySnackbar(
-                            'Success',
-                            'Your image was updated successfully!',
+                            'Service Approved',
+                            'Your image was updated successfully, Chef!',
                             context,
                           );
                         } catch (e) {
                           if (mounted) {
                             showTastySnackbar(
-                              'Please try again.',
-                              'Failed to update profile image.',
+                              'Service Error',
+                              'Failed to update profile image, Chef. Please try again.',
                               context,
                             );
                           }
@@ -219,7 +220,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                                   ),
                                 ),
                                 content: Text(
-                                  'Since you\'re changing your gender to male, cycle syncing will be automatically disabled as it\'s only available for female users.',
+                                  'Since you\'re changing your gender to male, Chef, cycle syncing will be automatically disabled as it\'s only available for female users.',
                                   style: TextStyle(
                                     color: isDarkMode ? kLightGrey : kDarkGrey,
                                   ),
@@ -301,8 +302,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       authController.updateUserData(updatedUser);
 
                       showTastySnackbar(
-                        'Success',
-                        'Your data was updated successfully!',
+                        'Service Approved',
+                        'Your data was updated successfully, Chef!',
                         context,
                       );
                       

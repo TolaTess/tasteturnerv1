@@ -15,7 +15,6 @@ import '../helper/helper_functions.dart';
 import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
 import '../service/calorie_adjustment_service.dart';
-import '../service/auth_controller.dart';
 import '../service/reverse_pantry_search_service.dart';
 
 import '../widgets/daily_routine_list_horizontal.dart';
@@ -31,6 +30,7 @@ class AddFoodScreen extends StatefulWidget {
   final DateTime? date;
   final String? notAllowedMealType;
   final bool isShowSummary;
+  final String? initialMealType;
 
   const AddFoodScreen({
     super.key,
@@ -38,6 +38,7 @@ class AddFoodScreen extends StatefulWidget {
     this.date,
     this.notAllowedMealType,
     this.isShowSummary = false,
+    this.initialMealType,
   });
 
   @override
@@ -87,53 +88,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       context,
       backgroundColor: Colors.red,
     );
-  }
-
-  // Helper function to safely convert settings value to bool
-  bool _safeBoolFromSettings(dynamic value, {bool defaultValue = false}) {
-    if (value == null) return defaultValue;
-    if (value is bool) return value;
-    if (value is String) {
-      return value.toLowerCase() == 'true';
-    }
-    if (value is int) {
-      return value != 0;
-    }
-    return defaultValue;
-  }
-
-  // Handle health journal toggle
-  Future<void> _handleHealthJournalToggle(bool value) async {
-    final authController = Get.find<AuthController>();
-
-    try {
-      await authController.updateUserData({
-        'settings.healthJournalEnabled': value,
-      });
-
-      if (mounted) {
-        showTastySnackbar(
-          value ? 'Health Journal Enabled' : 'Health Journal Disabled',
-          value
-              ? 'You can now track symptoms and how you feel after eating'
-              : 'Health journal tracking is now disabled',
-          context,
-          backgroundColor: value ? kAccent : kLightGrey,
-        );
-      }
-    } catch (e) {
-      debugPrint('Error updating health journal preference: $e');
-      if (mounted) {
-        showTastySnackbar(
-          'Error',
-          'Failed to update health journal settings',
-          context,
-          backgroundColor: kRed,
-        );
-        // Force UI update to revert toggle on error
-        setState(() {});
-      }
-    }
   }
 
   // Track pending items modifications for debugging
@@ -222,6 +176,11 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
     // Initialize current date from widget parameter or use today
     currentDate = widget.date ?? DateTime.now();
+
+    // Initialize meal type from widget parameter if provided
+    if (widget.initialMealType != null && widget.initialMealType!.isNotEmpty) {
+      foodType = widget.initialMealType!;
+    }
 
     // Load show calories preference
     loadShowCaloriesPref().then((value) {
@@ -470,7 +429,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Add to ${capitalizeFirstLetter(foodType)}',
+                          'Log to ${capitalizeFirstLetter(foodType)}',
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontSize: getPercentageWidth(4.5, context),
@@ -634,7 +593,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             onChanged: (query) {
                               _filterSearchResults(query);
                             },
-                            kText: 'Search meals or ingredients',
+                            kText: 'Check pantry or search ingredients',
                           ),
                         ),
                       ),
@@ -838,7 +797,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           ),
           backgroundColor: isDarkMode ? kDarkGrey : kWhite,
           title: Text(
-            'Fill Remaining Macros',
+            'Complete the Spec',
             style: TextStyle(
               color: isDarkMode ? kWhite : kBlack,
             ),
@@ -853,7 +812,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Enter your remaining macros:',
+                    'Enter your remaining macros, Chef:',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kBlack,
                       fontSize: getTextScale(3.5, context),
@@ -1020,7 +979,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Suggestions from previous meals:',
+                            'Suggestions from previous service:',
                             style: TextStyle(
                               color: isDarkMode ? kWhite : kBlack,
                               fontWeight: FontWeight.w600,
@@ -1133,7 +1092,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                 },
                                 icon: Icon(Icons.search, color: kWhite),
                                 label: Text(
-                                  'Search Meals by Calories',
+                                  'Search Plates by Calories',
                                   style: TextStyle(
                                     color: kWhite,
                                     fontSize: getTextScale(3.5, context),
@@ -1199,7 +1158,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 const CircularProgressIndicator(color: kAccent),
                 SizedBox(height: getPercentageHeight(2, context)),
                 Text(
-                  'Searching meals...',
+                  'Searching pantry...',
                   style: TextStyle(
                     fontSize: getTextScale(3.5, context),
                     color:
@@ -1252,8 +1211,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       if (filteredDocs.isEmpty) {
         if (mounted) {
           showTastySnackbar(
-            'No Meals Found',
-            'No meals found within ${minCalories}-${maxCalories} calories',
+            'Nothing in the Pantry',
+            'No plates found within ${minCalories}-${maxCalories} calories, Chef',
             context,
             backgroundColor: Colors.orange,
           );
@@ -1350,13 +1309,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Meals (${minCalories}-${maxCalories} kcal)',
+              'Plates (${minCalories}-${maxCalories} kcal)',
               style: TextStyle(
                 color: isDarkMode ? kWhite : kBlack,
               ),
             ),
             Text(
-              'Found ${meals.length} meals',
+              'Found ${meals.length} ${meals.length == 1 ? 'plate' : 'plates'}',
               style: TextStyle(
                 color: isDarkMode ? kLightGrey : kDarkGrey,
                 fontSize: getTextScale(3, context),
@@ -1433,7 +1392,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             ),
             backgroundColor: isDarkMode ? kDarkGrey : kWhite,
             title: Text(
-              'Select Meal Type',
+              'Select Service',
               style: TextStyle(
                 color: isDarkMode ? kWhite : kBlack,
               ),
@@ -1442,7 +1401,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Add "${item['name'] ?? 'Unknown'}" to:',
+                  'Log "${item['name'] ?? 'Unknown'}" to:',
                   style: TextStyle(
                     color: isDarkMode ? kWhite : kBlack,
                     fontSize: getTextScale(3.5, context),
@@ -1529,7 +1488,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       if (mounted) {
         showTastySnackbar(
           'Success',
-          'Added ${item['name']} to $mealTypeResult',
+          'Logged ${item['name']} to $mealTypeResult, Chef',
           context,
         );
       }
@@ -1538,7 +1497,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       if (mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to add meal: $e',
+          'Failed to add plate, Chef: $e',
           context,
           backgroundColor: kRed,
         );
@@ -1573,7 +1532,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 const CircularProgressIndicator(color: kAccent),
                 SizedBox(height: getPercentageHeight(2, context)),
                 Text(
-                  'Loading recent meals...',
+                  'Loading recent plates...',
                   style: TextStyle(
                     color: isDarkMode ? kWhite : kBlack,
                     fontSize: getTextScale(4, context),
@@ -1627,8 +1586,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       if (recentDates.isEmpty) {
         if (mounted) {
           showTastySnackbar(
-            'No Previous Meals',
-            'No meals found in the last 30 days',
+            'No Previous Plates',
+            'No plates found in the last 30 days, Chef',
             context,
             backgroundColor: Colors.orange,
           );
@@ -1671,7 +1630,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         ),
         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
         title: Text(
-          'Copy Meals from Previous Days',
+          'Copy Plates from Previous Service',
           style: TextStyle(
             color: isDarkMode ? kWhite : kBlack,
             fontWeight: FontWeight.w600,
@@ -1687,7 +1646,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Select a date to view meals:',
+                'Select a date to view plates:',
                 style: TextStyle(
                   color: isDarkMode ? kLightGrey : kDarkGrey,
                   fontSize: getTextScale(3, context),
@@ -1717,7 +1676,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         ),
                       ),
                       subtitle: Text(
-                        '$mealCount ${mealCount == 1 ? 'meal' : 'meals'}',
+                        '$mealCount ${mealCount == 1 ? 'plate' : 'plates'}',
                         style: TextStyle(
                           color: isDarkMode ? kLightGrey : kDarkGrey,
                         ),
@@ -1748,7 +1707,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     firstDate:
                         DateTime.now().subtract(const Duration(days: 365)),
                     lastDate: currentDate.subtract(const Duration(days: 1)),
-                    helpText: 'Select date to copy meals from',
+                    helpText: 'Select date to copy plates from',
                   );
                   if (selectedDate != null) {
                     _loadAndShowMealsForDate(context, selectedDate);
@@ -1804,7 +1763,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 const CircularProgressIndicator(color: kAccent),
                 SizedBox(height: getPercentageHeight(2, context)),
                 Text(
-                  'Loading meals...',
+                  'Loading plates...',
                   style: TextStyle(
                     color:
                         getThemeProvider(context).isDarkMode ? kWhite : kBlack,
@@ -1835,8 +1794,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       if (!mealsDoc.exists) {
         if (mounted) {
           showTastySnackbar(
-            'No Meals Found',
-            'No meals found for the selected date',
+            'No Plates Found',
+            'No plates found for the selected date, Chef',
             context,
             backgroundColor: Colors.orange,
           );
@@ -1865,7 +1824,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       if (mounted) Navigator.pop(context);
       debugPrint('Error fetching meals from date: $e');
       if (mounted) {
-        _handleError('Failed to load meals. Please try again.',
+        _handleError('Failed to load plates, Chef. Please try again.',
             details: e.toString());
       }
     }
@@ -1890,7 +1849,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           ),
           backgroundColor: isDarkMode ? kDarkGrey : kWhite,
           title: Text(
-            'Copy Meals from ${DateFormat('MMM dd, yyyy').format(sourceDate)}',
+            'Copy Plates from ${DateFormat('MMM dd, yyyy').format(sourceDate)}',
             style: TextStyle(
               color: isDarkMode ? kWhite : kBlack,
             ),
@@ -1906,7 +1865,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Select meals to copy:',
+                    'Select plates to copy:',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kBlack,
                       fontWeight: FontWeight.w600,
@@ -1992,7 +1951,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 backgroundColor: kAccent,
               ),
               child: Text(
-                'Copy ${selectedMeals.length} ${selectedMeals.length == 1 ? 'Meal' : 'Meals'}',
+                'Copy ${selectedMeals.length} ${selectedMeals.length == 1 ? 'Plate' : 'Plates'}',
                 style: const TextStyle(color: kWhite),
               ),
             ),
@@ -2062,14 +2021,14 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           // All meals copied successfully
           showTastySnackbar(
             'Success',
-            'Copied ${successCount} ${successCount == 1 ? 'meal' : 'meals'} to today',
+            'Copied ${successCount} ${successCount == 1 ? 'plate' : 'plates'} to today, Chef',
             context,
           );
         } else if (successCount > 0) {
           // Some succeeded, some failed
           showTastySnackbar(
             'Partial Success',
-            'Copied $successCount ${successCount == 1 ? 'meal' : 'meals'}, ${failCount} ${failCount == 1 ? 'failed' : 'failed'}',
+            'Copied $successCount ${successCount == 1 ? 'plate' : 'plates'}, ${failCount} ${failCount == 1 ? 'failed' : 'failed'}, Chef',
             context,
             backgroundColor: Colors.orange,
           );
@@ -2077,7 +2036,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           // All failed
           showTastySnackbar(
             'Error',
-            'Failed to copy meals${lastError != null ? ': ${lastError.substring(0, lastError.length > 50 ? 50 : lastError.length)}' : ''}',
+            'Failed to copy plates${lastError != null ? ': ${lastError.substring(0, lastError.length > 50 ? 50 : lastError.length)}' : ''}, Chef',
             context,
             backgroundColor: kRed,
           );
@@ -2128,7 +2087,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   void _showDetailPopup(dynamic result, String? userId, String mealType) {
     int selectedNumber = 0;
     int selectedUnit = 0;
-    String? selectedContext; // Track selected eating context
 
     if (result is Meal) {
     } else if (result is MacroData) {
@@ -2275,7 +2233,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           calories: result.calories,
           mealId: result.mealId,
           macros: adjustedMacros,
-          eatingContext: selectedContext,
           originalMealId: originalMealId ?? (isInstance ? result.mealId : null),
           loggedAt: isInstance ? DateTime.now() : null,
           isInstance: isInstance,
@@ -2290,7 +2247,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           calories: adjustedCalories,
           mealId: mealId,
           macros: adjustedMacros,
-          eatingContext: selectedContext,
           originalMealId: originalMealId ?? (isInstance ? mealId : null),
           loggedAt: isInstance ? DateTime.now() : null,
           isInstance: isInstance,
@@ -2305,7 +2261,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           calories: adjustedCalories,
           mealId: mealId,
           macros: adjustedMacros,
-          eatingContext: selectedContext,
           originalMealId: originalMealId ?? (isInstance ? mealId : null),
           loggedAt: isInstance ? DateTime.now() : null,
           isInstance: isInstance,
@@ -2328,7 +2283,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               ),
               backgroundColor: isDarkMode ? kDarkGrey : kWhite,
               title: Text(
-                'Add to $mealType',
+                'Log to $mealType',
                 style: TextStyle(
                   color: isDarkMode ? kWhite : kBlack,
                 ),
@@ -2370,7 +2325,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               SizedBox(
                                   height: getPercentageHeight(0.5, context)),
                               Text(
-                                '${_getCurrentCaloriesForMealType(mealType)} kcal from ${dailyDataController.userMealList[mealType]?.length ?? 0} ${dailyDataController.userMealList[mealType]?.length == 1 ? 'meal' : 'meals'}',
+                                '${_getCurrentCaloriesForMealType(mealType)} kcal from ${dailyDataController.userMealList[mealType]?.length ?? 0} ${dailyDataController.userMealList[mealType]?.length == 1 ? 'plate' : 'plates'}',
                                 style: TextStyle(
                                   color: isDarkMode
                                       ? Colors.grey[400]
@@ -2382,7 +2337,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               SizedBox(
                                   height: getPercentageHeight(0.5, context)),
                               Text(
-                                '${dailyDataController.userMealList[mealType]?.length ?? 0} ${dailyDataController.userMealList[mealType]?.length == 1 ? 'meal' : 'meals'}',
+                                '${dailyDataController.userMealList[mealType]?.length ?? 0} ${dailyDataController.userMealList[mealType]?.length == 1 ? 'plate' : 'plates'}',
                                 style: TextStyle(
                                   color: isDarkMode
                                       ? Colors.grey[400]
@@ -2484,100 +2439,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           ],
                         ),
                       ),
-                      // Eating Context Selection
-                      SizedBox(height: getPercentageHeight(1, context)),
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(2, context),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Why did you eat this? (Optional)',
-                              style: TextStyle(
-                                color: isDarkMode ? kWhite : kBlack,
-                                fontWeight: FontWeight.w600,
-                                fontSize: getTextScale(3, context),
-                              ),
-                            ),
-                            SizedBox(height: getPercentageHeight(0.5, context)),
-                            Wrap(
-                              spacing: getPercentageWidth(1.5, context),
-                              runSpacing: getPercentageHeight(0.5, context),
-                              children: [
-                                _buildContextButton(
-                                  context,
-                                  'Meal',
-                                  '🍽️',
-                                  selectedContext == 'meal',
-                                  () => setModalState(() => selectedContext =
-                                      selectedContext == 'meal'
-                                          ? null
-                                          : 'meal'),
-                                  isDarkMode,
-                                ),
-                                _buildContextButton(
-                                  context,
-                                  'Hunger',
-                                  '🍽️',
-                                  selectedContext == 'hunger',
-                                  () => setModalState(() => selectedContext =
-                                      selectedContext == 'hunger'
-                                          ? null
-                                          : 'hunger'),
-                                  isDarkMode,
-                                ),
-                                _buildContextButton(
-                                  context,
-                                  'Boredom',
-                                  '😴',
-                                  selectedContext == 'boredom',
-                                  () => setModalState(() => selectedContext =
-                                      selectedContext == 'boredom'
-                                          ? null
-                                          : 'boredom'),
-                                  isDarkMode,
-                                ),
-                                _buildContextButton(
-                                  context,
-                                  'Stress',
-                                  '😰',
-                                  selectedContext == 'stress',
-                                  () => setModalState(() => selectedContext =
-                                      selectedContext == 'stress'
-                                          ? null
-                                          : 'stress'),
-                                  isDarkMode,
-                                ),
-                                _buildContextButton(
-                                  context,
-                                  'Social',
-                                  '👥',
-                                  selectedContext == 'social',
-                                  () => setModalState(() => selectedContext =
-                                      selectedContext == 'social'
-                                          ? null
-                                          : 'social'),
-                                  isDarkMode,
-                                ),
-                                _buildContextButton(
-                                  context,
-                                  'Planned',
-                                  '✅',
-                                  selectedContext == 'planned',
-                                  () => setModalState(() => selectedContext =
-                                      selectedContext == 'planned'
-                                          ? null
-                                          : 'planned'),
-                                  isDarkMode,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -2617,7 +2478,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     }
                   },
                   child: Text(
-                    'Add Another',
+                    'Add Another Item',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kAccent,
                       fontSize: getTextScale(3.5, context),
@@ -2675,7 +2536,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       if (mounted) {
                         showTastySnackbar(
                           'Success',
-                          'Added ${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'} to $mealType',
+                          'Logged ${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'} to $mealType, Chef',
                           context,
                         );
                       }
@@ -2693,7 +2554,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     }
                   },
                   child: Text(
-                    'Save All',
+                    'Log All',
                     style: TextStyle(
                       color: isDarkMode ? kWhite : kAccent,
                       fontSize: getTextScale(3.5, context),
@@ -2747,11 +2608,11 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               children: [
                 InfoIconWidget(
                   title: 'The Pass',
-                  description: 'Review orders and track your daily meals',
+                  description: 'Review orders and track your daily service',
                   details: const [
                     {
                       'icon': Icons.restaurant,
-                      'title': 'Log Meals',
+                      'title': 'Log Plates',
                       'description': 'Record what you eat throughout the day',
                       'color': kAccent,
                     },
@@ -2763,7 +2624,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     },
                     {
                       'icon': Icons.history,
-                      'title': 'View History',
+                      'title': 'View Service History',
                       'description':
                           'See your eating patterns over time and get recommendations',
                       'color': kAccent,
@@ -2776,50 +2637,15 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     },
                     {
                       'icon': Icons.analytics,
-                      'title': 'Analyze Meals',
+                      'title': 'Analyze Plates',
                       'description':
-                          'Analyze your meals with AI and get insights',
+                          'Analyze your plates with AI and get insights',
                       'color': kAccent,
                     },
                   ],
                   iconColor: isDarkMode ? kWhite : kDarkGrey,
                   tooltip: 'The Pass Information',
                 ),
-                // Health Journal Toggle
-                Obx(() {
-                  final user = userService.currentUser.value;
-                  final isHealthJournalEnabled = user != null
-                      ? _safeBoolFromSettings(
-                          user.settings['healthJournalEnabled'],
-                          defaultValue: false)
-                      : false;
-                  return Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () {
-                        _handleHealthJournalToggle(!isHealthJournalEnabled);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        margin: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(1, context),
-                        ),
-                        decoration: BoxDecoration(
-                          color: kAccent.withValues(alpha: 0.13),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isHealthJournalEnabled
-                              ? Icons.health_and_safety
-                              : Icons.health_and_safety_outlined,
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                          size: getIconScale(5, context),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
                 // Hide Calories Toggle
                 Material(
                   color: Colors.transparent,
@@ -2961,7 +2787,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     widget.notAllowedMealType != '')
                   Center(
                     child: Text(
-                      'Your program does not include ${capitalizeFirstLetter(widget.notAllowedMealType ?? '')}',
+                      'Your menu does not include ${capitalizeFirstLetter(widget.notAllowedMealType ?? '')}, Chef',
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
                             fontSize: getPercentageWidth(3.5, context),
                             fontWeight: FontWeight.w200,
@@ -3012,7 +2838,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Text(
-                                      'Fill Remaining Macros',
+                                      'Complete the Spec',
                                       style: textTheme.titleMedium?.copyWith(
                                         color: kPurple,
                                         fontWeight: FontWeight.w600,
@@ -3022,7 +2848,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                         height:
                                             getPercentageHeight(0.3, context)),
                                     Text(
-                                      'Find foods that fit your remaining macros',
+                                      'Find plates that fit your remaining macros, Chef',
                                       style: textTheme.bodySmall?.copyWith(
                                         color: kPurple.withValues(alpha: 0.7),
                                         fontSize: getTextScale(2.5, context),
@@ -3298,7 +3124,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                 ),
                                 SizedBox(width: getPercentageWidth(2, context)),
                                 Text(
-                                  'View Yesterday\'s Summary',
+                                  'View Yesterday\'s Service',
                                   style: textTheme.titleMedium?.copyWith(
                                     color: kAccentLight,
                                     fontWeight: FontWeight.w600,
@@ -3632,55 +3458,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     );
   }
 
-  Widget _buildContextButton(
-    BuildContext context,
-    String label,
-    String emoji,
-    bool isSelected,
-    VoidCallback onTap,
-    bool isDarkMode,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: getPercentageWidth(2.5, context),
-          vertical: getPercentageHeight(0.8, context),
-        ),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? kAccent.withValues(alpha: 0.2)
-              : (isDarkMode ? kDarkGrey : Colors.grey[100]),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? kAccent
-                : (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              emoji,
-              style: TextStyle(fontSize: getTextScale(3.5, context)),
-            ),
-            SizedBox(width: getPercentageWidth(0.8, context)),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? kAccent : (isDarkMode ? kWhite : kBlack),
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                fontSize: getTextScale(2.8, context),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildDailyRoutineCard(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
@@ -3920,7 +3697,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                             SizedBox(height: getPercentageHeight(1, context)),
                           if (currentCalories > 0 && showCaloriesAndGoal)
                             Text(
-                              'Added: $currentCalories kcal (${meals.length} ${meals.length == 1 ? 'meal' : 'meals'})',
+                              'Logged: $currentCalories kcal (${meals.length} ${meals.length == 1 ? 'plate' : 'plates'})',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: kAccent,
                                 fontWeight: FontWeight.w500,
@@ -3934,7 +3711,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Current meals:',
+                                    'Current plates:',
                                     style: textTheme.bodySmall?.copyWith(
                                       color: isDarkMode
                                           ? Colors.grey[400]
@@ -3968,7 +3745,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                             )
                                           : index == 1
                                               ? Text(
-                                                  'Tap to see ${meals.length - 1} more...',
+                                                  'Tap to see ${meals.length - 1} more plates...',
                                                   style: textTheme.bodySmall
                                                       ?.copyWith(
                                                     color: kAccent,

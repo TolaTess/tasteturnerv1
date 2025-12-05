@@ -50,9 +50,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: kAccent,
         automaticallyImplyLeading: true,
         centerTitle: true,
-        title: Text('Settings',
+        title: Text('Station Setup',
             style:
-                textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500)),
+                textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500, fontSize: getTextScale(7, context))),
       ),
       body: SafeArea(
         child: Column(
@@ -76,9 +76,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       // Profile completion prompt
                       if (_showProfilePrompt)
                         OnboardingPrompt(
-                          title: "Complete Your Profile",
+                          title: "Complete Your Station",
                           message:
-                              "Adding your date of birth and gender helps us provide more accurate nutrition recommendations",
+                              "Adding your date of birth and gender helps us provide more accurate service recommendations, Chef",
                           actionText: "Complete Now",
                           onAction: () {
                             setState(() {
@@ -109,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 setting: demoSetting[index],
                                 press: () {
                                   switch (demoSetting[index].category) {
-                                    case 'Edit Profile':
+                                    case 'Edit Station':
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -117,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                                 const ProfileEditScreen()),
                                       );
                                       break;
-                                    case 'Edit Goals':
+                                    case 'Edit Menu Specs':
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -125,7 +125,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                                 const NutritionSettingsPage()),
                                       );
                                       break;
-                                    case 'Premium':
+                                    case 'Executive Chef':
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -134,7 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         ),
                                       );
                                       break;
-                                    case 'Help & Support':
+                                    case 'Help Center':
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -144,9 +144,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       );
                                       break;
 
-                                    case 'Dark Mode':
+                                    case 'Night Shift':
                                       break;
-                                    case 'Notifications':
+                                    case 'Reminders':
                                       // Handled by toggle in widget
                                       break;
                                   }
@@ -210,8 +210,8 @@ class _SettingCategoryState extends State<SettingCategory> {
         await _initializeNotifications();
         if (mounted) {
           showTastySnackbar(
-            'Notifications Enabled',
-            'You\'ll now receive helpful reminders!',
+            'Service Alerts Enabled',
+            'You\'ll now receive helpful reminders, Chef!',
             context,
             backgroundColor: kAccent,
           );
@@ -220,8 +220,8 @@ class _SettingCategoryState extends State<SettingCategory> {
         // User disabled notifications
         if (mounted) {
           showTastySnackbar(
-            'Notifications Disabled',
-            'You won\'t receive reminders',
+            'Service Alerts Disabled',
+            'You won\'t receive reminders, Chef',
             context,
             backgroundColor: kLightGrey,
           );
@@ -231,8 +231,8 @@ class _SettingCategoryState extends State<SettingCategory> {
       debugPrint('Error updating notification preference: $e');
       if (mounted) {
         showTastySnackbar(
-          'Error',
-          'Failed to update notification settings',
+          'Service Error',
+          'Failed to update alert settings, Chef',
           context,
           backgroundColor: kRed,
         );

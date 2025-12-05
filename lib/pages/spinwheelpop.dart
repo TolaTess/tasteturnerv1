@@ -137,7 +137,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       tutorials: [
         TutorialStep(
           tutorialId: 'add_switch_button',
-          message: 'Tap here to switch view from ingredients to meal spin!',
+          message: 'Tap to switch from Single Ingredient to Full Plate mode.',
           targetKey: _addSwitchButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -153,7 +153,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         ),
         TutorialStep(
           tutorialId: 'add_spin_button',
-          message: 'Double tap the wheel for a spontaneous meal!',
+          message: 'Double tap for an instant Chef\'s Special!',
           targetKey: _addSpinButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -246,7 +246,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                 ),
                 backgroundColor: isDarkMode ? kDarkGrey : kWhite,
                 title: Text(
-                  'Enter Ingredients',
+                  'What\'s in the Walk-in?',
                   style: textTheme.titleMedium?.copyWith(color: kAccent),
                 ),
                 content: SafeTextFormField(
@@ -256,7 +256,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   keyboardType: TextInputType.text,
                   decoration: InputDecoration(
                     labelText:
-                        "Enter your Ingredients \n(eggs, tuna, etc.) \nseparate by commas",
+                        "List available inventory (eggs, tuna, etc.) for the spin.",
                     labelStyle: textTheme.bodySmall
                         ?.copyWith(color: isDarkMode ? kLightGrey : kLightGrey),
                     enabledBorder: outlineInputBorder(10),
@@ -389,7 +389,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         centerTitle: true,
         toolbarHeight:
             getPercentageHeight(10, context), // Control height with percentage
-        title: Text('Don\'t Know What to Eat?', style: textTheme.displayMedium),
+        title: Text('Need a Menu Idea, Chef?', style: textTheme.displayMedium?.copyWith(fontSize: getTextScale(5.5, context))),
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -426,41 +426,41 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                       ),
                       SizedBox(width: getPercentageWidth(2, context)),
                       const InfoIconWidget(
-                        title: 'Spin & Discover',
+                        title: 'The Inspiration Wheel',
                         description:
-                            'Let our smart wheel help you decide what to eat',
+                            'Let the wheel decide tonight\'s Special, Chef.',
                         details: [
                           {
                             'icon': Icons.casino,
-                            'title': 'Ingredient Spin',
+                            'title': 'Ingredient Mode',
                             'description':
-                                'Spin for random ingredients to inspire your cooking',
+                                'Spin for random ingredients to inspire your cooking, Chef',
                             'color': kAccentLight,
                           },
                           {
                             'icon': Icons.restaurant,
-                            'title': 'Meal Spin',
+                            'title': 'Full Plate Mode',
                             'description':
-                                'Get complete meal suggestions based on your preferences',
+                                'Generate a full service plan based on your preferences.',
                             'color': kAccentLight,
                           },
                           {
                             'icon': Icons.category,
                             'title': 'Category Filter',
                             'description':
-                                'Filter by protein, carbs, vegetables, or all ingredients',
+                                'Filter by Station: Protein, Veg, or full inventory.',
                             'color': kAccentLight,
                           },
                           {
                             'icon': Icons.volume_up,
                             'title': 'Sound Effects',
                             'description':
-                                'Toggle sound effects for a more engaging experience',
+                                'Toggle kitchen ambience and effects.',
                             'color': kAccentLight,
                           },
                         ],
                         iconColor: kAccentLight,
-                        tooltip: 'Spin Wheel Information',
+                        tooltip: 'Wheel Mechanics',
                       ),
                     ],
                   ),
@@ -489,8 +489,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                           },
                           child: Text(
                             showIngredientSpin
-                                ? 'Switch to Meal Spin'
-                                : 'Switch to Ingredient Spin',
+                                ? 'Switch to Full Plate Mode'
+                                : 'Switch to Ingredient Mode',
                             style: textTheme.titleMedium?.copyWith(
                                 color: kAccentLight,
                                 fontWeight: FontWeight.w600),
@@ -602,7 +602,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              'Quick Shopping List using 54321 method?',
+              'Generate a 5-4-3-2-1 Prep List, Chef?',
               style: textTheme.bodyMedium?.copyWith(color: kAccent),
             ),
           ),
@@ -710,7 +710,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           child: Center(
             child: _mealList.isEmpty
                 ? noItemTastyWidget(
-                    "No meals found for ${widget.selectedCategory} ${selectedCategoryMeal}",
+                    "I can't build a plate with those specs...",
                     "",
                     context,
                     false,
@@ -733,8 +733,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   void snackbar(BuildContext context, String mMacro, String category) {
     if (mounted) {
       showTastySnackbar(
-        'Please try again.',
-        "$mMacro not 2 applicable to the $category",
+        'Let\'s reset the station and try again.',
+        "$mMacro doesn't fit the profile for $category.",
         context,
       );
     }

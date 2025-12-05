@@ -50,7 +50,7 @@ class _FriendScreenState extends State<FriendScreen> {
         ),
         title: Text(
           textAlign: TextAlign.center,
-          'Friends',
+          'Brigade',
           style: textTheme.displaySmall?.copyWith(
             fontSize: getPercentageHeight(5, context),
           ),
@@ -78,10 +78,10 @@ class _FriendScreenState extends State<FriendScreen> {
 
             if (baseList.isEmpty) {
               return noItemTastyWidget(
-                isSearching ? "No friends found." : "No friends yet.",
+                isSearching ? "No one found in the brigade." : "Your brigade is empty, Chef.",
                 isSearching
                     ? "Try a different search."
-                    : "Use search bar to find friends.",
+                    : "Use search to find your kitchen team.",
                 context,
                 false,
                 '',
@@ -99,8 +99,8 @@ class _FriendScreenState extends State<FriendScreen> {
 
             if (filteredFriends.isEmpty) {
               return noItemTastyWidget(
-                "No friends found.",
-                "Try a different search.",
+                "No one found in the brigade.",
+                "Try a different search, Chef.",
                 context,
                 false,
                 '',
@@ -136,7 +136,7 @@ class _FriendScreenState extends State<FriendScreen> {
                         if (friend.userId == userService.userId) {
                           showTastySnackbar(
                             'Cannot Chat with Yourself',
-                            'You cannot chat with yourself.',
+                            'You cannot chat with yourself, Chef.',
                             context,
                           );
                           return;

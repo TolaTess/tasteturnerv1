@@ -8,6 +8,16 @@ import '../helper/utils.dart';
 import '../helper/ingredient_utils.dart';
 import '../widgets/primary_button.dart';
 import '../data_models/post_model.dart';
+import '../service/calorie_adjustment_service.dart';
+import 'package:get/get.dart';
+
+// QC State enum for Service Quality Check
+enum QCState {
+  onSpec, // Within ±10% of target
+  underPrep, // >10% under target
+  heavyPour, // >10% over target
+  macroMiss, // Calories on point but macro ratios wrong
+}
 
 class FoodAnalysisResultsScreen extends StatefulWidget {
   final File imageFile;
@@ -258,73 +268,6 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     return normalizedIngredients;
   }
 
-  Color _getHealthScoreColor(int? score, String? confidence) {
-    if (score != null) {
-      if (score >= _highHealthScoreThreshold) return Colors.green;
-      if (score >= _mediumHealthScoreThreshold) return Colors.orange;
-      return Colors.red;
-    }
-
-    // Use confidence level when health score is not available
-    switch (confidence?.toLowerCase()) {
-      case 'high':
-        return Colors.green;
-      case 'medium':
-        return Colors.orange;
-      case 'low':
-        return Colors.red;
-      default:
-        return Colors.orange;
-    }
-  }
-
-  String _getHealthScoreDescription(int? score, String? confidence) {
-    if (score != null) {
-      if (score >= _highHealthScoreThreshold)
-        return 'Excellent nutritional choice!';
-      if (score >= _mediumHealthScoreThreshold)
-        return 'Good with room for improvement, check AI suggestions';
-      return 'Consider healthier alternatives, check AI suggestions';
-    }
-
-    // Use confidence level when health score is not available
-    switch (confidence?.toLowerCase()) {
-      case 'high':
-        return 'High confidence analysis - reliable nutritional data';
-      case 'medium':
-        return 'Moderate confidence - review suggestions for improvements';
-      case 'low':
-        return 'Low confidence - consider retaking photo or manual entry';
-      default:
-        return 'Analysis completed - review suggestions for improvements';
-    }
-  }
-
-  String _getHealthScoreLabel(int? score, String? confidence) {
-    if (score != null) {
-      return 'Health Score';
-    }
-    return 'Analysis Confidence';
-  }
-
-  String _getHealthScoreValue(int? score, String? confidence) {
-    if (score != null) {
-      return '$score';
-    }
-
-    // Use confidence level when health score is not available
-    switch (confidence?.toLowerCase()) {
-      case 'high':
-        return 'High';
-      case 'medium':
-        return 'Med';
-      case 'low':
-        return 'Low';
-      default:
-        return 'Med';
-    }
-  }
-
   Future<void> _createMealOnly() async {
     if (_hasCreatedMeal) return; // Don't create meal twice
 
@@ -371,7 +314,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     try {
       // Show immediate success message
       if (mounted && context.mounted) {
-        _showSuccessMessage('Meal added to your daily meals!');
+        _showSuccessMessage('Plate added to your menu, Chef!');
       }
 
       // Navigate back immediately
@@ -384,7 +327,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     } catch (e) {
       debugPrint('Failed to save analysis: $e');
       if (mounted && context.mounted) {
-        _handleError('Failed to save analysis. Please try again.',
+        _handleError('Couldn\'t save to menu, Chef. Please try again.',
             details: e.toString());
       }
     } finally {
@@ -435,6 +378,9 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             analysisResult: _editableAnalysis,
             date: widget.date ?? DateTime.now(),
           );
+
+          // Check for Heavy Pour QC state and apply adjustment to next meal
+          await _applyQCAdjustmentIfNeeded();
         } catch (e) {
           debugPrint('Failed to add meal to daily meals: $e');
           // Log error but don't show to user (background operation)
@@ -614,6 +560,677 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     return 0.0;
   }
 
+  // Build Turner's Notes section
+  Widget _buildTurnersNotes(
+    BuildContext context,
+    bool isDarkMode,
+    Map<String, dynamic> totalNutrition,
+    int? healthScore,
+    String confidence,
+  ) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _buildTurnersNotesAsync(
+        totalNutrition,
+        healthScore,
+        confidence,
+      ),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final notes = snapshot.data!['notes'] as List<String>;
+        final qcState = snapshot.data!['qcState'] as QCState?;
+        final mealType = snapshot.data!['mealType'] as String? ?? '';
+
+        if (notes.isEmpty) return const SizedBox.shrink();
+
+        // Return styled container similar to ingredient details
+        return Container(
+          margin:
+              EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
+          padding: EdgeInsets.all(getPercentageWidth(3, context)),
+          decoration: BoxDecoration(
+            color: kAccent.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: kAccent.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Turner\'s Notes',
+                    style: TextStyle(
+                      fontSize: getTextScale(4.5, context),
+                      fontWeight: FontWeight.w700,
+                      color: kAccent,
+                    ),
+                  ),
+                  if (qcState != null)
+                    _buildQCBadge(context, isDarkMode, qcState, mealType),
+                ],
+              ),
+              SizedBox(height: getPercentageHeight(1, context)),
+              ...notes.map((note) => Padding(
+                    padding: EdgeInsets.only(
+                        bottom: getPercentageHeight(0.5, context)),
+                    child: RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: getTextScale(3.5, context),
+                          fontStyle: FontStyle.italic,
+                          color: isDarkMode ? kWhite : kBlack,
+                          height: 1.5,
+                        ),
+                        children: _parseTurnerNote(note),
+                      ),
+                    ),
+                  )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Async method to build Turner's Notes
+  Future<Map<String, dynamic>> _buildTurnersNotesAsync(
+    Map<String, dynamic> totalNutrition,
+    int? healthScore,
+    String confidence,
+  ) async {
+    List<String> notes = [];
+    QCState? qcState;
+
+    // Health Score / Quality notes
+    if (healthScore != null) {
+      if (healthScore >= _highHealthScoreThreshold) {
+        notes.add('Excellent **Plate Quality** - well balanced macros, Chef.');
+      } else if (healthScore >= _mediumHealthScoreThreshold) {
+        notes.add(
+            'Good **Plate Quality** - solid foundation with room for refinement.');
+      } else {
+        notes.add(
+            '**Plate Quality** needs work - check suggestions for improvements.');
+      }
+    } else {
+      // Confidence-based notes
+      switch (confidence.toLowerCase()) {
+        case 'high':
+          notes.add('High **Tasting Confidence** - reliable analysis, Chef.');
+          break;
+        case 'medium':
+          notes.add(
+              'Moderate **Tasting Confidence** - review and adjust as needed.');
+          break;
+        case 'low':
+          notes.add(
+              'Low **Tasting Confidence** - consider retaking photo for better accuracy.');
+          break;
+      }
+    }
+
+    // Macro balance notes
+    final calories = (totalNutrition['calories'] ?? 0) as int;
+    final protein = (totalNutrition['protein'] ?? 0) as int;
+    final carbs = (totalNutrition['carbs'] ?? 0) as int;
+    final fat = (totalNutrition['fat'] ?? 0) as int;
+
+    // High protein note
+    if (protein > 30 && calories > 0) {
+      final proteinPercent = (protein * 4 / calories * 100).round();
+      if (proteinPercent > 30) {
+        notes.add(
+            'High **Protein** content (${proteinPercent}%) - great for muscle maintenance.');
+      }
+    }
+
+    // Low carb note
+    if (carbs < 20 && calories > 0) {
+      notes.add('**Low Carb** profile - suitable for low-carb protocols.');
+    }
+
+    // Balanced macros note
+    if (calories > 0) {
+      final proteinPercent = (protein * 4 / calories * 100).round();
+      final carbPercent = (carbs * 4 / calories * 100).round();
+      final fatPercent = (fat * 9 / calories * 100).round();
+
+      if (proteinPercent >= 25 &&
+          proteinPercent <= 35 &&
+          carbPercent >= 30 &&
+          carbPercent <= 45 &&
+          fatPercent >= 20 &&
+          fatPercent <= 35) {
+        notes.add('Well **Balanced Macros** - excellent macro distribution.');
+      }
+    }
+
+    // Portion size note (if available)
+    final portionSize =
+        _editableAnalysis['estimatedPortionSize']?.toString() ?? '';
+    if (portionSize.isNotEmpty && portionSize != 'medium') {
+      notes.add(
+          '**${capitalizeFirstLetter(portionSize)}** portion size detected.');
+    }
+
+    // Replace daily macro notes with QC notes
+    final mealType = widget.mealType ?? getMealTimeOfDay();
+
+    // Calculate QC state for badge display
+    final mealTargets = _calculateMealTargets(mealType);
+    final analyzed = {
+      'calories': (totalNutrition['calories'] ?? 0) as int,
+      'protein': (totalNutrition['protein'] ?? 0) as int,
+      'carbs': (totalNutrition['carbs'] ?? 0) as int,
+      'fat': (totalNutrition['fat'] ?? 0) as int,
+    };
+    qcState = _determineQCState(analyzed, mealTargets);
+
+    await _addQCNotes(notes, totalNutrition, mealType);
+
+    // Add Chef's Eye observations
+    _addChefsEyeNotes(notes, _editableAnalysis);
+
+    return {
+      'notes': notes,
+      'qcState': qcState,
+      'mealType': mealType,
+    };
+  }
+
+  // Build QC Badge (Digital Pass Ticket)
+  Widget _buildQCBadge(
+    BuildContext context,
+    bool isDarkMode,
+    QCState state,
+    String mealType,
+  ) {
+    Color badgeColor;
+    String badgeText;
+    IconData badgeIcon;
+
+    switch (state) {
+      case QCState.onSpec:
+        badgeColor = Colors.green;
+        badgeText = 'Service Approved';
+        badgeIcon = Icons.check_circle;
+        break;
+      case QCState.heavyPour:
+        badgeColor = Colors.orange;
+        badgeText = 'Adjustment Required';
+        badgeIcon = Icons.warning;
+        break;
+      case QCState.underPrep:
+        badgeColor = Colors.yellow;
+        badgeText = 'Fuel Warning';
+        badgeIcon = Icons.info;
+        break;
+      case QCState.macroMiss:
+        badgeColor = Colors.blue;
+        badgeText = 'Composition Check';
+        badgeIcon = Icons.tune;
+        break;
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: getPercentageWidth(2.5, context),
+        vertical: getPercentageHeight(0.6, context),
+      ),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: badgeColor, width: 2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(badgeIcon, color: badgeColor, size: getIconScale(4, context)),
+          SizedBox(width: getPercentageWidth(1, context)),
+          Text(
+            badgeText,
+            style: TextStyle(
+              color: badgeColor,
+              fontWeight: FontWeight.bold,
+              fontSize: getTextScale(3, context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Parse Turner's note to highlight key terms
+  List<TextSpan> _parseTurnerNote(String note) {
+    final parts = note.split('**');
+    List<TextSpan> spans = [];
+
+    for (int i = 0; i < parts.length; i++) {
+      if (i % 2 == 0) {
+        // Regular text
+        spans.add(TextSpan(text: parts[i]));
+      } else {
+        // Bold text (highlighted terms)
+        spans.add(TextSpan(
+          text: parts[i],
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: kAccent,
+          ),
+        ));
+      }
+    }
+
+    return spans;
+  }
+
+  // Calculate meal slot targets
+  Map<String, int> _calculateMealTargets(String mealType) {
+    // Get user settings
+    final user = userService.currentUser.value;
+    final settings = user?.settings ?? {};
+    final fitnessGoal = settings['fitnessGoal']?.toString().toLowerCase() ?? '';
+
+    // Base calorie goal
+    final baseCalories = _parseMacroGoal(settings['foodGoal'] ?? 2000);
+
+    // Adjust for fitness goal
+    double adjustedCalories = baseCalories.toDouble();
+    switch (fitnessGoal) {
+      case 'lose weight':
+      case 'weight loss':
+        adjustedCalories = baseCalories * 0.8;
+        break;
+      case 'gain muscle':
+      case 'muscle gain':
+      case 'build muscle':
+        adjustedCalories = baseCalories * 1.0;
+        break;
+      default:
+        adjustedCalories = baseCalories.toDouble();
+    }
+
+    // Meal percentage distribution
+    double mealPercentage = 0.0;
+    switch (mealType.toLowerCase()) {
+      case 'breakfast':
+        mealPercentage = 0.25; // 25%
+        break;
+      case 'lunch':
+        mealPercentage = 0.375; // 37.5%
+        break;
+      case 'dinner':
+        mealPercentage = 0.375; // 37.5%
+        break;
+      default:
+        mealPercentage = 0.25;
+    }
+
+    final mealCalorieTarget = (adjustedCalories * mealPercentage).round();
+
+    // Calculate macro targets based on meal calories
+    final dailyProteinGoal = _parseMacroGoal(settings['proteinGoal'] ?? 150);
+    final dailyCarbsGoal = _parseMacroGoal(settings['carbsGoal'] ?? 200);
+    final dailyFatGoal = _parseMacroGoal(settings['fatGoal'] ?? 65);
+
+    // Distribute macros proportionally to meal percentage
+    final mealProteinTarget = (dailyProteinGoal * mealPercentage).round();
+    final mealCarbsTarget = (dailyCarbsGoal * mealPercentage).round();
+    final mealFatTarget = (dailyFatGoal * mealPercentage).round();
+
+    return {
+      'calories': mealCalorieTarget,
+      'protein': mealProteinTarget,
+      'carbs': mealCarbsTarget,
+      'fat': mealFatTarget,
+    };
+  }
+
+  // Determine QC state by comparing analyzed food against meal targets
+  QCState _determineQCState(
+    Map<String, int> analyzed,
+    Map<String, int> targets,
+  ) {
+    if (targets['calories'] == null || targets['calories']! == 0) {
+      return QCState.onSpec; // Default if no target
+    }
+
+    final calorieDelta = analyzed['calories']! - targets['calories']!;
+    final caloriePercent = (calorieDelta / targets['calories']!) * 100;
+
+    // Check if calories are within ±10%
+    final caloriesOnSpec = caloriePercent.abs() <= 10;
+
+    // Check macro ratios
+    if (analyzed['calories']! > 0 && targets['calories']! > 0) {
+      final proteinPercent =
+          (analyzed['protein']! * 4 / analyzed['calories']!) * 100;
+      final targetProteinPercent =
+          (targets['protein']! * 4 / targets['calories']!) * 100;
+      final proteinRatioOff =
+          (proteinPercent - targetProteinPercent).abs() > 10;
+
+      final carbsPercent =
+          (analyzed['carbs']! * 4 / analyzed['calories']!) * 100;
+      final targetCarbsPercent =
+          (targets['carbs']! * 4 / targets['calories']!) * 100;
+      final carbsRatioOff = (carbsPercent - targetCarbsPercent).abs() > 10;
+
+      // Macro Miss: Calories correct but ratios wrong
+      if (caloriesOnSpec && (proteinRatioOff || carbsRatioOff)) {
+        return QCState.macroMiss;
+      }
+    }
+
+    // Heavy Pour: Over target
+    if (caloriePercent > 10) {
+      return QCState.heavyPour;
+    }
+
+    // Under Prep: Under target
+    if (caloriePercent < -10) {
+      return QCState.underPrep;
+    }
+
+    // On Spec: Within range
+    return QCState.onSpec;
+  }
+
+  // Add QC notes based on meal slot comparison
+  Future<void> _addQCNotes(
+    List<String> notes,
+    Map<String, dynamic> totalNutrition,
+    String mealType,
+  ) async {
+    try {
+      // Calculate meal targets
+      final mealTargets = _calculateMealTargets(mealType);
+
+      // Get analyzed macros
+      final analyzed = {
+        'calories': (totalNutrition['calories'] ?? 0) as int,
+        'protein': (totalNutrition['protein'] ?? 0) as int,
+        'carbs': (totalNutrition['carbs'] ?? 0) as int,
+        'fat': (totalNutrition['fat'] ?? 0) as int,
+      };
+
+      // Determine QC state
+      final qcState = _determineQCState(analyzed, mealTargets);
+
+      // Generate Turner's Notes based on QC state
+      switch (qcState) {
+        case QCState.onSpec:
+          notes.add(
+              '**Service Approved.** Plating looks tight, Chef. You hit the macro specs for ${capitalizeFirstLetter(mealType)} perfectly. The kitchen is running smooth—keep this pace for the next service.');
+          break;
+
+        case QCState.heavyPour:
+          final overBy = analyzed['calories']! - mealTargets['calories']!;
+          notes.add(
+              '**Adjustment Required.** This is a hearty plate, Chef, about ${overBy}kcal over the ${capitalizeFirstLetter(mealType)} spec. It looks delicious, so enjoy it. I\'ve automatically lightened the prep list for the next meal to balance the inventory.');
+          break;
+
+        case QCState.underPrep:
+          final underBy = mealTargets['calories']! - analyzed['calories']!;
+          final proteinUnder = mealTargets['protein']! - analyzed['protein']!;
+          if (proteinUnder > 5) {
+            notes.add(
+                '**Fuel Warning.** Light service today? You\'re under the protein spec for this meal. You might crash during the shift. I recommend firing a protein snack (boiled egg or shake) around 3 PM.');
+          } else {
+            notes.add(
+                '**Fuel Warning.** You\'re about ${underBy}kcal under the ${capitalizeFirstLetter(mealType)} spec, Chef. Consider adding a side to keep energy steady.');
+          }
+          break;
+
+        case QCState.macroMiss:
+          if (analyzed['calories']! > 0 && mealTargets['calories']! > 0) {
+            final proteinPercent =
+                (analyzed['protein']! * 4 / analyzed['calories']!) * 100;
+            final targetProteinPercent =
+                (mealTargets['protein']! * 4 / mealTargets['calories']!) * 100;
+            final carbsPercent =
+                (analyzed['carbs']! * 4 / analyzed['calories']!) * 100;
+            final targetCarbsPercent =
+                (mealTargets['carbs']! * 4 / mealTargets['calories']!) * 100;
+
+            if (proteinPercent < targetProteinPercent - 10) {
+              notes.add(
+                  '**Composition Check.** Calories are on point, but the protein ratio is low. To keep the engine running, let\'s prioritize lean meat or fish for the next meal. I\'ve updated the next meal suggestion.');
+            } else if (carbsPercent > targetCarbsPercent + 10) {
+              notes.add(
+                  '**Composition Check.** Calories match the spec, but carbs are high relative to protein. Consider balancing with more protein in the next meal, Chef.');
+            } else {
+              notes.add(
+                  '**Composition Check.** Calories match the spec, but the macro balance needs adjustment. Check the next meal for better macro distribution, Chef.');
+            }
+          }
+          break;
+      }
+
+      // Add specific macro deltas for context
+      final proteinDelta = analyzed['protein']! - mealTargets['protein']!;
+      final carbsDelta = analyzed['carbs']! - mealTargets['carbs']!;
+      final fatDelta = analyzed['fat']! - mealTargets['fat']!;
+
+      if (proteinDelta.abs() > 5) {
+        if (proteinDelta > 0) {
+          notes.add(
+              'Protein is **${proteinDelta}g over** the ${capitalizeFirstLetter(mealType)} target.');
+        } else {
+          notes.add(
+              'Protein is **${proteinDelta.abs()}g under** the ${capitalizeFirstLetter(mealType)} target.');
+        }
+      }
+
+      if (carbsDelta.abs() > 10) {
+        if (carbsDelta > 0) {
+          notes.add(
+              'Carbs are **${carbsDelta}g over** the ${capitalizeFirstLetter(mealType)} target.');
+        } else {
+          notes.add(
+              'Carbs are **${carbsDelta.abs()}g under** the ${capitalizeFirstLetter(mealType)} target.');
+        }
+      }
+
+      if (fatDelta.abs() > 5) {
+        if (fatDelta > 0) {
+          notes.add(
+              'Fat is **${fatDelta}g over** the ${capitalizeFirstLetter(mealType)} target.');
+        } else {
+          notes.add(
+              'Fat is **${fatDelta.abs()}g under** the ${capitalizeFirstLetter(mealType)} target.');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in QC check: $e');
+      // Silently fail - don't show error to user
+    }
+  }
+
+  // Add Chef's Eye observations
+  void _addChefsEyeNotes(
+    List<String> notes,
+    Map<String, dynamic> analysis,
+  ) {
+    try {
+      // Rainbow Check (Micronutrients)
+      final ingredients =
+          analysis['ingredients'] as Map<String, dynamic>? ?? {};
+      final rainbowValues = <String>{};
+
+      ingredients.forEach((key, value) {
+        final color = value.toString().toLowerCase().trim();
+        if ([
+          'red',
+          'orange',
+          'yellow',
+          'green',
+          'blue',
+          'purple',
+          'white',
+          'brown',
+          'beige'
+        ].contains(color)) {
+          rainbowValues.add(color);
+        }
+      });
+
+      final isMonochrome = rainbowValues.length <= 1 &&
+          (rainbowValues.contains('brown') || rainbowValues.contains('beige'));
+
+      if (isMonochrome && rainbowValues.isNotEmpty) {
+        notes.add(
+            'The macros are good, but the presentation is a bit monochrome. We need more color on the station for vitamins. Try adding a side of greens or fruit to the next service, Chef.');
+      }
+
+      // Satiety Prediction (Fiber/Volume)
+      final foodItems = analysis['foodItems'] as List<dynamic>? ?? [];
+      double totalFiber = 0;
+      int totalCalories = 0;
+
+      for (var item in foodItems) {
+        final nutrition =
+            item['nutritionalInfo'] as Map<String, dynamic>? ?? {};
+        totalFiber += (nutrition['fiber'] ?? 0).toDouble();
+        totalCalories += (nutrition['calories'] ?? 0) as int;
+      }
+
+      final fiberPerCalorie =
+          totalCalories > 0 ? (totalFiber / totalCalories * 100) : 0;
+
+      if (fiberPerCalorie < 2 && totalCalories > 400) {
+        notes.add(
+            'This is high-density fuel, Chef. Since fiber is low here, you might feel hungry before the next service. Drink extra water to help with satiety.');
+      }
+
+      // Flavor/Texture Compliment
+      final itemNames = foodItems
+          .map((item) => (item['name'] ?? '').toString().toLowerCase())
+          .toList();
+
+      final highQualityIngredients = [
+        'avocado',
+        'salmon',
+        'quinoa',
+        'kale',
+        'blueberries'
+      ];
+      String? foundQuality;
+
+      for (var quality in highQualityIngredients) {
+        if (itemNames.any((name) => name.contains(quality))) {
+          foundQuality = quality;
+          break;
+        }
+      }
+
+      if (foundQuality != null) {
+        if (foundQuality == 'avocado') {
+          notes.add(
+              'Great use of healthy fats with that avocado, Chef. That\'s going to provide excellent slow-burn energy for the afternoon.');
+        } else if (foundQuality == 'salmon') {
+          notes.add(
+              'Excellent protein choice with that salmon, Chef. High-quality omega-3s for sustained energy.');
+        } else if (foundQuality == 'quinoa') {
+          notes.add(
+              'Smart choice with quinoa, Chef. Complete protein and high fiber for steady energy.');
+        } else if (foundQuality == 'kale') {
+          notes.add(
+              'Great addition of kale, Chef. Packed with micronutrients and fiber for optimal nutrition.');
+        } else if (foundQuality == 'blueberries') {
+          notes.add(
+              'Excellent antioxidant boost with those blueberries, Chef. Great for recovery and energy.');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in Chef\'s Eye notes: $e');
+      // Silently fail
+    }
+  }
+
+  // Parse macro goal value (handles both int and string)
+  int _parseMacroGoal(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) {
+      // Remove 'g' or other units and parse
+      final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+      return int.tryParse(cleaned) ?? 0;
+    }
+    if (value is num) return value.toInt();
+    return 0;
+  }
+
+  // Apply QC adjustment if Heavy Pour state detected
+  Future<void> _applyQCAdjustmentIfNeeded() async {
+    try {
+      // Get total nutrition from the analysis
+      final totalNutrition = Map<String, dynamic>.from(
+        _editableAnalysis['totalNutrition'] as Map,
+      );
+
+      // Calculate meal targets
+      final mealTargets = _calculateMealTargets(mealType);
+
+      // Get analyzed macros
+      final analyzed = {
+        'calories': (totalNutrition['calories'] ?? 0) as int,
+        'protein': (totalNutrition['protein'] ?? 0) as int,
+        'carbs': (totalNutrition['carbs'] ?? 0) as int,
+        'fat': (totalNutrition['fat'] ?? 0) as int,
+      };
+
+      // Determine QC state
+      final qcState = _determineQCState(analyzed, mealTargets);
+
+      // Only apply adjustment for Heavy Pour state
+      if (qcState == QCState.heavyPour) {
+        final overage = analyzed['calories']! - mealTargets['calories']!;
+
+        if (overage > 0) {
+          // Determine next meal type to adjust (use lowercase to match service)
+          String nextMealType = '';
+          switch (mealType.toLowerCase()) {
+            case 'breakfast':
+              nextMealType = 'lunch';
+              break;
+            case 'lunch':
+              nextMealType = 'dinner';
+              break;
+            case 'dinner':
+              // Default to snacks, but could check for notAllowedMealType if available
+              nextMealType = 'snacks';
+              break;
+            default:
+              nextMealType = 'lunch'; // Default fallback
+          }
+
+          // Get CalorieAdjustmentService and apply adjustment
+          try {
+            final adjustmentService = Get.find<CalorieAdjustmentService>();
+            await adjustmentService.setAdjustmentForMeal(nextMealType, overage);
+
+            debugPrint(
+                'QC Adjustment applied: $nextMealType reduced by $overage kcal');
+          } catch (e) {
+            debugPrint('Error applying QC adjustment: $e');
+            // Silently fail - adjustment is non-critical
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking QC adjustment: $e');
+      // Silently fail - adjustment is non-critical
+    }
+  }
+
   Widget _buildNutritionCard({
     required String title,
     required String value,
@@ -766,7 +1383,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             },
           ),
           title: Text(
-            aiFailed ? 'Analysis Failed' : 'Food Analysis Results',
+            aiFailed ? 'Tasting Failed' : 'Plate Analysis',
             style: textTheme.displaySmall?.copyWith(
               color: isDarkMode ? kWhite : kBlack,
               fontSize: getTextScale(6, context),
@@ -880,7 +1497,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
           SizedBox(
             width: double.infinity,
             child: AppButton(
-              text: 'Try Again',
+              text: 'Retry Tasting',
               onPressed: _retryAIAnalysis,
               type: AppButtonType.primary,
               width: 100,
@@ -942,74 +1559,15 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
           const SizedBox(height: 20),
 
-          // Health Score / Analysis Confidence
-          if (source == false) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDarkMode ? kDarkGrey : kWhite,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _getHealthScoreColor(
-                        healthScore,
-                        confidence,
-                      ).withValues(alpha: 0.2),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _getHealthScoreValue(healthScore, confidence),
-                        style: TextStyle(
-                          fontSize: getTextScale(6, context),
-                          fontWeight: FontWeight.bold,
-                          color: _getHealthScoreColor(healthScore, confidence),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _getHealthScoreLabel(healthScore, confidence),
-                          style: textTheme.titleMedium?.copyWith(
-                            fontSize: getTextScale(4, context),
-                            fontWeight: FontWeight.w600,
-                            color: isDarkMode ? kWhite : kDarkGrey,
-                          ),
-                        ),
-                        Text(
-                          _getHealthScoreDescription(healthScore, confidence),
-                          style: textTheme.bodyMedium?.copyWith(
-                            fontSize: getTextScale(3, context),
-                            color: isDarkMode
-                                ? kWhite.withValues(alpha: 0.7)
-                                : kDarkGrey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          // Turner's Notes Section
+          _buildTurnersNotes(
+            context,
+            isDarkMode,
+            totalNutrition,
+            healthScore,
+            confidence,
+          ),
+
           const SizedBox(height: 20),
 
           // Suggestions Section
@@ -1022,7 +1580,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
           // Nutrition Summary
           Text(
-            'Nutrition Summary',
+            'Macro Breakdown',
             style: textTheme.titleMedium?.copyWith(
               fontSize: getTextScale(5, context),
               fontWeight: FontWeight.bold,
@@ -1084,7 +1642,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Calculated from macros:',
+                  'Calculated from macros, Chef:',
                   style: TextStyle(
                     fontSize: getTextScale(3, context),
                     color:
@@ -1108,7 +1666,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Detected Food Items',
+                'What I Tasted',
                 style: textTheme.titleMedium?.copyWith(
                   fontSize: getTextScale(5, context),
                   fontWeight: FontWeight.bold,
@@ -1116,7 +1674,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                 ),
               ),
               Text(
-                'Tap to edit',
+                'Tap to adjust',
                 style: textTheme.bodyMedium?.copyWith(
                   fontSize: getTextScale(3, context),
                   color: kAccent,
@@ -1227,7 +1785,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             child: _isSaving
                 ? const Center(child: CircularProgressIndicator(color: kAccent))
                 : AppButton(
-                    text: 'Add Meal',
+                    text: 'Add to Menu',
                     onPressed: () => _saveAnalysis(),
                     type: AppButtonType.primary,
                     width: 100,
@@ -1432,7 +1990,7 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       backgroundColor: isDarkMode ? kDarkGrey : kWhite,
       title: Text(
-        'Edit Food Item',
+        'Adjust Portion',
         style: TextStyle(
           color: isDarkMode ? kWhite : kBlack,
           fontSize: getTextScale(5, context),
@@ -1489,7 +2047,7 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
         ),
         TextButton(
           onPressed: _save,
-          child: const Text('Add', style: TextStyle(color: kAccent)),
+          child: const Text('Update', style: TextStyle(color: kAccent)),
         ),
       ],
     );

@@ -6,10 +6,19 @@ import '../widgets/daily_summary_widget.dart';
 
 class DailySummaryScreen extends StatefulWidget {
   final DateTime? date;
+  // Optional meal context for symptom logging (from notification)
+  final String? mealId;
+  final String? instanceId;
+  final String? mealName;
+  final String? mealType;
 
   const DailySummaryScreen({
     super.key,
     this.date,
+    this.mealId,
+    this.instanceId,
+    this.mealName,
+    this.mealType,
   });
 
   @override
@@ -29,7 +38,8 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
 
   /// Check if the selected date is today
   bool _isToday(DateTime date) {
-    return _formatDateForFirestore(date) == _formatDateForFirestore(DateTime.now());
+    return _formatDateForFirestore(date) ==
+        _formatDateForFirestore(DateTime.now());
   }
 
   /// Navigate to previous day
@@ -44,7 +54,8 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
   void _goToNextDay() {
     if (!mounted) return;
     // Check if we can go forward (not at today)
-    if (selectedDate.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+    if (selectedDate
+        .isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
       setState(() {
         selectedDate = selectedDate.add(const Duration(days: 1));
       });
@@ -61,7 +72,8 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
 
   /// Check if next day navigation is enabled
   bool _canGoToNextDay() {
-    return selectedDate.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+    return selectedDate
+        .isBefore(DateTime.now().subtract(const Duration(days: 1)));
   }
 
   @override
@@ -83,7 +95,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
         automaticallyImplyLeading: true,
         toolbarHeight: getPercentageHeight(10, context),
         title: Text(
-          'Daily Summary',
+          'Service Summary',
           style: textTheme.displaySmall?.copyWith(
             fontSize: getTextScale(7, context),
             color: kWhite,
@@ -123,8 +135,8 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                       final picked = await showDatePicker(
                         context: context,
                         initialDate: selectedDate,
-                        firstDate:
-                            DateTime.now().subtract(const Duration(days: maxDaysBack)),
+                        firstDate: DateTime.now()
+                            .subtract(const Duration(days: maxDaysBack)),
                         lastDate: DateTime.now(),
                         builder: (context, child) {
                           return Theme(
@@ -190,9 +202,14 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
             Expanded(
               child: SingleChildScrollView(
                 child: DailySummaryWidget(
-                  key: ValueKey(_formatDateForFirestore(selectedDate)), // Force rebuild when date changes
+                  key: ValueKey(_formatDateForFirestore(
+                      selectedDate)), // Force rebuild when date changes
                   date: selectedDate,
                   showPreviousDay: !isToday,
+                  mealId: widget.mealId,
+                  instanceId: widget.instanceId,
+                  mealName: widget.mealName,
+                  mealType: widget.mealType,
                 ),
               ),
             ),

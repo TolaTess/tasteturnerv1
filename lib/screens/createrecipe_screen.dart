@@ -371,13 +371,23 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
       // If screenType is 'add_manual', save as in AddMealManuallyScreen
       if (screen == 'addManual') {
-        // Create a user meal
+        // Convert nutritionalInfo (Map<String, String>) to macros (Map<String, double>)
+        Map<String, double> mealMacros = {};
+        if (macros.isNotEmpty) {
+          mealMacros = macros.map((key, value) => MapEntry(
+                key,
+                double.tryParse(value) ?? 0.0,
+              ));
+        }
+        
+        // Create a user meal with macros
         final userMeal = UserMeal(
           name: titleController.text.trim(),
           quantity: serveQtyController.text.trim(),
           servings: selectedServing,
           calories: int.tryParse(caloriesController.text.trim()) ?? 0,
           mealId: mealId,
+          macros: mealMacros,
         );
         // Add to user's daily meals
         await dailyDataController.addUserMeal(

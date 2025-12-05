@@ -122,8 +122,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
       if (mounted) {
         showTastySnackbar(
-          'New Day Started!',
-          'Your progress has been reset for today',
+          'New Day Started, Chef!',
+          'Your kitchen progress has been reset for today',
           context,
           backgroundColor: kAccent,
         );
@@ -143,7 +143,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           .get();
 
       userPrograms = [];
-      
+
       // Load enrolled programs
       if (userProgramsQuery.docs.isNotEmpty) {
         for (var doc in userProgramsQuery.docs) {
@@ -161,18 +161,18 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           }
         }
       }
-      
+
       // Also load private programs owned by user
       final privateProgramsQuery = await firestore
           .collection('programs')
           .where('userId', isEqualTo: currentUserId)
           .where('isPrivate', isEqualTo: true)
           .get();
-      
+
       for (var doc in privateProgramsQuery.docs) {
         final programId = doc.id;
         final programData = doc.data();
-        
+
         // Check if not already added
         if (!userPrograms.any((p) => p['programId'] == programId)) {
           userPrograms.add({
@@ -191,8 +191,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           isLoading = false;
         });
         Get.snackbar(
-          'No Programs',
-          'You are not enrolled in any programs yet',
+          'No Menus Yet, Chef',
+          'You are not enrolled in any menus yet, Chef',
           backgroundColor: kAccent,
           colorText: Colors.white,
         );
@@ -208,7 +208,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           errorString.contains('permission denied')) {
         Get.snackbar(
           'Permission Error',
-          'You do not have permission to access program data. Please check your account status.',
+          'You do not have permission to access menu data, Chef. Please check your account status.',
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );
@@ -216,7 +216,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         debugPrint('Error loading user programs: $e');
         Get.snackbar(
           'Error',
-          'Failed to load user programs. Please try again.',
+          'Failed to load your menus, Chef. Please try again.',
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );
@@ -253,7 +253,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         });
         Get.snackbar(
           'Error',
-          'Program not found',
+          'Menu not found, Chef',
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );
@@ -278,7 +278,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
       if (programDoc.exists) {
         programData = programDoc.data();
-        
+
         // Debug: Log program structure to help diagnose differences
         debugPrint('Program loaded - Type: ${programData!['type']}, '
             'Has routine: ${programData!.containsKey('routine')}, '
@@ -286,7 +286,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             'Has requirements: ${programData!.containsKey('requirements')}, '
             'Has recommendations: ${programData!.containsKey('recommendations')}, '
             'Is enriched: ${programData!['isEnriched'] ?? false}');
-        
+
         final routine = programData!['routine'] as List<dynamic>? ?? [];
         final isEnriched = programData!['isEnriched'] as bool? ?? false;
 
@@ -333,7 +333,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
         // If enrichment completed and routine is populated
         if (isEnriched && routine.isNotEmpty) {
-          debugPrint('Program enrichment completed with ${routine.length} routine items');
+          debugPrint(
+              'Program enrichment completed with ${routine.length} routine items');
           _programEnrichmentSubscription?.cancel();
           programData = data;
           _buildProgramComponents();
@@ -342,7 +343,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           });
         } else if (isEnriched && routine.isEmpty) {
           // Enrichment completed but routine is still empty (shouldn't happen but handle it)
-          debugPrint('WARNING: Program marked as enriched but routine is empty');
+          debugPrint(
+              'WARNING: Program marked as enriched but routine is empty');
           _programEnrichmentSubscription?.cancel();
           programData = data;
           _buildProgramComponents();
@@ -450,7 +452,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           errorString.contains('permission denied')) {
         Get.snackbar(
           'Permission Error',
-          'You do not have permission to access this data. Please check your account status.',
+          'You do not have permission to access this data, Chef. Please check your account status.',
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );
@@ -463,7 +465,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             !errorString.contains('does not exist')) {
           Get.snackbar(
             'Error',
-            'Failed to load progress data. Please try again.',
+            'Failed to load progress data, Chef. Please try again.',
             backgroundColor: Colors.red,
             colorText: Colors.white,
           );
@@ -478,14 +480,17 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
     final routine = programData!['routine'] as List<dynamic>? ?? [];
 
     // Debug: Log routine details
-    debugPrint('Building program components - Routine items: ${routine.length}');
+    debugPrint(
+        'Building program components - Routine items: ${routine.length}');
     if (routine.isNotEmpty) {
-      debugPrint('Routine items: ${routine.map((r) => (r as Map?)?['title'] ?? 'unknown').join(', ')}');
+      debugPrint(
+          'Routine items: ${routine.map((r) => (r as Map?)?['title'] ?? 'unknown').join(', ')}');
     }
 
     // Defensive check: if routine is missing or empty, show warning but don't crash
     if (routine.isEmpty) {
-      debugPrint('WARNING: Program has no routine items. Program may still be enriching.');
+      debugPrint(
+          'WARNING: Program has no routine items. Program may still be enriching.');
       // Don't return - allow program to display with empty components
       // User can still see other program details
     }
@@ -620,19 +625,6 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
     return weekdays[DateTime.now().weekday - 1];
   }
 
-  String _getCurrentDayName() {
-    final weekdays = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday'
-    ];
-    return weekdays[DateTime.now().weekday - 1];
-  }
-
   // Parse duration string to get number of days
   int _parseDurationToDays(String duration) {
     final cleanDuration = duration.toLowerCase().trim();
@@ -697,8 +689,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
       if (mounted) {
         showTastySnackbar(
-          'Program Restarted!',
-          'Your program has been restarted. Good luck!',
+          'Menu Restarted, Chef!',
+          'Your menu has been restarted. Good luck in the kitchen!',
           context,
           backgroundColor: kAccent,
         );
@@ -707,7 +699,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       if (mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to restart program: please try again',
+          'Failed to restart menu, Chef: please try again',
           context,
           backgroundColor: Colors.red,
         );
@@ -739,8 +731,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
       if (mounted) {
         showTastySnackbar(
-          'Program Removed',
-          'Program has been removed from your list',
+          'Menu Removed, Chef',
+          'Menu has been removed from your list',
           context,
           backgroundColor: kAccent,
         );
@@ -752,7 +744,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       if (mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to remove program: please try again',
+          'Failed to remove menu, Chef: please try again',
           context,
           backgroundColor: Colors.red,
         );
@@ -812,10 +804,10 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
     if (mounted) {
       final isCompleted = completionStatus[componentId] ?? false;
       showTastySnackbar(
-        'Progress Updated!',
+        'Progress Updated, Chef!',
         isCompleted
-            ? '$programName completed successfully!'
-            : 'Component marked as incomplete',
+            ? '$programName completed successfully, Chef!'
+            : 'Task marked as incomplete, Chef',
         context,
         backgroundColor: isCompleted ? Colors.green : kAccent,
       );
@@ -849,7 +841,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       if (mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to update component progress: $e',
+          'Failed to update task progress, Chef: $e',
           context,
           backgroundColor: Colors.red,
         );
@@ -885,7 +877,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       if (mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to update daily progress: please try again',
+          'Failed to update daily progress, Chef: please try again',
           context,
           backgroundColor: Colors.red,
         );
@@ -930,7 +922,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       if (mounted) {
         showTastySnackbar(
           'Error',
-          'Failed to reset daily progress: please try again',
+          'Failed to reset daily progress, Chef: please try again',
           context,
           backgroundColor: Colors.red,
         );
@@ -977,6 +969,10 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
       decoration: BoxDecoration(
         color: isDarkMode ? kDarkGrey : Colors.grey[100],
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: kAccent.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1003,7 +999,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             child: Column(
               children: [
                 Text(
-                  'Program ${currentProgramIndex + 1} of ${userPrograms.length}',
+                  'Menu ${currentProgramIndex + 1} of ${userPrograms.length}',
                   style: textTheme.bodySmall?.copyWith(
                     color: isDarkMode
                         ? kWhite.withValues(alpha: 0.7)
@@ -1234,8 +1230,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                     ),
                     child: Text(
                       isProgramCompleted
-                          ? 'Program Completed'
-                          : 'Tap to view complete',
+                          ? 'Service Complete'
+                          : 'Tap to view details, Chef',
                       style: textTheme.bodySmall?.copyWith(
                         fontSize: getTextScale(2.5, context),
                         color: Colors.white,
@@ -1265,7 +1261,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                         ),
                         SizedBox(height: getPercentageHeight(1, context)),
                         Text(
-                          'COMPLETED',
+                          'SERVICE COMPLETE',
                           style: textTheme.titleLarge?.copyWith(
                             color: Colors.white,
                             fontSize: getTextScale(4, context),
@@ -1386,7 +1382,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                   children: [
                     Text(
                       isProgramCompleted
-                          ? 'Program Completed'
+                          ? 'Service Complete'
                           : (isCompleted ? 'Completed' : 'Done'),
                       style: textTheme.labelMedium?.copyWith(
                         color: Colors.white,
@@ -1456,7 +1452,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Weekly Progress',
+            'Weekly Service Report',
             style: textTheme.titleLarge?.copyWith(
               fontSize: getTextScale(5, context),
               fontWeight: FontWeight.w600,
@@ -1556,7 +1552,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${_getCurrentDayName()}\'s Progress',
+                'Today\'s Service',
                 style: textTheme.titleMedium?.copyWith(
                   fontSize: getTextScale(4, context),
                   fontWeight: FontWeight.w600,
@@ -1565,7 +1561,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
               ),
               SizedBox(height: getPercentageHeight(1, context)),
               Text(
-                '$completedCount of $totalCount completed ($progressPercentage%)',
+                '$completedCount of $totalCount tasks completed ($progressPercentage%), Chef',
                 style: textTheme.bodyMedium?.copyWith(
                   fontSize: getTextScale(3, context),
                   color: isDarkMode
@@ -1597,7 +1593,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             .map((item) => item.toString()),
       );
     }
-    
+
     if (benefits.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -1606,53 +1602,53 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         Padding(
           padding:
               EdgeInsets.symmetric(horizontal: getPercentageWidth(4, context)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.lightbulb,
-                color: kAccent,
-                size: getIconScale(7, context),
-              ),
-              SizedBox(width: getPercentageWidth(2, context)),
-              Text(
-                'Benefits',
-                style: textTheme.displaySmall?.copyWith(
-                  color: kAccent,
-                  fontSize: getTextScale(7, context),
-                ),
-              ),
-            ],
+          child: Text(
+            'Benefits',
+            style: textTheme.titleLarge?.copyWith(
+              color: kAccent,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        SizedBox(height: getPercentageHeight(2, context)),
+        SizedBox(height: getPercentageHeight(1, context)),
         Padding(
           padding:
-              EdgeInsets.symmetric(horizontal: getPercentageWidth(5, context)),
-          child: Wrap(
-            spacing: getPercentageWidth(2, context),
-            runSpacing: getPercentageHeight(1, context),
-            children: benefits.map((benefit) {
-              return Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(3, context),
-                  vertical: getPercentageHeight(0.8, context),
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border:
-                      Border.all(color: Colors.orange.withValues(alpha: 0.4)),
-                ),
-                child: Text(
-                  benefit,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: Colors.orange[700],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            }).toList(),
+              EdgeInsets.symmetric(horizontal: getPercentageWidth(4, context)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...benefits.map((benefit) => Padding(
+                    padding: EdgeInsets.only(
+                      bottom: getPercentageHeight(0.8, context),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: getPercentageHeight(0.5, context),
+                            right: getPercentageWidth(2, context),
+                          ),
+                          child: Icon(
+                            Icons.check_circle,
+                            size: getIconScale(4, context),
+                            color: kAccent,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            benefit,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: isDarkMode
+                                  ? kWhite.withValues(alpha: 0.9)
+                                  : kDarkGrey.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
           ),
         ),
       ],
@@ -1726,7 +1722,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           SizedBox(height: getPercentageHeight(1, context)),
 
           Text(
-            'Program Completed Successfully!',
+            'Service Complete, Chef!',
             style: textTheme.titleLarge?.copyWith(
               color: Colors.white,
               fontSize: getTextScale(4.5, context),
@@ -1737,7 +1733,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           SizedBox(height: getPercentageHeight(1, context)),
 
           Text(
-            'You have successfully completed the ${programData?['name'] ?? 'program'}. Great job on your dedication!',
+            'You have successfully completed the ${programData?['name'] ?? 'menu'}, Chef! Outstanding work in the kitchen!',
             style: textTheme.bodyMedium?.copyWith(
               color: Colors.white.withValues(alpha: 0.9),
               fontSize: getTextScale(3.5, context),
@@ -1777,7 +1773,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                   onPressed: _restartProgram,
                   icon: const Icon(Icons.refresh, color: Colors.green),
                   label: Text(
-                    'Restart',
+                    'Start Fresh',
                     style: textTheme.labelLarge?.copyWith(
                       color: Colors.green,
                       fontWeight: FontWeight.w600,
@@ -1808,13 +1804,13 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
                         ),
                         backgroundColor: isDarkMode ? kDarkGrey : Colors.white,
                         title: Text(
-                          'Remove Program',
+                          'Remove Menu',
                           style: textTheme.titleLarge?.copyWith(
                             color: isDarkMode ? kWhite : kDarkGrey,
                           ),
                         ),
                         content: Text(
-                          'Are you sure you want to remove this program? This action cannot be undone.',
+                          'Are you sure you want to remove this menu, Chef? This action cannot be undone.',
                           style: textTheme.bodyMedium?.copyWith(
                             color: isDarkMode
                                 ? kWhite.withValues(alpha: 0.8)
@@ -1894,7 +1890,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           elevation: 0,
           centerTitle: true,
           title: Text(
-            'Loading...',
+            'Preparing Your Kitchen, Chef...',
             style: textTheme.displaySmall?.copyWith(
               fontSize: getTextScale(7, context),
               fontWeight: FontWeight.w200,
@@ -1906,8 +1902,26 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
             color: isDarkMode ? kWhite : kBlack,
           ),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(color: kAccent),
+        body: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(
+                isDarkMode
+                    ? 'assets/images/background/imagedark.jpeg'
+                    : 'assets/images/background/imagelight.jpeg',
+              ),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                isDarkMode
+                    ? Colors.black.withOpacity(0.5)
+                    : Colors.white.withOpacity(0.5),
+                isDarkMode ? BlendMode.darken : BlendMode.lighten,
+              ),
+            ),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(color: kAccent),
+          ),
         ),
       );
     }
@@ -1919,12 +1933,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         elevation: 0,
         centerTitle: true,
         title: Text(
-          capitalizeFirstLetter(programData?['type'] ??
-              (userPrograms.isNotEmpty
-                  ? userPrograms[currentProgramIndex]['type']
-                  : null) ??
-              widget.programName ??
-              'Program Progress'),
+          'Chef Dashboard',
           style: textTheme.displaySmall?.copyWith(
             fontSize: getTextScale(7, context),
           ),
@@ -1937,151 +1946,172 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
           color: isDarkMode ? kWhite : kBlack,
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Section Header
-            SizedBox(height: getPercentageHeight(2, context)),
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              isDarkMode
+                  ? 'assets/images/background/imagedark.jpeg'
+                  : 'assets/images/background/imagelight.jpeg',
+            ),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              isDarkMode
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.5),
+              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Section Header
+              SizedBox(height: getPercentageHeight(2, context)),
 
-            // Program Navigator (only if multiple programs)
-            _buildProgramNavigator(),
-            if (userPrograms.length > 1)
-              SizedBox(height: getPercentageHeight(1, context)),
+              // Program Navigator (only if multiple programs)
+              _buildProgramNavigator(),
+              if (userPrograms.length > 1)
+                SizedBox(height: getPercentageHeight(1, context)),
 
-            // Program Completion Card (if completed)
-            _buildProgramCompletionCard(),
+              // Program Completion Card (if completed)
+              _buildProgramCompletionCard(),
 
-            // Program Name
-            Center(
-              child: Column(
-                children: [
-                  Text(
-                    widget.programName ??
-                        programData?['name'] ??
-                        (userPrograms.isNotEmpty
-                            ? userPrograms[currentProgramIndex]['name']
-                            : null) ??
-                        'Program Progress',
-                    style: textTheme.displayMedium?.copyWith(
-                      fontSize: getTextScale(5, context),
-                      fontWeight: FontWeight.w600,
-                      color: kAccent,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(3.5, context)),
-                    child: Text(
-                      widget.programDescription ??
-                          programData?['description'] ??
+              // Program Name
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      widget.programName ??
+                          programData?['name'] ??
                           (userPrograms.isNotEmpty
-                              ? userPrograms[currentProgramIndex]['description']
+                              ? userPrograms[currentProgramIndex]['name']
                               : null) ??
                           'Program Progress',
+                      style: textTheme.displayMedium?.copyWith(
+                        fontSize: getTextScale(5, context),
+                        fontWeight: FontWeight.w600,
+                        color: kAccent,
+                      ),
                       textAlign: TextAlign.center,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: isDarkMode ? kWhite : kDarkGrey,
-                        fontWeight: FontWeight.w500,
-                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: getPercentageHeight(1.5, context)),
-
-            // Progress Summary (only show if not completed)
-            if (!isProgramCompleted) _buildProgressSummary(),
-
-            //Benefits
-            _buildBenefits(context, textTheme, isDarkMode),
-
-            SizedBox(height: getPercentageHeight(2, context)),
-
-            // Section Header
-            _buildSectionHeader(
-                title:
-                    isProgramCompleted ? 'Program Summary' : 'Program Details'),
-
-            SizedBox(height: getPercentageHeight(2, context)),
-
-            // Program Components - Staggered Grid
-            Padding(
-              padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(4, context)),
-              child: programComponents.isEmpty
-                  ? Container(
-                      height: getPercentageHeight(20, context),
-                      decoration: BoxDecoration(
-                        color: isDarkMode ? kDarkGrey : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (isWaitingForEnrichment)
-                              CircularProgressIndicator(
-                                color: kAccent,
-                              )
-                            else
-                              Icon(
-                                Icons.assignment,
-                                size: getIconScale(12, context),
-                                color: isDarkMode
-                                    ? kWhite.withValues(alpha: 0.5)
-                                    : kDarkGrey.withValues(alpha: 0.5),
-                              ),
-                            SizedBox(height: getPercentageHeight(1, context)),
-                            Text(
-                              isWaitingForEnrichment
-                                  ? 'Generating program details...\nThis may take a moment'
-                                  : 'No program components available',
-                              style: textTheme.bodyLarge?.copyWith(
-                                color: isDarkMode
-                                    ? kWhite.withValues(alpha: 0.7)
-                                    : kDarkGrey.withValues(alpha: 0.7),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(3.5, context)),
+                      child: Text(
+                        widget.programDescription ??
+                            programData?['description'] ??
+                            (userPrograms.isNotEmpty
+                                ? userPrograms[currentProgramIndex]
+                                    ['description']
+                                : null) ??
+                            'Program Progress',
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: isDarkMode ? kWhite : kDarkGrey,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    )
-                  : StaggeredGrid.count(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: getPercentageHeight(1, context),
-                      crossAxisSpacing: getPercentageWidth(3, context),
-                      children: programComponents.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final component = entry.value;
-
-                        // Vary the heights for Pinterest-like effect
-                        double cardHeight;
-                        if (component['id'] == 'healthy_recipes') {
-                          cardHeight = getCardHeight(index, true, context);
-                        } else if (index % 3 == 0) {
-                          cardHeight = getCardHeight(index, false, context);
-                        } else if (index % 2 == 0) {
-                          cardHeight = getCardHeight(index, false, context);
-                        } else {
-                          cardHeight = getCardHeight(index, false, context);
-                        }
-
-                        return StaggeredGridTile.fit(
-                          crossAxisCellCount: 1,
-                          child: _buildComponentCard(component, cardHeight),
-                        );
-                      }).toList(),
                     ),
-            ),
+                  ],
+                ),
+              ),
 
-            SizedBox(height: getPercentageHeight(3, context)),
-          ],
+              SizedBox(height: getPercentageHeight(1.5, context)),
+
+              // Progress Summary (only show if not completed)
+              if (!isProgramCompleted) _buildProgressSummary(),
+
+              //Benefits
+              _buildBenefits(context, textTheme, isDarkMode),
+
+              SizedBox(height: getPercentageHeight(2, context)),
+
+              // Section Header
+              _buildSectionHeader(
+                  title: isProgramCompleted
+                      ? 'Service Summary'
+                      : 'Today\'s Service'),
+
+              SizedBox(height: getPercentageHeight(2, context)),
+
+              // Program Components - Staggered Grid
+              Padding(
+                padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(4, context)),
+                child: programComponents.isEmpty
+                    ? Container(
+                        height: getPercentageHeight(20, context),
+                        decoration: BoxDecoration(
+                          color: isDarkMode ? kDarkGrey : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (isWaitingForEnrichment)
+                                CircularProgressIndicator(
+                                  color: kAccent,
+                                )
+                              else
+                                Icon(
+                                  Icons.assignment,
+                                  size: getIconScale(12, context),
+                                  color: isDarkMode
+                                      ? kWhite.withValues(alpha: 0.5)
+                                      : kDarkGrey.withValues(alpha: 0.5),
+                                ),
+                              SizedBox(height: getPercentageHeight(1, context)),
+                              Text(
+                                isWaitingForEnrichment
+                                    ? 'Preparing your kitchen tasks, Chef...\nThis may take a moment'
+                                    : 'No kitchen tasks available yet, Chef',
+                                style: textTheme.bodyLarge?.copyWith(
+                                  color: isDarkMode
+                                      ? kWhite.withValues(alpha: 0.7)
+                                      : kDarkGrey.withValues(alpha: 0.7),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : StaggeredGrid.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: getPercentageHeight(1, context),
+                        crossAxisSpacing: getPercentageWidth(3, context),
+                        children:
+                            programComponents.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final component = entry.value;
+
+                          // Vary the heights for Pinterest-like effect
+                          double cardHeight;
+                          if (component['id'] == 'healthy_recipes') {
+                            cardHeight = getCardHeight(index, true, context);
+                          } else if (index % 3 == 0) {
+                            cardHeight = getCardHeight(index, false, context);
+                          } else if (index % 2 == 0) {
+                            cardHeight = getCardHeight(index, false, context);
+                          } else {
+                            cardHeight = getCardHeight(index, false, context);
+                          }
+
+                          return StaggeredGridTile.fit(
+                            crossAxisCellCount: 1,
+                            child: _buildComponentCard(component, cardHeight),
+                          );
+                        }).toList(),
+                      ),
+              ),
+
+              SizedBox(height: getPercentageHeight(3, context)),
+            ],
+          ),
         ),
       ),
     );
