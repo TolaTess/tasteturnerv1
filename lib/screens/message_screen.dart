@@ -244,7 +244,7 @@ class _MessageScreenState extends State<MessageScreen>
               if (filteredChats.isEmpty) {
                 return Center(
                   child: Text(
-                    'No archived chats',
+                    'No archived conversations',
                     style: TextStyle(
                       fontSize: getPercentageHeight(2, context),
                       fontWeight: FontWeight.w500,

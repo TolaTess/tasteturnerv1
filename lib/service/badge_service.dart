@@ -40,7 +40,7 @@ class BadgeService extends GetxController {
         debugPrint('Permission denied loading badges: $e');
         // Don't show error to user for permission issues - might be temporary
       } else {
-      debugPrint('Error loading badges: $e');
+        debugPrint('Error loading badges: $e');
       }
       // Set empty list on error to prevent UI issues
       availableBadges.value = [];
@@ -81,7 +81,7 @@ class BadgeService extends GetxController {
         userProgress.value = [];
         earnedBadges.value = [];
       } else {
-      debugPrint('Error loading user progress: $e');
+        debugPrint('Error loading user progress: $e');
         // For other errors, also set empty lists to prevent UI issues
         userProgress.value = [];
         earnedBadges.value = [];
@@ -158,6 +158,11 @@ class BadgeService extends GetxController {
           id: 101,
           title: "Points Earned! 🏆",
           body: "$reason $points points awarded!",
+          payload: {
+            'type': 'points_earned',
+            'reason': reason,
+            'points': points,
+          },
         );
 
         // Mark this award as given today

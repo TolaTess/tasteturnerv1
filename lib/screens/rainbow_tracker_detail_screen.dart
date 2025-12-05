@@ -22,6 +22,7 @@ class _RainbowTrackerDetailScreenState
   PlantDiversityScore? _diversityScore;
   List<PlantIngredient> _plants = [];
   bool _isLoading = true;
+  PlantCategory? _selectedCategory; // Track selected category filter
 
   @override
   void initState() {
@@ -87,7 +88,7 @@ class _RainbowTrackerDetailScreenState
       case 1:
         return kGreen;
       case 2:
-        return kBlue;
+        return kPurple;
       case 3:
         return kAccent;
       default:
@@ -110,6 +111,16 @@ class _RainbowTrackerDetailScreenState
       case PlantCategory.herbSpice:
         return 'Herbs & Spices';
     }
+  }
+
+  /// Get filtered plants based on selected category
+  List<PlantIngredient> _getFilteredPlants() {
+    if (_selectedCategory == null) {
+      return _plants;
+    }
+    return _plants
+        .where((plant) => plant.category == _selectedCategory)
+        .toList();
   }
 
   IconData _getCategoryIcon(PlantCategory category) {
@@ -257,7 +268,8 @@ class _RainbowTrackerDetailScreenState
                                 child: Text(
                                   _getLevelName(_diversityScore!.level),
                                   style: textTheme.titleMedium?.copyWith(
-                                    color: _getLevelColor(_diversityScore!.level),
+                                    color:
+                                        _getLevelColor(_diversityScore!.level),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -281,7 +293,8 @@ class _RainbowTrackerDetailScreenState
                                 ),
                                 minHeight: 8,
                               ),
-                              SizedBox(height: getPercentageHeight(0.5, context)),
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
                               Text(
                                 '${((_diversityScore!.progress * 100).toInt())}%',
                                 style: textTheme.bodySmall?.copyWith(
@@ -317,47 +330,61 @@ class _RainbowTrackerDetailScreenState
                           runSpacing: getPercentageHeight(1.5, context),
                           children: _diversityScore!.categoryBreakdown.entries
                               .map((entry) {
-                            return Container(
-                              padding: EdgeInsets.all(
-                                  getPercentageWidth(3, context)),
-                              decoration: BoxDecoration(
-                                color: kAccent.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: kAccent.withValues(alpha: 0.3),
-                                  width: 1,
+                            final isSelected = _selectedCategory == entry.key;
+                            return InkWell(
+                              onTap: () {
+                                setState(() {
+                                  // Toggle: if already selected, clear filter; otherwise set filter
+                                  _selectedCategory =
+                                      isSelected ? null : entry.key;
+                                });
+                              },
+                              child: Container(
+                                padding: EdgeInsets.all(
+                                    getPercentageWidth(3, context)),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? kAccent.withValues(alpha: 0.2)
+                                      : kAccent.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? kAccent
+                                        : kAccent.withValues(alpha: 0.3),
+                                    width: isSelected ? 2 : 1,
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _getCategoryIcon(entry.key),
-                                    color: kAccent,
-                                    size: getIconScale(4, context),
-                                  ),
-                                  SizedBox(
-                                      width: getPercentageWidth(2, context)),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _getCategoryName(entry.key),
-                                        style: textTheme.bodyMedium?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: isDarkMode ? kWhite : kBlack,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _getCategoryIcon(entry.key),
+                                      color: kAccent,
+                                      size: getIconScale(4, context),
+                                    ),
+                                    SizedBox(
+                                        width: getPercentageWidth(2, context)),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _getCategoryName(entry.key),
+                                          style: textTheme.bodyMedium?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: isDarkMode ? kWhite : kBlack,
+                                          ),
                                         ),
-                                      ),
-                                      Text(
-                                        '${entry.value} plants',
-                                        style: textTheme.bodySmall?.copyWith(
-                                          color: kAccent,
+                                        Text(
+                                          '${entry.value} plants',
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: kAccent,
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           }).toList(),
@@ -367,16 +394,61 @@ class _RainbowTrackerDetailScreenState
 
                       // All Plants List
                       Text(
-                        'All Plants (${_plants.length})',
+                        _selectedCategory == null
+                            ? 'All Plants (${_plants.length})'
+                            : '${_getCategoryName(_selectedCategory!)} (${_getFilteredPlants().length})',
                         style: textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: isDarkMode ? kWhite : kBlack,
                         ),
                       ),
+                      if (_selectedCategory != null) ...[
+                        SizedBox(height: getPercentageHeight(1, context)),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedCategory = null;
+                            });
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(3, context),
+                              vertical: getPercentageHeight(1, context),
+                            ),
+                            decoration: BoxDecoration(
+                              color: kAccent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: kAccent.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.clear,
+                                  size: getIconScale(3.5, context),
+                                  color: kAccent,
+                                ),
+                                SizedBox(width: getPercentageWidth(1, context)),
+                                Text(
+                                  'Clear Filter',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: kAccent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                       SizedBox(height: getPercentageHeight(2, context)),
-                      if (_plants.isEmpty)
+                      if (_getFilteredPlants().isEmpty)
                         Container(
-                          padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(4, context)),
                           decoration: BoxDecoration(
                             color: isDarkMode
                                 ? kDarkGrey.withValues(alpha: 0.5)
@@ -385,7 +457,9 @@ class _RainbowTrackerDetailScreenState
                           ),
                           child: Center(
                             child: Text(
-                              'No plants tracked yet this week.\nLog meals with vegetables, fruits, and other plants to start tracking!',
+                              _selectedCategory == null
+                                  ? 'No plants tracked yet this week.\nLog meals with vegetables, fruits, and other plants to start tracking!'
+                                  : 'No ${_getCategoryName(_selectedCategory!).toLowerCase()} tracked this week.',
                               textAlign: TextAlign.center,
                               style: textTheme.bodyMedium?.copyWith(
                                 color: isDarkMode ? kLightGrey : kDarkGrey,
@@ -394,12 +468,12 @@ class _RainbowTrackerDetailScreenState
                           ),
                         )
                       else
-                        ..._plants.map((plant) {
+                        ..._getFilteredPlants().map((plant) {
                           return Container(
                             margin: EdgeInsets.only(
                                 bottom: getPercentageHeight(1, context)),
-                            padding: EdgeInsets.all(
-                                getPercentageWidth(3, context)),
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(3, context)),
                             decoration: BoxDecoration(
                               color: isDarkMode
                                   ? kDarkGrey.withValues(alpha: 0.5)
@@ -439,8 +513,8 @@ class _RainbowTrackerDetailScreenState
                                         ),
                                       ),
                                       SizedBox(
-                                          height:
-                                              getPercentageHeight(0.3, context)),
+                                          height: getPercentageHeight(
+                                              0.3, context)),
                                       Text(
                                         _getCategoryName(plant.category),
                                         style: textTheme.bodySmall?.copyWith(
@@ -460,4 +534,3 @@ class _RainbowTrackerDetailScreenState
     );
   }
 }
-

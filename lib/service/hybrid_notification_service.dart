@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -6,6 +7,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notification_service.dart';
+import 'notification_handler_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../screens/add_food_screen.dart';
 
@@ -181,26 +183,37 @@ class HybridNotificationService extends GetxService {
   }
 
   /// Handle notification tap (Android only)
-  void _handleNotificationTap(RemoteMessage message) {
+  void _handleNotificationTap(RemoteMessage message) async {
     if (!Platform.isAndroid) return;
 
     final data = message.data;
     final type = data['type'];
 
     debugPrint('Handling notification tap: $type');
+    debugPrint('Notification data: $data');
 
-    switch (type) {
-      case 'meal_plan_reminder':
-        _navigateToMealPlanning(data);
-        break;
-      case 'water_reminder':
-        _navigateToWaterTracking(data);
-        break;
-      case 'evening_review':
-        _navigateToEveningReview(data);
-        break;
-      default:
-        debugPrint('Unknown notification type: $type');
+    // Convert FCM data to JSON format for NotificationHandlerService
+    try {
+      final payloadJson = json.encode(data);
+      final handlerService = Get.find<NotificationHandlerService>();
+      await handlerService.handleNotificationPayload(payloadJson);
+    } catch (e) {
+      debugPrint(
+          'Error handling notification via NotificationHandlerService: $e');
+      // Fallback to simple navigation for basic types
+      switch (type) {
+        case 'meal_plan_reminder':
+          _navigateToMealPlanning(data);
+          break;
+        case 'water_reminder':
+          _navigateToWaterTracking(data);
+          break;
+        case 'evening_review':
+          _navigateToEveningReview(data);
+          break;
+        default:
+          debugPrint('Unknown notification type: $type');
+      }
     }
   }
 
@@ -243,7 +256,8 @@ class HybridNotificationService extends GetxService {
       await _localNotificationService!.scheduleDailyReminder(
         id: 1,
         title: 'Mise en Place Reminder',
-        body: 'Chef, we haven\'t planned tomorrow\'s menu yet. Shall I prep some suggestions?',
+        body:
+            'Chef, we haven\'t planned tomorrow\'s menu yet. Shall I prep some suggestions?',
         hour: 21, // 9 PM
         minute: 0,
         payload: {'type': 'meal_plan_reminder'},
@@ -253,7 +267,8 @@ class HybridNotificationService extends GetxService {
       await _localNotificationService!.scheduleDailyReminder(
         id: 2,
         title: 'Hydration Check',
-        body: 'Chef, let\'s keep the station hydrated. Remember to track your water intake.',
+        body:
+            'Chef, let\'s keep the station hydrated. Remember to track your water intake.',
         hour: 11, // 11 AM
         minute: 0,
         payload: {'type': 'water_reminder'},

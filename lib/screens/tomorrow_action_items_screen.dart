@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../service/routine_service.dart';
-import '../service/symptom_correlation_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/primary_button.dart';
 
@@ -16,8 +15,6 @@ class ActionItemConstants {
   static const double routineLowThreshold = 50.0; // 50% completion
   static const double routineMediumThreshold = 80.0; // 80% completion
   static const double waterGoal = 2000.0; // ml
-  static const int symptomFrequencyThreshold = 3; // times per week
-  static const int symptomAnalysisDays = 7; // days to analyze
 }
 
 class TomorrowActionItemsScreen extends StatefulWidget {
@@ -62,8 +59,6 @@ class TomorrowActionItemsScreen extends StatefulWidget {
 
 class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
   late DateTime tomorrowDate;
-  final symptomCorrelationService = SymptomCorrelationService.instance;
-  List<Map<String, dynamic>> symptomActionItems = [];
 
   @override
   void initState() {
@@ -82,73 +77,6 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
 
     // Load routine completion data if not already present
     _loadRoutineCompletionData();
-    
-    // Load symptom correlations
-    _loadSymptomCorrelations();
-  }
-
-  Future<void> _loadSymptomCorrelations() async {
-    try {
-      final userId = userService.userId ?? '';
-      if (userId.isEmpty) return;
-
-      // Get weekly symptom correlations
-      final correlations = await symptomCorrelationService.getWeeklySymptomCorrelations(userId);
-      
-      // Group by symptom type
-      final Map<String, List<Map<String, dynamic>>> correlationsBySymptom = {};
-      
-      for (var correlation in correlations) {
-        if (!correlationsBySymptom.containsKey(correlation.symptom)) {
-          correlationsBySymptom[correlation.symptom] = [];
-        }
-        correlationsBySymptom[correlation.symptom]!.add({
-          'ingredient': correlation.ingredient,
-          'confidence': correlation.confidence,
-          'frequency': correlation.frequency,
-        });
-      }
-
-      // Create action items for symptoms reported 3+ times
-      final symptomTypes = ['bloating', 'headache', 'fatigue', 'nausea'];
-      
-      for (var symptomType in symptomTypes) {
-        final count = await symptomCorrelationService.getSymptomCount(
-            userId, symptomType, ActionItemConstants.symptomAnalysisDays);
-        
-        if (count >= ActionItemConstants.symptomFrequencyThreshold && 
-            correlationsBySymptom.containsKey(symptomType)) {
-          final symptomCorrelations = correlationsBySymptom[symptomType]!;
-          final topIngredients = symptomCorrelations
-              .take(3)
-              .map((c) => c['ingredient'] as String)
-              .toList();
-          
-          if (topIngredients.isNotEmpty) {
-            final ingredientList = topIngredients.join(', ');
-            symptomActionItems.add({
-              'title': 'Symptom Pattern Detected: ${_capitalizeSymptom(symptomType)}',
-              'description':
-                  'You reported $symptomType $count times this week. All $count times you had $ingredientList 2-4 hours prior. Consider avoiding these ingredients to see if symptoms improve.',
-              'icon': Icons.warning,
-              'color': kOrange,
-              'priority': 'high',
-            });
-          }
-        }
-      }
-
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (e) {
-      debugPrint('Error loading symptom correlations: $e');
-    }
-  }
-
-  String _capitalizeSymptom(String symptom) {
-    if (symptom.isEmpty) return symptom;
-    return symptom[0].toUpperCase() + symptom.substring(1);
   }
 
   Future<void> _loadRoutineCompletionData() async {
@@ -232,33 +160,34 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     // Add division by zero check
     if (calorieGoal <= 0) {
       // If no calorie goal set, skip calorie analysis
-    } else if (calories < calorieGoal * ActionItemConstants.calorieLowThreshold) {
+    } else if (calories <
+        calorieGoal * ActionItemConstants.calorieLowThreshold) {
       actionItems.add({
-        'title': 'Increase Calorie Intake',
+        'title': 'Increase Fuel Intake',
         'description':
-            'You ${isTomorrow ? 'were' : 'are'} ${(calorieGoal - calories).round()} calories below your goal ${isTomorrow ? 'yesterday' : 'today'}. Plan for more substantial meals ${isTomorrow ? 'today' : 'tomorrow'}.',
+            'You ${isTomorrow ? 'were' : 'are'} ${(calorieGoal - calories).round()} calories below your goal ${isTomorrow ? 'yesterday' : 'today'}, Chef. Plan for more substantial plates ${isTomorrow ? 'today' : 'tomorrow'}.',
         'icon': Icons.restaurant,
         'color': kAccent,
         'priority': 'high',
       });
-    } else if (calories > calorieGoal * ActionItemConstants.calorieHighThreshold) {
+    } else if (calories >
+        calorieGoal * ActionItemConstants.calorieHighThreshold) {
       actionItems.add({
-        'title': 'Reduce Calorie Intake',
+        'title': 'Reduce Fuel Intake',
         'description':
-            'You ${isTomorrow ? 'were' : 'are'} ${(calories - calorieGoal).round()} calories above your goal ${isTomorrow ? 'yesterday' : 'today'}. Plan for smaller meals ${isTomorrow ? 'today' : 'tomorrow'}.',
+            'You ${isTomorrow ? 'were' : 'are'} ${(calories - calorieGoal).round()} calories above your goal ${isTomorrow ? 'yesterday' : 'today'}, Chef. Plan for lighter plates ${isTomorrow ? 'today' : 'tomorrow'}.',
         'icon': Icons.restaurant,
         'color': kRed,
         'priority': 'high',
       });
     } else {
       // Add division by zero check
-      final caloriePercentage = calorieGoal > 0 
-          ? ((calories / calorieGoal) * 100).round() 
-          : 0;
+      final caloriePercentage =
+          calorieGoal > 0 ? ((calories / calorieGoal) * 100).round() : 0;
       actionItems.add({
-        'title': 'Calorie Intake',
+        'title': 'Fuel Intake',
         'description':
-            'You\'ve hit $caloriePercentage% of your calorie intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar calorie intake tomorrow.'} ',
+            'You\'ve hit $caloriePercentage% of your fuel intake goal ${isTomorrow ? 'today' : 'today'}, Chef. ${isTomorrow ? 'Keep up the good work!' : 'Try similar fuel intake tomorrow.'} ',
         'icon': Icons.restaurant,
         'color': kGreen,
         'priority': 'low',
@@ -272,9 +201,11 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       goal: proteinGoal,
       macroName: 'Protein',
       lowTitle: 'Boost Protein',
-      lowDescription: 'Add more protein-rich foods like lean meats, eggs, or legumes to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
+      lowDescription:
+          'Add more protein-rich foods like lean meats, eggs, or legumes to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} plates, Chef.',
       highTitle: 'Reduce Protein',
-      highDescription: '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce protein intake to stay within your goal.',
+      highDescription:
+          '${isTomorrow ? 'Today' : 'Tomorrow'}, Chef: Reduce protein intake to stay within your goal.',
       successTitle: 'Protein Intake',
       icon: Icons.fitness_center,
       color: kBlue,
@@ -287,9 +218,11 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       goal: carbsGoal,
       macroName: 'Carbs',
       lowTitle: 'Include More Carbs',
-      lowDescription: 'Add healthy carbohydrates like whole grains, fruits, or vegetables to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
+      lowDescription:
+          'Add healthy carbohydrates like whole grains, fruits, or vegetables to ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} plates, Chef.',
       highTitle: 'Reduce Carbs',
-      highDescription: '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce carb intake to stay within your goal.',
+      highDescription:
+          '${isTomorrow ? 'Today' : 'Tomorrow'}, Chef: Reduce carb intake to stay within your goal.',
       successTitle: 'Carbs Intake',
       icon: Icons.grain,
       color: kGreen,
@@ -302,9 +235,11 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       goal: fatGoal,
       macroName: 'Fat',
       lowTitle: 'Healthy Fats',
-      lowDescription: 'Include healthy fats like nuts, avocados, or olive oil in ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} meals.',
+      lowDescription:
+          'Include healthy fats like nuts, avocados, or olive oil in ${isTomorrow ? 'today\'s' : 'tomorrow\'s'} plates, Chef.',
       highTitle: 'Reduce Fat',
-      highDescription: '${isTomorrow ? 'Today' : 'Tomorrow'} Reduce fat intake to stay within your goal.',
+      highDescription:
+          '${isTomorrow ? 'Today' : 'Tomorrow'}, Chef: Reduce fat intake to stay within your goal.',
       successTitle: 'Fat Intake',
       icon: Icons.water_drop,
       color: kPurple,
@@ -321,7 +256,8 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
         'color': Colors.orange,
         'priority': 'high',
       });
-    } else if (routineCompletionPercentage < ActionItemConstants.routineMediumThreshold) {
+    } else if (routineCompletionPercentage <
+        ActionItemConstants.routineMediumThreshold) {
       actionItems.add({
         'title': 'Boost Routine Completion',
         'description':
@@ -344,9 +280,9 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     // Meal planning suggestions
     if (!widget.hasMealPlan) {
       actionItems.add({
-        'title': 'Plan Tomorrow\'s Meals',
+        'title': 'Plan Tomorrow\'s Menu',
         'description':
-            'Take time to plan your meals for tomorrow to stay on track with your nutrition goals.',
+            'Take time to plan your menu for tomorrow, Chef, to stay on track with your nutrition goals.',
         'icon': Icons.calendar_today,
         'color': kAccentLight,
         'priority': 'high',
@@ -358,22 +294,19 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       actionItems.add({
         'title': 'Stay Hydrated',
         'description':
-            'Aim to drink at least ${ActionItemConstants.waterGoal.round()} ml of water ${isTomorrow ? 'today' : 'tomorrow'} to support your metabolism.',
+            'Aim to drink at least ${ActionItemConstants.waterGoal.round()} ml of water ${isTomorrow ? 'today' : 'tomorrow'}, Chef, to support your metabolism.',
         'icon': Icons.local_drink,
         'color': kBlue,
         'priority': 'medium',
       });
     }
 
-    // Add symptom correlation action items (high priority)
-    actionItems.addAll(symptomActionItems);
-
     // If no specific issues, add positive reinforcement
     if (actionItems.length <= 2) {
       actionItems.add({
-        'title': 'Great Job Today!',
+        'title': 'Great Service Today!',
         'description':
-            'You\'re doing well with your nutrition. Keep up the good work tomorrow!',
+            'You\'re doing well with your nutrition, Chef. Keep up the good work tomorrow!',
         'icon': Icons.thumb_up,
         'color': kGreen,
         'priority': 'low',
@@ -423,7 +356,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       actionItems.add({
         'title': successTitle,
         'description':
-            'You\'ve hit $percentage% of your ${macroName.toLowerCase()} intake goal ${isTomorrow ? 'today' : 'today'}. ${isTomorrow ? 'Keep up the good work!' : 'Try similar ${macroName.toLowerCase()} intake tomorrow.'} ',
+            'You\'ve hit $percentage% of your ${macroName.toLowerCase()} intake goal ${isTomorrow ? 'today' : 'today'}, Chef. ${isTomorrow ? 'Keep up the good work!' : 'Try similar ${macroName.toLowerCase()} intake tomorrow.'} ',
         'icon': icon,
         'color': kGreen,
         'priority': 'low',
@@ -455,13 +388,13 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-    
+
     // Optimize date calculations - calculate once and reuse
     final tomorrowDateStr = DateFormat('yyyy-MM-dd').format(tomorrowDate);
     final todayDateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final isTomorrow = tomorrowDateStr == todayDateStr;
     final isToday = isTomorrow; // Same calculation, reuse variable
-    
+
     final actionItems = _generateActionItems(isTomorrow: isTomorrow);
 
     return Scaffold(
@@ -471,7 +404,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
         automaticallyImplyLeading: true,
         toolbarHeight: getPercentageHeight(10, context),
         title: Text(
-          isTomorrow ? 'Today\'s Action Items' : 'Tomorrow\'s Action Items',
+          isTomorrow ? 'Today\'s Prep List' : 'Tomorrow\'s Prep List',
           style: textTheme.displaySmall?.copyWith(
             fontSize: getTextScale(7, context),
             color: kWhite,
@@ -497,7 +430,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
               child: Column(
                 children: [
                   Text(
-                    'Based on ${DateFormat('MMM dd').format(isTomorrow ? DateTime.now().subtract(const Duration(days: 1)) : DateTime.now())}\'s Summary',
+                    'Based on ${DateFormat('MMM dd').format(isTomorrow ? DateTime.now().subtract(const Duration(days: 1)) : DateTime.now())}\'s Service Summary',
                     style: textTheme.titleMedium?.copyWith(
                       color: kAccent,
                       fontWeight: FontWeight.w600,
@@ -505,7 +438,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
                   Text(
-                    'Here are your personalized action items for ${isTomorrow ? 'Today' : 'Tomorrow'}',
+                    'Here\'s your prep list for ${isTomorrow ? 'today' : 'tomorrow'}, Chef',
                     style: textTheme.bodyMedium?.copyWith(
                       color: isDarkMode
                           ? kAccent.withValues(alpha: 0.5)
@@ -588,7 +521,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
                           child: Column(
                             children: [
                               Text(
-                                'View Tomorrow\'s Action Items',
+                                'View Tomorrow\'s Prep List',
                                 style: textTheme.titleMedium?.copyWith(
                                   color: kAccentLight,
                                   fontWeight: FontWeight.w600,
@@ -598,7 +531,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
                               SizedBox(
                                   height: getPercentageHeight(0.5, context)),
                               Text(
-                                'Based on today\'s summary',
+                                'Based on today\'s service summary',
                                 style: textTheme.bodySmall?.copyWith(
                                   color: kAccentLight.withValues(alpha: 0.7),
                                   fontSize: getTextScale(2.5, context),
@@ -744,7 +677,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
                       onPressed: () => Navigator.pop(context),
                       icon: Icon(Icons.close, color: kAccent),
                       label: Text(
-                        'Close',
+                        'Back to Station',
                         style: textTheme.bodyMedium?.copyWith(color: kAccent),
                       ),
                       style: OutlinedButton.styleFrom(
@@ -758,7 +691,7 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
                   SizedBox(width: getPercentageWidth(3, context)),
                   Expanded(
                     child: AppButton(
-                      text: 'Plan Meals',
+                      text: 'Plan Menu',
                       onPressed: () {
                         // Navigate to meal planning screen
                         Navigator.push(

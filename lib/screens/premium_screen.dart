@@ -20,7 +20,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
   bool isLoading = true;
   bool isUserPremium = false;
   String? userPlan;
-  Map<String, dynamic>? premiumPlan;
+  Map<String, dynamic>? premiumPlan; // Used for pricing only
   bool isYearlySelected =
       true; // Default to yearly as it's usually the better deal
 
@@ -28,6 +28,23 @@ class _PremiumScreenState extends State<PremiumScreen> {
   String? _purchaseError;
 
   StreamSubscription? _paymentSubscription;
+
+  // Local list of premium benefits
+  static const List<String> _premiumBenefits = [
+    'Meal Tracking',
+    'Macros Tracking',
+    'AI Food Analysis',
+    'Personalized chat with Tasty AI',
+    'Ad-free experience',
+    'Spin for Spontaneous Cooking',
+    'Unlimited Shared Calendars',
+    'Unlimited Family Members',
+    'Unlimited 7 Days Meal Plan Generations',
+    'Weekly Shopping List Generations',
+    'track your progress',
+    'ai recommendation',
+    'dine-in mode',
+  ];
 
   @override
   void initState() {
@@ -63,7 +80,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       isUserPremium = userData?['isPremium'] ?? false;
       userPlan = userData?['premiumPlan'] ?? 'month';
 
-      // Get the premium plan
+      // Get the premium plan for pricing information only
       final planDoc = await firestore.collection('plans').get();
       if (planDoc.docs.isNotEmpty) {
         premiumPlan = planDoc.docs[0].data();
@@ -80,6 +97,255 @@ class _PremiumScreenState extends State<PremiumScreen> {
     }
   }
 
+  /// Maps standard feature names to Executive Chef terminology
+  String _getChefFeatureName(String feature) {
+    final normalizedFeature = feature.trim().toLowerCase();
+
+    // The Core Operations (Tracking & Data)
+    if (normalizedFeature.contains('meal tracking')) {
+      return 'Master the Daily Log';
+    }
+    if (normalizedFeature.contains('macros tracking')) {
+      return 'Macros Inventory Control';
+    }
+    if (normalizedFeature.contains('track your progress')) {
+      return 'Kitchen Performance Analytics';
+    }
+    if (normalizedFeature.contains('ad-free') ||
+        normalizedFeature.contains('ad free')) {
+      return 'Distraction-Free Service';
+    }
+
+    // The Intelligence (AI Features)
+    if (normalizedFeature.contains('ai food analysis')) {
+      return 'Instant Plate QC';
+    }
+    if (normalizedFeature.contains('personalized chat') ||
+        normalizedFeature.contains('chat with tasty ai')) {
+      return 'Direct Line to Turner';
+    }
+    if (normalizedFeature.contains('ai recommendation') ||
+        normalizedFeature.contains('ai-powered recommendation')) {
+      return 'Intelligent Menu Sourcing';
+    }
+    if (normalizedFeature.contains('spin for spontaneous') ||
+        normalizedFeature.contains('spontaneous cooking')) {
+      return 'Unlimited Spontaneous Cooking';
+    }
+    if (normalizedFeature.contains('dine-in mode')) {
+      return 'Dine-In Mode';
+    }
+
+    // The Logistics (Planning & Shopping)
+    if (normalizedFeature.contains('unlimited meal plan') ||
+        normalizedFeature.contains('7 days meal plan')) {
+      return 'Unlimited Menu Design';
+    }
+    if (normalizedFeature.contains('weekly shopping list') ||
+        normalizedFeature.contains('shopping list generation')) {
+      return 'Automated Inventory Management';
+    }
+    if (normalizedFeature.contains('personalized meal plan')) {
+      return 'Personalized Menu Curation';
+    }
+    if (normalizedFeature.contains('unlimited shared calendar')) {
+      return 'Family Planning and Calendar Sharing';
+    }
+    if (normalizedFeature.contains('unlimited family member')) {
+      return 'Extended Family Access';
+    }
+
+    // Return original if no mapping found
+    return feature;
+  }
+
+  /// Returns a plain-language explanation for chef lingual benefit names
+  String? _getBenefitExplanation(String chefFeatureName) {
+    switch (chefFeatureName) {
+      // The Core Operations
+      case 'Master the Daily Log':
+        return 'Track all your meals and food intake throughout the day';
+      case 'Macros Inventory Control':
+        return 'Monitor protein, carbs, and fats to meet your nutrition goals';
+      case 'Kitchen Performance Analytics':
+        return 'View detailed progress charts and insights on your health journey';
+      case 'Distraction-Free Service':
+        return 'Enjoy the app without any advertisements';
+
+      // The Intelligence
+      case 'Instant Plate QC':
+        return 'AI-powered food analysis - take a photo and get instant nutrition info';
+      case 'Direct Line to Turner':
+        return 'Chat with Turner the Sous Chef for personalized kitchen advice and meal suggestions';
+      case 'Intelligent Menu Sourcing':
+        return 'Get AI-powered menu recommendations tailored to your preferences';
+      case 'Unlimited Spontaneous Cooking':
+        return 'Use the spin feature unlimited times to discover random meal ideas';
+      case 'Dine-In Mode':
+        return 'Switch to Dine-In Mode for an optimized in-restaurant experience with menu scanning and recommendations';
+
+      // The Logistics
+      case 'Unlimited Menu Design':
+        return 'Generate unlimited 7-day menu plans customized to your goals';
+      case 'Automated Inventory Management':
+        return 'Automatically generate weekly shopping lists from your meal plans';
+      case 'Personalized Menu Curation':
+        return 'Get meal plans tailored specifically to your dietary needs and preferences';
+      case 'Family Planning and Calendar Sharing':
+        return 'Share meal calendars with family members and coordinate meals together';
+      case 'Extended Family Access':
+        return 'Add unlimited family members to track their nutrition goals';
+
+      default:
+        return null;
+    }
+  }
+
+  /// Categorizes features into their respective groups
+  Map<String, List<String>> _categorizeFeatures(List<String> features) {
+    final Map<String, List<String>> categorized = {
+      'coreOperations': [],
+      'intelligence': [],
+      'logistics': [],
+      'other': [],
+    };
+
+    for (final feature in features) {
+      final normalizedFeature = feature.trim().toLowerCase();
+      final chefName = _getChefFeatureName(feature);
+
+      // The Core Operations (Tracking & Data)
+      if (normalizedFeature.contains('meal tracking') ||
+          normalizedFeature.contains('macros tracking') ||
+          normalizedFeature.contains('track your progress') ||
+          normalizedFeature.contains('ad-free') ||
+          normalizedFeature.contains('ad free')) {
+        categorized['coreOperations']!.add(chefName);
+      }
+      // The Intelligence (AI Features)
+      else if (normalizedFeature.contains('ai food analysis') ||
+          normalizedFeature.contains('personalized chat') ||
+          normalizedFeature.contains('chat with tasty ai') ||
+          normalizedFeature.contains('ai recommendation') ||
+          normalizedFeature.contains('ai-powered recommendation') ||
+          normalizedFeature.contains('spin for spontaneous') ||
+          normalizedFeature.contains('spontaneous cooking') ||
+          normalizedFeature.contains('dine-in mode') ||
+          normalizedFeature.contains('dine in mode') ||
+          chefName == 'Dine-In Mode') {
+        categorized['intelligence']!.add(chefName);
+      }
+      // The Logistics (Planning & Shopping)
+      else if (normalizedFeature.contains('unlimited meal plan') ||
+          normalizedFeature.contains('7 days meal plan') ||
+          normalizedFeature.contains('weekly shopping list') ||
+          normalizedFeature.contains('shopping list generation') ||
+          normalizedFeature.contains('personalized meal plan') ||
+          normalizedFeature.contains('unlimited shared calendar') ||
+          normalizedFeature.contains('unlimited family member')) {
+        categorized['logistics']!.add(chefName);
+      }
+      // Other features
+      else {
+        categorized['other']!.add(chefName);
+      }
+    }
+
+    return categorized;
+  }
+
+  /// Builds a benefit section with heading and benefits list
+  Widget _buildBenefitSection(
+    BuildContext context,
+    String title,
+    List<String> benefits,
+    TextTheme textTheme,
+    bool isDarkMode,
+  ) {
+    if (benefits.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: getPercentageWidth(4, context)),
+          child: Text(
+            title,
+            style: textTheme.titleLarge?.copyWith(
+              color: kAccent,
+              fontWeight: FontWeight.w600,
+              fontSize: getTextScale(5, context),
+            ),
+          ),
+        ),
+        SizedBox(height: getPercentageHeight(1, context)),
+        Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: getPercentageWidth(4, context)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...benefits.map((benefit) => Padding(
+                    padding: EdgeInsets.only(
+                      bottom: getPercentageHeight(0.8, context),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: getPercentageHeight(0.5, context),
+                            right: getPercentageWidth(2, context),
+                          ),
+                          child: Icon(
+                            Icons.check_circle,
+                            size: getIconScale(4, context),
+                            color: kAccent,
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                benefit,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode
+                                      ? kWhite.withValues(alpha: 0.9)
+                                      : kDarkGrey.withValues(alpha: 0.9),
+                                  fontSize: getTextScale(3.5, context),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              if (_getBenefitExplanation(benefit) != null) ...[
+                                SizedBox(
+                                    height: getPercentageHeight(0.3, context)),
+                                Text(
+                                  _getBenefitExplanation(benefit)!,
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: isDarkMode
+                                        ? kWhite.withValues(alpha: 0.6)
+                                        : kDarkGrey.withValues(alpha: 0.6),
+                                    fontSize: getTextScale(3, context),
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+          ),
+        ),
+        SizedBox(height: getPercentageHeight(2, context)),
+      ],
+    );
+  }
+
   void _onPurchaseUpdate(purchaseDetails) async {
     if (purchaseDetails == null) return;
     if (purchaseDetails.status == PurchaseStatus.purchased ||
@@ -91,7 +357,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
         }
 
         // Extract receipt data from purchase details
-        final receiptData = purchaseDetails.verificationData.serverVerificationData;
+        final receiptData =
+            purchaseDetails.verificationData.serverVerificationData;
         if (receiptData == null || receiptData.isEmpty) {
           throw Exception("Receipt data is missing from purchase.");
         }
@@ -100,7 +367,6 @@ class _PremiumScreenState extends State<PremiumScreen> {
         final productId = purchaseDetails.productID;
         final selectedPlan = isYearlySelected ? 'year' : 'month';
 
-        debugPrint("Verifying purchase: productId=$productId, plan=$selectedPlan");
 
         // Verify purchase with server (this will update premium status after validation)
         await authController.verifyPurchaseWithServer(
@@ -129,7 +395,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
     } else if (purchaseDetails.status == PurchaseStatus.canceled) {
       setState(() {
         _purchaseInProgress = false;
-        _purchaseError = 'Purchase cancelled.';
+        _purchaseError = 'Purchase cancelled, Chef.';
       });
     }
   }
@@ -190,7 +456,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
         child: Column(
           children: [
             Text(
-              isYearlyPlan ? 'Your Yearly Plan' : 'Your Monthly Plan',
+              isYearlyPlan ? 'Your Yearly Service' : 'Your Monthly Service',
               style: textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: isDarkMode ? kLightGrey : kBlack),
@@ -235,7 +501,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
               child: Column(
                 children: [
                   Text(
-                    'Monthly',
+                    'Monthly Service',
                     style: textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: isDarkMode ? kLightGrey : kBlack),
@@ -287,7 +553,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Yearly',
+                        'Yearly Service',
                         style: textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: isDarkMode ? kLightGrey : kBlack),
@@ -352,8 +618,9 @@ class _PremiumScreenState extends State<PremiumScreen> {
           child: const IconCircleButton(),
         ),
         title: Text(
-          isUserPremium ? 'Your Plan' : 'Go Premium',
-          style: textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500),
+          isUserPremium ? 'Your Service Plan' : 'Go Executive Chef',
+          style: textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.w500, fontSize: getTextScale(7, context)),
         ),
         centerTitle: true,
       ),
@@ -378,14 +645,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             fontWeight: FontWeight.w300,
                             color: isDarkMode ? kLightGrey : kBlack),
                         children: [
-                          TextSpan(text: 'Welcome '),
+                          TextSpan(text: 'Welcome, '),
                           TextSpan(
                             text: user?.displayName ?? '',
                             style: textTheme.displaySmall?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: isDarkMode ? kLightGrey : kAccent),
                           ),
-                          TextSpan(text: ','),
+                          TextSpan(text: ' Chef'),
                         ],
                       ),
                     ),
@@ -393,8 +660,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
                     Text(
                       isUserPremium
-                          ? 'You are currently enjoying an ad-free experience! Along with the below benefits.'
-                          : 'Upgrade to Premium for an ad-free experience!',
+                          ? 'You\'re currently enjoying an distraction-free service, Chef!'
+                          : 'Upgrade to Executive Chef for an distraction-free service, Chef!',
                       style: textTheme.titleMedium?.copyWith(),
                       textAlign: TextAlign.center,
                     ),
@@ -404,33 +671,65 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             : getPercentageHeight(3, context)),
 
                     // Premium Features
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(4, context)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isUserPremium ? '' : 'Premium Benefits',
-                            style: textTheme.headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: getPercentageHeight(1, context)),
+                        Center(
+                          child: Text(
+                            isUserPremium
+                                ? 'Your Executive Chef Benefits:'
+                                : 'Executive Chef Benefits:',
+                            style: textTheme.displaySmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                color: kAccentLight,
+                                fontSize: getTextScale(7, context)),
                           ),
-                          SizedBox(height: getPercentageHeight(1, context)),
-                          if (premiumPlan != null &&
-                              premiumPlan!['features'] != null)
-                            ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount:
-                                  (premiumPlan!['features'] as List).length,
-                              itemBuilder: (context, index) {
-                                return BulletPoint(
-                                  text: premiumPlan!['features'][index],
-                                );
-                              },
-                            ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(height: getPercentageHeight(3, context)),
+                        // Categorize and display benefits by section
+                        Builder(
+                          builder: (context) {
+                            final categorized =
+                                _categorizeFeatures(_premiumBenefits);
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildBenefitSection(
+                                  context,
+                                  'The Core Operations',
+                                  categorized['coreOperations']!,
+                                  textTheme,
+                                  isDarkMode,
+                                ),
+                                _buildBenefitSection(
+                                  context,
+                                  'The Intelligence',
+                                  categorized['intelligence']!,
+                                  textTheme,
+                                  isDarkMode,
+                                ),
+                                _buildBenefitSection(
+                                  context,
+                                  'The Logistics',
+                                  categorized['logistics']!,
+                                  textTheme,
+                                  isDarkMode,
+                                ),
+                                if (categorized['other']!.isNotEmpty)
+                                  _buildBenefitSection(
+                                    context,
+                                    'Additional Benefits',
+                                    categorized['other']!,
+                                    textTheme,
+                                    isDarkMode,
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
                     ),
                     SizedBox(height: getPercentageHeight(2, context)),
 
@@ -452,8 +751,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             ),
                           AppButton(
                             text: _purchaseInProgress
-                                ? 'Processing...'
-                                : 'Go Ad-Free Now',
+                                ? 'Processing, Chef...'
+                                : 'Go Ad-Free Now, Chef',
                             type: AppButtonType.primary,
                             width: 100,
                             isLoading: _purchaseInProgress,
@@ -462,7 +761,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           ),
                         ],
                       ),
-                    SizedBox(height: getPercentageHeight(10, context)),
+                    SizedBox(height: getPercentageHeight(1, context)),
 
                     if (isUserPremium)
                       GestureDetector(
@@ -476,8 +775,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               debugPrint("Error updating Premium: $e");
                               if (mounted) {
                                 showTastySnackbar(
-                                  'Please try again.',
-                                  'Error: $e',
+                                  'Service Error',
+                                  'Failed to update service, Chef. Please try again.',
                                   context,
                                 );
                               }
@@ -485,7 +784,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           }
                         },
                         child: Text(
-                          'Cancel anytime',
+                          'Cancel anytime, Chef',
                           style: textTheme.bodyLarge?.copyWith(
                               color: isDarkMode ? kLightGrey : kBlack),
                         ),

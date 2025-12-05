@@ -6097,12 +6097,23 @@ Generate completely new and different meal ideas using the same ingredients.
         mealName = foodItems.first['name'] ?? 'AI Analyzed Food';
       }
 
+      // Convert totalNutrition to macros format (Map<String, double>)
+      Map<String, double> mealMacros = {};
+      if (totalNutrition.isNotEmpty) {
+        mealMacros = {
+          'protein': (totalNutrition['protein'] as num?)?.toDouble() ?? 0.0,
+          'carbs': (totalNutrition['carbs'] as num?)?.toDouble() ?? 0.0,
+          'fat': (totalNutrition['fat'] as num?)?.toDouble() ?? 0.0,
+        };
+      }
+
       final userMeal = UserMeal(
         name: mealName,
         quantity: analysisResult['estimatedPortionSize'] ?? 'medium',
         calories: (totalNutrition['calories'] as num?)?.toInt() ?? 0,
         mealId: mealId,
         servings: '1',
+        macros: mealMacros,
       );
 
       final dateId = DateFormat('yyyy-MM-dd').format(date);

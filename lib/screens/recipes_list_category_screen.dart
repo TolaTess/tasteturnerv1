@@ -341,7 +341,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
         centerTitle: true,
         title: Text(
           capitalizeFirstLetter(widget.searchIngredient.isEmpty
-              ? 'Meals'
+              ? 'Full Plates'
               : widget.searchIngredient),
           style: textTheme.displaySmall?.copyWith(
             fontSize: getTextScale(7, context),
@@ -637,7 +637,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                                             selectedCategory != 'general'
                                         ? capitalizeFirstLetter(
                                             selectedCategory)
-                                        : 'All Meals',
+                                        : 'All Full Plates',
                                     style: textTheme.displayMedium?.copyWith(
                                       fontSize: getTextScale(5.5, context),
                                     ),

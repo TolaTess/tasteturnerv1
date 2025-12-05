@@ -343,7 +343,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                       if (userService.userId == newUserid) {
                                         showTastySnackbar(
                                           'Cannot Follow Yourself',
-                                          'You cannot follow yourself.',
+                                          'You cannot follow yourself, Chef.',
                                           context,
                                         );
                                         return;
@@ -388,7 +388,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     } else {
                                       showTastySnackbar(
                                         'Follow Required',
-                                        "You need to be friends before you can start a chat.",
+                                        "You need to be in the brigade before you can start a chat, Chef.",
                                         context,
                                         backgroundColor: Colors.redAccent,
                                       );
@@ -481,7 +481,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   ),
                                   child: Center(
                                     child: Text(
-                                      'Posts',
+                                      'Plates',
                                       style: textTheme.bodyMedium?.copyWith(
                                         color: !showMeals
                                             ? kWhite
@@ -519,7 +519,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   ),
                                   child: Center(
                                     child: Text(
-                                      'Meals',
+                                      'Recipes',
                                       style: textTheme.bodyMedium?.copyWith(
                                         color: showMeals
                                             ? kWhite
@@ -564,7 +564,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                             height: getPercentageHeight(
                                                 2, context)),
                                         Text(
-                                          'Loading meals...',
+                                          'Loading recipes...',
                                           style: textTheme.bodyMedium?.copyWith(
                                             color: themeProvider.isDarkMode
                                                 ? kWhite.withValues(alpha: 0.7)
@@ -580,7 +580,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     padding: EdgeInsets.all(
                                         getPercentageWidth(4, context)),
                                     child: Text(
-                                      "No Meals yet.",
+                                      "No recipes yet, Chef.",
                                       style: textTheme.bodyLarge?.copyWith(
                                         color: Colors.grey,
                                       ),
@@ -663,7 +663,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                               height: getPercentageHeight(
                                                   2, context)),
                                           Text(
-                                            'Loading posts...',
+                                            'Loading plates...',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodyMedium
@@ -693,7 +693,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                               height: getPercentageHeight(
                                                   1, context)),
                                           Text(
-                                            "No Posts yet.",
+                                            "No plates yet, Chef.",
                                             style: TextStyle(
                                               fontSize:
                                                   getTextScale(4, context),

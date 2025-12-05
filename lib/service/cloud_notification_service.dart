@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,8 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/bottom_nav.dart';
+import 'notification_service.dart';
+import 'notification_handler_service.dart';
 
 class CloudNotificationService extends GetxService {
   static CloudNotificationService get instance =>
@@ -248,33 +251,60 @@ class CloudNotificationService extends GetxService {
   }
 
   /// Handle foreground messages
-  void _handleForegroundMessage(RemoteMessage message) {
-    // You can show a local notification or update UI here
+  void _handleForegroundMessage(RemoteMessage message) async {
     debugPrint('Handling foreground message: ${message.data}');
 
-    // For now, just log the message
-    // In the future, you could show a snackbar or update UI
+    // Show local notification with payload when app is in foreground
+    try {
+      final notificationService = Get.find<NotificationService>();
+      final title = message.notification?.title ?? 'Taste Turner';
+      final body = message.notification?.body ?? 'You have a new notification';
+
+      // Convert FCM data to JSON string for payload
+      final payload =
+          message.data.isNotEmpty ? json.encode(message.data) : null;
+
+      await notificationService.showNotification(
+        id: DateTime.now().millisecondsSinceEpoch % 100000,
+        title: title,
+        body: body,
+        payload: payload != null ? json.decode(payload) : null,
+      );
+    } catch (e) {
+      debugPrint('Error showing foreground notification: $e');
+    }
   }
 
   /// Handle notification tap
-  void _handleNotificationTap(RemoteMessage message) {
+  void _handleNotificationTap(RemoteMessage message) async {
     final data = message.data;
     final type = data['type'];
 
     debugPrint('Handling notification tap: $type');
+    debugPrint('Notification data: $data');
 
-    switch (type) {
-      case 'meal_plan_reminder':
-        _navigateToMealPlanning(data);
-        break;
-      case 'water_reminder':
-        _navigateToWaterTracking(data);
-        break;
-      case 'evening_review':
-        _navigateToEveningReview(data);
-        break;
-      default:
-        debugPrint('Unknown notification type: $type');
+    // Convert FCM data to JSON format for NotificationHandlerService
+    try {
+      final payloadJson = json.encode(data);
+      final handlerService = Get.find<NotificationHandlerService>();
+      await handlerService.handleNotificationPayload(payloadJson);
+    } catch (e) {
+      debugPrint(
+          'Error handling notification via NotificationHandlerService: $e');
+      // Fallback to simple navigation for basic types
+      switch (type) {
+        case 'meal_plan_reminder':
+          _navigateToMealPlanning(data);
+          break;
+        case 'water_reminder':
+          _navigateToWaterTracking(data);
+          break;
+        case 'evening_review':
+          _navigateToEveningReview(data);
+          break;
+        default:
+          debugPrint('Unknown notification type: $type');
+      }
     }
   }
 
