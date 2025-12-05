@@ -7,8 +7,6 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:get/get.dart';
-import 'notification_handler_service.dart';
 import 'package:flutter/material.dart' show debugPrint;
 
 class NotificationService {
@@ -194,12 +192,16 @@ class NotificationService {
     int id = 0,
     String? title,
     String? body,
+    Map<String, dynamic>? payload,
   }) async {
     return notificationPlugin.show(
       id,
       title,
       body,
       notificationDetails(),
+      payload: payload != null
+          ? json.encode(_convertPayloadToJsonSafe(payload))
+          : null,
     );
   }
 
@@ -264,21 +266,11 @@ class NotificationService {
 
         Timer(delay, () async {
           try {
-            // For Timer-based notifications with payload, we need to handle navigation manually
-            if (payload != null) {
-              // Use the notification handler service to process the payload
-              try {
-                final handler = Get.find<NotificationHandlerService>();
-                await handler.handleNotificationPayload(
-                    json.encode(_convertPayloadToJsonSafe(payload)));
-              } catch (e) {
-                debugPrint('Error processing timer notification payload: $e');
-              }
-            }
-
+            // Show notification with payload so tapping works correctly
             await showNotification(
               title: title,
               body: body,
+              payload: payload,
             );
           } catch (e) {
             debugPrint('Error sending timer-based notification: $e');

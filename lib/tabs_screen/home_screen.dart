@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,6 +31,7 @@ import 'recipe_screen.dart';
 import 'shopping_tab.dart';
 import '../service/notification_service.dart';
 import '../service/hybrid_notification_service.dart';
+import '../service/notification_handler_service.dart';
 import '../service/helper_controller.dart';
 import '../helper/onboarding_prompt_helper.dart';
 import '../widgets/onboarding_prompt.dart';
@@ -248,23 +250,91 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _handleNotificationTap(String payload) async {
-    if (!mounted) return;
+  void _handleNotificationTap(String? payload) async {
+    if (!mounted || payload == null) return;
 
     try {
       debugPrint('Notification tapped: $payload');
 
-      if (payload.contains('meal_plan_reminder') ||
-          payload.contains('evening_review') ||
-          payload.contains('water_reminder')) {
-        if (!mounted) return;
+      // Try to parse as JSON first
+      Map<String, dynamic>? parsedPayload;
+      try {
+        parsedPayload = json.decode(payload) as Map<String, dynamic>?;
+      } catch (e) {
+        // Not JSON, treat as string
+        debugPrint('Payload is not JSON, treating as string: $e');
+      }
 
+      // If we have a parsed payload, use NotificationHandlerService
+      if (parsedPayload != null) {
+        final type = parsedPayload['type'] as String?;
+
+        // Handle simple navigation cases that don't need complex handling
+        if (type == 'meal_reminder') {
+          // Navigate to add food screen for meal logging with the specific meal type
+          final mealType = parsedPayload['mealType'] as String?;
+          if (mounted) {
+            Get.to(() => AddFoodScreen(
+                  date: DateTime.now(),
+                  initialMealType: mealType,
+                ));
+          }
+          return;
+        } else if (type == 'new_message') {
+          // Navigate to message screen
+          if (mounted) {
+            Get.to(() => const MessageScreen());
+          }
+          return;
+        } else if (type == 'points_earned') {
+          // Points earned - just show a snackbar or navigate to profile
+          // For now, just acknowledge - could navigate to profile/badges
+          return;
+        } else if (type == 'daily_routine_champion') {
+          // Routine completion - could navigate to routine screen
+          // For now, just acknowledge
+          return;
+        }
+
+        // For complex payloads, use NotificationHandlerService
+        if (mounted) {
+          try {
+            final handlerService = NotificationHandlerService.instance;
+            await handlerService.handleNotificationPayload(payload);
+          } catch (e) {
+            debugPrint(
+                'Error handling notification via NotificationHandlerService: $e');
+            if (mounted && context.mounted) {
+              showTastySnackbar(
+                  'Something went wrong', 'Please try again later', context,
+                  backgroundColor: kRed);
+            }
+          }
+        }
+      } else {
+        // Fallback for string-based payloads (backward compatibility)
         if (payload.contains('meal_plan_reminder')) {
-          Get.to(() => const BottomNavSec(selectedIndex: 4));
+          if (mounted) {
+            Get.to(() => const BottomNavSec(selectedIndex: 4));
+          }
         } else if (payload.contains('water_reminder')) {
-          Get.to(() => AddFoodScreen(date: DateTime.now()));
+          if (mounted) {
+            Get.to(() => AddFoodScreen(date: DateTime.now()));
+          }
         } else if (payload.contains('evening_review')) {
-          Get.to(() => AddFoodScreen(date: DateTime.now()));
+          if (mounted) {
+            Get.to(() => AddFoodScreen(date: DateTime.now()));
+          }
+        } else {
+          // Try NotificationHandlerService as fallback
+          if (mounted) {
+            try {
+              final handlerService = NotificationHandlerService.instance;
+              await handlerService.handleNotificationPayload(payload);
+            } catch (e) {
+              debugPrint('Error handling notification: $e');
+            }
+          }
         }
       }
     } catch (e) {
@@ -665,8 +735,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       debugPrint('Error refreshing data: $e');
       if (mounted && context.mounted) {
         showTastySnackbar(
-          'Couldn\'t refresh the station, Chef',
-          'The station couldn\'t update. Please try again, Chef.',
+          'Station Update Failed, Chef',
+          'The station couldn\'t refresh. Please try again, Chef.',
           context,
           backgroundColor: Colors.red,
         );
@@ -891,6 +961,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         await notificationService?.showNotification(
           title: 'Taste Turner - New Message',
           body: 'You have $unreadCount unread messages',
+          payload: {
+            'type': 'new_message',
+            'unreadCount': unreadCount,
+          },
         );
         await notificationService?.setHasShownUnreadNotification(true);
       }
@@ -998,7 +1072,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$greeting ${capitalizeFirstLetter(currentUser.displayName ?? '')}!',
+              '$greeting Chef ${capitalizeFirstLetter(currentUser.displayName ?? '')}!',
               style: textTheme.displaySmall?.copyWith(
                   fontWeight: FontWeight.w500,
                   fontSize: getPercentageWidth(6, context)),
@@ -1110,7 +1184,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             SizedBox(width: getPercentageWidth(2, context)),
             Expanded(
               child: Text(
-                'No connection to the kitchen, Chef. Some features may be limited.',
+                'No connection to the kitchen, Chef. Some station features may be limited.',
                 style: textTheme.bodyMedium?.copyWith(
                   color: kWhite,
                   fontWeight: FontWeight.w500,
@@ -1147,8 +1221,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Expanded(
             child: Text(
               familyMode
-                  ? "Shopping Day, Chef: \nTime to shop for healthy family meals! Check your smart grocery list for kid-friendly essentials."
-                  : "Shopping Day, Chef: \nReady to shop smart? Your grocery list is loaded with healthy picks for your goals!",
+                  ? "Shopping Day, Chef: \nTime to stock the pantry for healthy family meals! Check your smart grocery list for kid-friendly essentials."
+                  : "Shopping Day, Chef: \nReady to stock the pantry? Your grocery list is loaded with healthy picks for your goals!",
               style: textTheme.bodyMedium?.copyWith(
                 color: kAccentLight,
               ),
@@ -1173,7 +1247,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               );
             },
-            child: Text('Go',
+            child: Text('Stock Up',
                 style: textTheme.bodyMedium?.copyWith(
                   color: kWhite,
                 )),
@@ -1227,7 +1301,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const Icon(Icons.error_outline, size: 48, color: kAccent),
                 const SizedBox(height: 16),
                 Text(
-                  'Unable to load station data, Chef',
+                  'Station Data Unavailable, Chef',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
@@ -1266,11 +1340,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     : 'assets/images/background/imagelight.jpeg',
               ),
               fit: BoxFit.cover,
-               colorFilter: ColorFilter.mode(
-              isDarkMode
-                  ? Colors.black.withOpacity(0.5)
-                  : Colors.white.withOpacity(0.5),
-              isDarkMode ? BlendMode.darken : BlendMode.lighten,
+              colorFilter: ColorFilter.mode(
+                isDarkMode
+                    ? Colors.black.withOpacity(0.5)
+                    : Colors.white.withOpacity(0.5),
+                isDarkMode ? BlendMode.darken : BlendMode.lighten,
               ),
             ),
           ),
@@ -1319,7 +1393,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 'Error navigating to NutritionSettingsPage: $e');
                             if (mounted && context.mounted) {
                               showTastySnackbar(
-                                'Couldn\'t open station settings, Chef',
+                                'Station Settings Unavailable, Chef',
                                 'Unable to open nutrition settings. Please try again, Chef.',
                                 context,
                                 backgroundColor: Colors.red,
@@ -1385,7 +1459,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ? () {
                                     // Show snackbar when family member is selected
                                     showTastySnackbar(
-                                      'Station tracking is only available for ${userService.currentUser.value?.displayName}, Chef',
+                                      'Station Tracking Limited, Chef',
                                       'Food tracking is only available for ${userService.currentUser.value?.displayName}, Chef.',
                                       context,
                                       backgroundColor: kAccentLight,

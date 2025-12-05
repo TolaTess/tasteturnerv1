@@ -9,6 +9,7 @@ import '../helper/helper_functions.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../screens/favorite_screen.dart';
+import '../widgets/ingredient_features.dart';
 import '../widgets/title_section.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../widgets/card_overlap.dart';
@@ -41,14 +42,16 @@ class _RecipeScreenState extends State<RecipeScreen> {
     try {
       // Initialize techniques with error handling
       if (helperController.macros.isNotEmpty) {
-    _categoryDatasIngredient = [...helperController.macros];
-    if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
-      final firstCategory = _categoryDatasIngredient[0];
-      selectedCategoryId = firstCategory['id']?.toString() ?? '';
-      selectedCategory = firstCategory['name']?.toString() ?? 'All';
-    }
+        _categoryDatasIngredient = [...helperController.macros];
+        if (_categoryDatasIngredient.isNotEmpty && selectedCategoryId.isEmpty) {
+          final firstCategory = _categoryDatasIngredient[0];
+          selectedCategoryId = firstCategory['id']?.toString() ?? '';
+          selectedCategory = firstCategory['name']?.toString() ?? 'All';
+        }
         // Cache shuffled techniques once
-        _cachedShuffledTechniques = List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
+        _cachedShuffledTechniques =
+            List<Map<String, dynamic>>.from(_categoryDatasIngredient)
+              ..shuffle();
       } else {
         _categoryDatasIngredient = [];
         _cachedShuffledTechniques = [];
@@ -61,8 +64,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
     }
 
     try {
-    fullLabelsList = macroManager.ingredient;
-    mealList = mealManager.meals;
+      fullLabelsList = macroManager.ingredient;
+      mealList = mealManager.meals;
     } catch (e) {
       debugPrint('Error initializing meal/ingredient data: $e');
       fullLabelsList = [];
@@ -152,15 +155,17 @@ class _RecipeScreenState extends State<RecipeScreen> {
     final dietLower = dietPreference.toLowerCase();
     return techniques.where((technique) {
       final bestFor = technique['bestFor'] as List<dynamic>? ?? [];
-      return bestFor.any((item) =>
-          item.toString().toLowerCase().contains(dietLower));
+      return bestFor
+          .any((item) => item.toString().toLowerCase().contains(dietLower));
     }).toList();
   }
 
   /// Get cached shuffled techniques or create new cache if needed
   List<Map<String, dynamic>> _getShuffledTechniques() {
-    if (_cachedShuffledTechniques == null || _cachedShuffledTechniques!.isEmpty) {
-      _cachedShuffledTechniques = List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
+    if (_cachedShuffledTechniques == null ||
+        _cachedShuffledTechniques!.isEmpty) {
+      _cachedShuffledTechniques =
+          List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
     }
     return _cachedShuffledTechniques!;
   }
@@ -168,7 +173,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   /// Get techniques filtered by diet, or fallback to top 5 if no matches
   List<Map<String, dynamic>> _getFilteredTechniques(String dietPreference) {
     final shuffledTechniques = _getShuffledTechniques();
-    
+
     if (dietPreference == 'balanced') {
       return showAllTechniques
           ? shuffledTechniques
@@ -176,34 +181,34 @@ class _RecipeScreenState extends State<RecipeScreen> {
     }
 
     // Filter by diet preference
-    final filteredByDiet = _filterTechniquesByDiet(shuffledTechniques, dietPreference);
-    
+    final filteredByDiet =
+        _filterTechniquesByDiet(shuffledTechniques, dietPreference);
+
     // If no techniques match the diet, show top 5 without diet filter
     if (filteredByDiet.isEmpty) {
       return shuffledTechniques.take(5).toList();
     }
 
-    return showAllTechniques
-        ? filteredByDiet
-        : filteredByDiet.take(5).toList();
+    return showAllTechniques ? filteredByDiet : filteredByDiet.take(5).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     final dietPreference =
         userService.currentUser.value?.settings['dietPreference'] ?? 'balanced';
 
     // Get filtered techniques (by diet if applicable, or top 5 if no matches)
     final limitedTechniques = _getFilteredTechniques(dietPreference);
-    
+
     // Check if there are techniques matching the diet preference
     final shuffledTechniques = _getShuffledTechniques();
     final dietMatchedTechniques = dietPreference != 'balanced'
         ? _filterTechniquesByDiet(shuffledTechniques, dietPreference)
         : [];
-    final shouldShowDietPreference = dietPreference != 'balanced' && 
-        dietMatchedTechniques.isNotEmpty;
+    final shouldShowDietPreference =
+        dietPreference != 'balanced' && dietMatchedTechniques.isNotEmpty;
 
     return RefreshIndicator(
       color: kAccent,
@@ -251,44 +256,47 @@ class _RecipeScreenState extends State<RecipeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Recipes',
+                'Chef\'s Tome',
                 style: textTheme.displaySmall?.copyWith(
                   fontSize: getTextScale(7, context),
                 ),
               ),
               SizedBox(width: getPercentageWidth(2, context)),
               const InfoIconWidget(
-                title: 'Recipe Collection',
-                description: 'Discover and save healthy recipes',
+                title: 'The Cookbook',
+                description: 'Curate, Organize, and Master Your Menu',
                 details: [
                   {
                     'icon': Icons.search,
-                    'title': 'Browse Recipes',
+                    'title': 'Source & Scout',
                     'description':
-                        'Find recipes by ingredients, cuisine, or diet',
+                        'Find dishes by available inventory, cuisine type, or dietary specs',
                     'color': kPurple,
                   },
                   {
                     'icon': Icons.favorite,
-                    'title': 'Save Favorites',
-                    'description': 'Bookmark your favorite recipes',
+                    'title': 'Chef\'s Selects',
+                    'description':
+                        'Pin your signature dishes to the permanent menu',
                     'color': kPurple,
                   },
                   {
                     'icon': Icons.restaurant_menu,
-                    'title': 'Meal Planning',
-                    'description': 'Add recipes to your weekly meal plan',
+                    'title': 'Set the Line',
+                    'description':
+                        'Schedule recipes for your weekly service plan',
                     'color': kPurple,
                   },
                   {
                     'icon': Icons.restaurant,
-                    'title': 'Cooking Techniques',
-                    'description': 'Learn new cooking methods and skills',
+                    'title': 'Refine Technique',
+                    'description':
+                        'Sharpen your skills with fresh culinary methods',
                     'color': kPurple,
                   },
                 ],
                 iconColor: kPurple,
-                tooltip: 'Recipe Information',
+                tooltip: 'Cookbook Information',
               ),
             ],
           ),
@@ -314,188 +322,222 @@ class _RecipeScreenState extends State<RecipeScreen> {
           ),
           child: SafeArea(
             child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: getPercentageHeight(2, context)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: getPercentageHeight(2, context)),
 
-                // Cooking Techniques Section
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(5, context),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (shouldShowDietPreference)
-                            Text(
-                              dietPreference,
-                              style: textTheme.displayMedium?.copyWith(),
-                            ),
-                          if (shouldShowDietPreference)
-                            SizedBox(height: getPercentageHeight(0.5, context)),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
+                  // Cooking Techniques Section
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(5, context),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (shouldShowDietPreference)
                               Text(
-                                'Cooking Techniques',
-                                style: textTheme.displaySmall?.copyWith(
-                                  color: kAccent,
-                                ),
+                                dietPreference,
+                                style: textTheme.displayMedium?.copyWith(),
                               ),
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    showAllTechniques = !showAllTechniques;
-                                    // Re-shuffle when toggling to provide variety
-                                    if (_cachedShuffledTechniques != null) {
-                                      _cachedShuffledTechniques = List<Map<String, dynamic>>.from(_categoryDatasIngredient)..shuffle();
-                                    }
-                                    // Force rebuild to update filtered techniques
-                                  });
-                                },
-                                child: Text(
-                                  showAllTechniques ? 'Show Less' : 'Show All',
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    color: kAccent,
-                                    fontSize: getTextScale(3, context),
-                                    fontWeight: FontWeight.bold,
+                            if (shouldShowDietPreference)
+                              SizedBox(
+                                  height: getPercentageHeight(0.5, context)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Chef\'s Notes',
+                                  style: textTheme.displaySmall?.copyWith(
+                                    fontSize: getTextScale(6, context),
+                                    color: isDarkMode ? kWhite : kBlack,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: getPercentageHeight(2.5, context)),
-                      SizedBox(
-                        height: getPercentageHeight(
-                            25, context), // Adjust height as needed
-                        child: OverlappingCardsView(
-                          cardWidth: getPercentageWidth(50, context),
-                          cardHeight: getPercentageHeight(20, context),
-                          overlap: 50,
-                          isRecipe: false,
-                          isTechnique: true,
-                          children: List.generate(
-                            limitedTechniques.length,
-                            (index) {
-                              final technique = limitedTechniques[index];
-                              return OverlappingCard(
-                                title: technique['name']?.toString() ?? 'Unknown Technique',
-                                subtitle: technique['description']?.toString() ??
-                                    'No description available',
-                                color: colors[index % colors.length],
-                                onTap: () {
-                                  if (!mounted) return;
-                                  try {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) =>
-                                          TechniqueDetailWidget(
-                                        technique: technique,
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    debugPrint(
-                                        'Error showing technique dialog: $e');
-                                    if (mounted && context.mounted) {
-                                      showTastySnackbar(
-                                        'Error',
-                                        'Unable to show technique details.',
-                                        context,
-                                        backgroundColor: Colors.red,
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      showAllTechniques = !showAllTechniques;
+                                      // Re-shuffle when toggling to provide variety
+                                      if (_cachedShuffledTechniques != null) {
+                                        _cachedShuffledTechniques =
+                                            List<Map<String, dynamic>>.from(
+                                                _categoryDatasIngredient)
+                                              ..shuffle();
+                                      }
+                                      // Force rebuild to update filtered techniques
+                                    });
+                                  },
+                                  child: Text(
+                                    showAllTechniques
+                                        ? 'Show Less'
+                                        : 'Show All',
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: kAccent,
+                                      fontSize: getTextScale(3, context),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: getPercentageHeight(2.5, context)),
+                        SizedBox(
+                          height: getPercentageHeight(
+                              25, context), // Adjust height as needed
+                          child: OverlappingCardsView(
+                            cardWidth: getPercentageWidth(50, context),
+                            cardHeight: getPercentageHeight(20, context),
+                            overlap: 50,
+                            isRecipe: false,
+                            isTechnique: true,
+                            children: List.generate(
+                              limitedTechniques.length,
+                              (index) {
+                                final technique = limitedTechniques[index];
+                                return OverlappingCard(
+                                  title: technique['name']?.toString() ??
+                                      'Unknown Technique',
+                                  subtitle:
+                                      technique['description']?.toString() ??
+                                          'No description available',
+                                  color: colors[index % colors.length],
+                                  onTap: () {
+                                    if (!mounted) return;
+                                    try {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) =>
+                                            TechniqueDetailWidget(
+                                          technique: technique,
+                                        ),
                                       );
+                                    } catch (e) {
+                                      debugPrint(
+                                          'Error showing technique dialog: $e');
+                                      if (mounted && context.mounted) {
+                                        showTastySnackbar(
+                                          'Error',
+                                          'Unable to show technique details.',
+                                          context,
+                                          backgroundColor: Colors.red,
+                                        );
+                                      }
                                     }
-                                  }
-                                },
-                                index: index,
-                                isSelected: false,
-                                isRecipe: false,
-                              );
-                            },
+                                  },
+                                  index: index,
+                                  isSelected: false,
+                                  isRecipe: false,
+                                );
+                              },
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                // ------------------------------------Premium / Ads------------------------------------
+                  // ------------------------------------Premium / Ads------------------------------------
 
-                getAdsWidget(userService.currentUser.value?.isPremium ?? false,
-                    isDiv: false),
+                  getAdsWidget(
+                      userService.currentUser.value?.isPremium ?? false,
+                      isDiv: false),
 
-                // ------------------------------------Premium / Ads-------------------------------------
+                  // ------------------------------------Premium / Ads-------------------------------------
 
-                SizedBox(height: getPercentageHeight(1, context)),
+                  SizedBox(height: getPercentageHeight(1, context)),
 
-                //Search by Meals
-                TitleSection(
-                  title: searchMeal,
-                  press: () {
-                    if (!mounted) return;
-                    try {
+                  GestureDetector(
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const RecipeListCategory(
-                            index: 1,
-                            searchIngredient: '',
-                            screen: 'ingredient',
-                          ),
+                          builder: (context) => IngredientFeatures(
+                              items: macroManager.ingredient),
                         ),
                       );
-                    } catch (e) {
-                      debugPrint('Error navigating to RecipeListCategory: $e');
-                      if (mounted && context.mounted) {
-                        showTastySnackbar(
-                          'Error',
-                          'Unable to open recipe list. Please try again.',
-                          context,
-                          backgroundColor: Colors.red,
-                        );
-                      }
-                    }
-                  },
-                  more: seeAll,
-                ),
-                SizedBox(
-                  height: getPercentageHeight(2, context),
-                ),
-
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(5, context)),
-                  child: GridView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: getPercentageWidth(45, context),
-                      childAspectRatio: 3 / 2,
-                      crossAxisSpacing: getPercentageWidth(2, context),
-                      mainAxisSpacing: getPercentageHeight(1, context),
-                    ),
-                    itemCount: demoMealsData.length,
-                    itemBuilder: (BuildContext ctx, index) {
-                      return MealsCard(
-                        dataSrc: demoMealsData[index],
-                        isMyMeal: myMealList.length >= 1,
-                        isFavourite: favouriteMealList.length >= 1,
-                      );
                     },
+                    child: Center(
+                      child: Text(
+                        'View Walk-In Pantry',
+                        style: textTheme.displaySmall?.copyWith(
+                          color: kAccent,
+                          fontSize: getTextScale(7, context),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                SizedBox(
-                  height: getPercentageHeight(7, context),
-                ),
-              ],
+
+                  SizedBox(height: getPercentageHeight(3, context)),
+
+                  //Search by Meals
+                  TitleSection(
+                    title: searchMeal,
+                    press: () {
+                      if (!mounted) return;
+                      try {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RecipeListCategory(
+                              index: 1,
+                              searchIngredient: '',
+                              screen: 'ingredient',
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        debugPrint(
+                            'Error navigating to RecipeListCategory: $e');
+                        if (mounted && context.mounted) {
+                          showTastySnackbar(
+                            'Error',
+                            'Unable to open recipe list. Please try again.',
+                            context,
+                            backgroundColor: Colors.red,
+                          );
+                        }
+                      }
+                    },
+                    more: seeAll,
+                  ),
+                  SizedBox(
+                    height: getPercentageHeight(2, context),
+                  ),
+
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(5, context)),
+                    child: GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: getPercentageWidth(45, context),
+                        childAspectRatio: 3 / 2,
+                        crossAxisSpacing: getPercentageWidth(2, context),
+                        mainAxisSpacing: getPercentageHeight(1, context),
+                      ),
+                      itemCount: demoMealsData.length,
+                      itemBuilder: (BuildContext ctx, index) {
+                        return MealsCard(
+                          dataSrc: demoMealsData[index],
+                          isMyMeal: myMealList.length >= 1,
+                          isFavourite: favouriteMealList.length >= 1,
+                        );
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    height: getPercentageHeight(7, context),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
         ),
       ),
     );

@@ -368,8 +368,8 @@ class _DineInScreenState extends State<DineInScreen> {
             _selectedProteinKey, jsonEncode(selectedProtein!.toJson()));
       }
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
+      showTastySnackbar('Kitchen Error, Chef',
+          'Something went wrong. Please try again later, Chef', Get.context!,
           backgroundColor: kRed);
     }
   }
@@ -493,8 +493,8 @@ class _DineInScreenState extends State<DineInScreen> {
       // Show loading indicator for camera operations
       if (source == ImageSource.camera) {
         showTastySnackbar(
-          'Opening Camera',
-          'Please wait while the camera opens...',
+          'Opening Camera, Chef',
+          'Please wait while the camera opens, Chef...',
           context,
           backgroundColor: kAccent,
         );
@@ -856,8 +856,8 @@ class _DineInScreenState extends State<DineInScreen> {
 
             // Show success message
             showTastySnackbar(
-              'Analysis Complete!',
-              'Found ${ingredientNames.length} ingredients and ${suggestedMeals.length} recipe suggestions. Meals are being processed.',
+              'Pantry Analysis Complete, Chef!',
+              'Found ${ingredientNames.length} ingredients and ${suggestedMeals.length} recipe suggestions. Dishes are being prepared.',
               context,
               backgroundColor: kAccent,
             );
@@ -874,7 +874,7 @@ class _DineInScreenState extends State<DineInScreen> {
 
             // Show success message
             showTastySnackbar(
-              'Analysis Complete!',
+              'Pantry Analysis Complete, Chef!',
               'Found ${ingredientNames.length} ingredients and ${suggestedMeals.length} recipe suggestions',
               context,
               backgroundColor: kAccent,
@@ -889,7 +889,7 @@ class _DineInScreenState extends State<DineInScreen> {
 
             // Show success message for ingredients only
             showTastySnackbar(
-              'Analysis Complete!',
+              'Pantry Analysis Complete, Chef!',
               'Found ${ingredientNames.length} ingredients',
               context,
               backgroundColor: kAccent,
@@ -897,7 +897,7 @@ class _DineInScreenState extends State<DineInScreen> {
           } else {
             // In pantry mode, just show success message for ingredients
             showTastySnackbar(
-              'Analysis Complete!',
+              'Pantry Analysis Complete, Chef!',
               'Found ${ingredientNames.length} ingredients',
               context,
               backgroundColor: kAccent,
@@ -907,8 +907,8 @@ class _DineInScreenState extends State<DineInScreen> {
       } else {
         debugPrint('No ingredients found in analysis result');
         showTastySnackbar(
-          'Analysis Complete',
-          'No ingredients detected in the image',
+          'Pantry Analysis Complete, Chef',
+          'No ingredients detected in the image, Chef',
           context,
           backgroundColor: Colors.orange,
         );
@@ -977,7 +977,7 @@ class _DineInScreenState extends State<DineInScreen> {
           ),
           backgroundColor: isDarkMode ? kDarkGrey : kWhite,
           title: Text(
-            'Save to Pantry?',
+            'Stock the Pantry, Chef?',
             style: TextStyle(
               color: isDarkMode ? kWhite : kBlack,
             ),
@@ -992,7 +992,7 @@ class _DineInScreenState extends State<DineInScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Save these ingredients to your pantry?',
+                  'Save these ingredients to your pantry, Chef?',
                   style: TextStyle(
                     color: isDarkMode ? kLightGrey : kDarkGrey,
                     fontSize: getTextScale(3, context),
@@ -1174,15 +1174,16 @@ class _DineInScreenState extends State<DineInScreen> {
                   : () async {
                       Navigator.pop(dialogContext);
                       try {
-                        await _saveIngredientsToPantry(selectedIngredients.toList());
+                        await _saveIngredientsToPantry(
+                            selectedIngredients.toList());
                         // Refresh pantry items to show the newly added items
                         await _fetchPantryItems();
                       } catch (e) {
                         debugPrint('Error saving ingredients to pantry: $e');
                         if (mounted && context.mounted) {
                           showTastySnackbar(
-                            'Error',
-                            'Failed to save ingredients to pantry. Please try again.',
+                            'Pantry Stock Failed, Chef',
+                            'Failed to save ingredients to pantry. Please try again, Chef.',
                             context,
                             backgroundColor: Colors.red,
                           );
@@ -1193,7 +1194,7 @@ class _DineInScreenState extends State<DineInScreen> {
                 backgroundColor: kAccent,
               ),
               child: Text(
-                'Save Selected (${selectedIngredients.length})',
+                'Stock Selected (${selectedIngredients.length})',
                 style: TextStyle(color: kWhite),
               ),
             ),
@@ -1218,6 +1219,7 @@ class _DineInScreenState extends State<DineInScreen> {
       'Comfort Food',
       'Healthy',
       'Gourmet',
+      'Monochromatic'
     ];
 
     // Combine cuisine types with common styles, avoiding duplicates
@@ -1242,7 +1244,7 @@ class _DineInScreenState extends State<DineInScreen> {
         ),
         backgroundColor: isDarkMode ? kDarkGrey : kWhite,
         title: Text(
-          'Select Cuisine/Style',
+          'Select Cuisine/Style, Chef',
           style: TextStyle(
             color: isDarkMode ? kWhite : kBlack,
             fontWeight: FontWeight.w600,
@@ -1328,8 +1330,8 @@ class _DineInScreenState extends State<DineInScreen> {
 
     if (ingredientsToUse.length < 3) {
       showTastySnackbar(
-        'Not Enough Ingredients',
-        'Please add at least 3 ingredients to generate recipes',
+        'Not Enough Ingredients, Chef',
+        'Please add at least 3 ingredients to generate recipes, Chef',
         context,
         backgroundColor: Colors.orange,
       );
@@ -1379,7 +1381,8 @@ class _DineInScreenState extends State<DineInScreen> {
       if (recipes['source'] == 'failed' || recipes['error'] == true) {
         showMealGenerationErrorDialog(
           context,
-          recipes['message'] ?? 'Failed to generate meals. Please try again.',
+          recipes['message'] ??
+              'Failed to generate dishes. Please try again, Chef.',
           onRetry: () async {
             try {
               final retryRecipes =
@@ -1471,7 +1474,7 @@ class _DineInScreenState extends State<DineInScreen> {
               ListTile(
                 leading: Icon(Icons.inventory_2, color: kAccent),
                 title: Text(
-                  'Add to Pantry',
+                  'Stock in Pantry',
                   style: TextStyle(
                     color: isDarkMode ? kWhite : kBlack,
                   ),
@@ -1486,8 +1489,8 @@ class _DineInScreenState extends State<DineInScreen> {
                     debugPrint('Error saving ingredient to pantry: $e');
                     if (mounted && context.mounted) {
                       showTastySnackbar(
-                        'Error',
-                        'Failed to save ingredient to pantry. Please try again.',
+                        'Pantry Stock Failed, Chef',
+                        'Failed to save ingredient to pantry. Please try again, Chef.',
                         context,
                         backgroundColor: Colors.red,
                       );
@@ -1512,7 +1515,7 @@ class _DineInScreenState extends State<DineInScreen> {
             ListTile(
               leading: Icon(Icons.close, color: Colors.orange),
               title: Text(
-                'Remove from List',
+                'Remove from Station',
                 style: TextStyle(
                   color: isDarkMode ? kWhite : kBlack,
                 ),
@@ -1551,8 +1554,8 @@ class _DineInScreenState extends State<DineInScreen> {
 
       if (mounted) {
         showTastySnackbar(
-          'Removed',
-          'Removed from pantry',
+          'Removed, Chef',
+          'Removed from pantry, Chef',
           context,
           backgroundColor: kAccent,
         );
@@ -1585,7 +1588,7 @@ class _DineInScreenState extends State<DineInScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'My Pantry',
+              'My Pantry, Chef',
               style: TextStyle(
                 color: isDarkMode ? kWhite : kBlack,
               ),
@@ -1761,8 +1764,8 @@ class _DineInScreenState extends State<DineInScreen> {
 
       if (mounted) {
         showTastySnackbar(
-          'Pantry Updated',
-          '$savedCount ingredient(s) saved to your pantry',
+          'Pantry Stocked, Chef',
+          '$savedCount ingredient(s) saved to your pantry, Chef',
           context,
           backgroundColor: kAccent,
         );
@@ -1829,7 +1832,7 @@ class _DineInScreenState extends State<DineInScreen> {
     if (pantryItems.isEmpty) {
       showTastySnackbar(
         'Empty Pantry, Chef',
-        'The pantry is empty. Add ingredients to pantry mode first, Chef.',
+        'The pantry is empty. Stock ingredients in pantry mode first, Chef.',
         context,
         backgroundColor: Colors.orange,
       );
@@ -1988,16 +1991,16 @@ class _DineInScreenState extends State<DineInScreen> {
                         _saveFridgeData();
                         Navigator.pop(dialogContext);
                         showTastySnackbar(
-                          'Added',
-                          'Added ${newItems.length} ingredient(s) from pantry',
+                          'Added, Chef',
+                          'Added ${newItems.length} ingredient(s) from pantry, Chef',
                           context,
                           backgroundColor: kAccent,
                         );
                       } else {
                         Navigator.pop(dialogContext);
                         showTastySnackbar(
-                          'Already Added',
-                          'Selected items are already in your list',
+                          'Already Stocked, Chef',
+                          'Selected items are already in your station, Chef',
                           context,
                           backgroundColor: Colors.orange,
                         );
@@ -2165,8 +2168,8 @@ class _DineInScreenState extends State<DineInScreen> {
 
     if (ingredientsToUse.isEmpty) {
       showTastySnackbar(
-        'No ingredients in the pantry, Chef',
-        'Add ingredients to your ${isPantryMode ? "pantry" : "fridge"} first, Chef',
+        'Pantry Empty, Chef',
+        'Stock ingredients in your ${isPantryMode ? "pantry" : "fridge"} first, Chef',
         context,
         backgroundColor: kRed,
       );
@@ -2241,8 +2244,8 @@ class _DineInScreenState extends State<DineInScreen> {
       }
 
       showTastySnackbar(
-        'Recipe Saved!',
-        'Recipe has been saved and will be processed by the cloud',
+        'Recipe Saved, Chef!',
+        'Recipe has been saved and will be processed by the kitchen, Chef',
         context,
         backgroundColor: kAccent,
       );
@@ -2498,7 +2501,7 @@ class _DineInScreenState extends State<DineInScreen> {
                             ),
                             SizedBox(height: getPercentageHeight(1, context)),
                             Text(
-                              'Analyzing ingredients...',
+                              'Analyzing ingredients, Chef...',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: kWhite,
                                 fontWeight: FontWeight.w600,
@@ -2609,7 +2612,7 @@ class _DineInScreenState extends State<DineInScreen> {
                   },
                   decoration: InputDecoration(
                     hintText:
-                        'Enter ingredients separated by commas (e.g., chicken, rice, broccoli)',
+                        'Enter ingredients separated by commas, Chef (e.g., chicken, rice, broccoli)',
                     hintStyle: textTheme.bodySmall?.copyWith(
                       color: isDarkMode ? kLightGrey : kDarkGrey,
                     ),
@@ -2645,7 +2648,7 @@ class _DineInScreenState extends State<DineInScreen> {
                     children: [
                       Text(
                         isPantryMode
-                            ? 'Quick Add Common Pantry Items'
+                            ? 'Quick Stock Common Pantry Items'
                             : 'Quick Add Common Fridge Items',
                         style: textTheme.bodySmall?.copyWith(
                           color: isDarkMode ? kLightGrey : kDarkGrey,
@@ -2682,7 +2685,7 @@ class _DineInScreenState extends State<DineInScreen> {
                           }
                         },
                         child: Text(
-                          'Add All',
+                          'Stock All',
                           style: textTheme.bodySmall?.copyWith(
                             color: kAccent,
                             fontSize: getTextScale(2.5, context),
@@ -2809,7 +2812,7 @@ class _DineInScreenState extends State<DineInScreen> {
                       icon: Icon(Icons.camera_alt,
                           color: isAnalyzingFridge ? kLightGrey : kAccent),
                       label: Text(
-                        isAnalyzingFridge ? 'Analyzing...' : 'Add Photo',
+                        isAnalyzingFridge ? 'Analyzing...' : 'Capture Photo',
                         style: textTheme.bodyMedium?.copyWith(
                             color: isAnalyzingFridge ? kLightGrey : kAccent),
                       ),
@@ -2824,7 +2827,7 @@ class _DineInScreenState extends State<DineInScreen> {
                     child: AppButton(
                       text: isAnalyzingFridge
                           ? 'Analyzing...'
-                          : 'Add Ingredients',
+                          : 'Stock Ingredients',
                       onPressed: isAnalyzingFridge
                           ? () {}
                           : () => _addManualIngredient(),
@@ -2868,34 +2871,6 @@ class _DineInScreenState extends State<DineInScreen> {
         ),
 
         SizedBox(height: getPercentageHeight(1, context)),
-
-        // Use in Meal Plan button (when pantry mode is enabled)
-        if (isPantryMode && pantryItems.isNotEmpty) ...[
-          SizedBox(height: getPercentageHeight(1, context)),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _navigateToMealPlanningWithPantry,
-              icon: Icon(Icons.restaurant_menu, color: kWhite),
-              label: Text(
-                'Use in Meal Plan',
-                style: textTheme.titleMedium?.copyWith(
-                  color: kWhite,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kAccent,
-                padding: EdgeInsets.symmetric(
-                  vertical: getPercentageHeight(1.5, context),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-        ],
 
         // Recently used ingredients (only in fridge mode)
         if (!isPantryMode && recentlyUsedIngredients.isNotEmpty) ...[
@@ -2988,7 +2963,7 @@ class _DineInScreenState extends State<DineInScreen> {
           Text(
             isPantryMode
                 ? 'Your Pantry (${pantryItems.length})'
-                : 'Your Fridge Items (${fridgeIngredients.length})',
+                : 'Your Fridge Station (${fridgeIngredients.length})',
             style: textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: kAccent,
@@ -3088,7 +3063,7 @@ class _DineInScreenState extends State<DineInScreen> {
                 label: Text(
                   selectedCuisineFilter != null
                       ? 'Filter: ${selectedCuisineFilter}'
-                      : 'Select Cuisine/Style Filter',
+                      : 'Select Cuisine/Style Filter, Chef',
                   style: textTheme.bodyMedium?.copyWith(
                     color: selectedCuisineFilter != null
                         ? kAccent
@@ -3125,8 +3100,8 @@ class _DineInScreenState extends State<DineInScreen> {
                 width: double.infinity,
                 child: AppButton(
                   text: isAnalyzingFridge
-                      ? 'Generating Recipes...'
-                      : 'Generate Recipes',
+                      ? 'Preparing Dishes...'
+                      : 'Generate Meals',
                   onPressed: isAnalyzingFridge
                       ? () {}
                       : () {
@@ -3151,7 +3126,7 @@ class _DineInScreenState extends State<DineInScreen> {
                     SizedBox(width: getPercentageWidth(2, context)),
                     Expanded(
                       child: Text(
-                        'Add at least 3 ingredients to generate recipes',
+                        'Add at least 3 ingredients to generate recipes, Chef',
                         style: textTheme.bodySmall?.copyWith(
                           color: Colors.orange,
                         ),
@@ -3172,7 +3147,7 @@ class _DineInScreenState extends State<DineInScreen> {
               onPressed: () => _clearFridge(),
               icon: Icon(Icons.clear_all, color: kAccentLight),
               label: Text(
-                'Clear All',
+                'Clear Station',
                 style: textTheme.bodySmall?.copyWith(color: kAccentLight),
               ),
             ),
@@ -3187,7 +3162,7 @@ class _DineInScreenState extends State<DineInScreen> {
           Row(
             children: [
               Text(
-                'Recipes Using Your Ingredients',
+                'Dishes Using Your Ingredients',
                 style: textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: kAccent,
@@ -3331,21 +3306,21 @@ class _DineInScreenState extends State<DineInScreen> {
                   'icon': Icons.emoji_events,
                   'title': 'Fridge Mode',
                   'description':
-                      'Add ingredients from your fridge or take a photo!',
+                      'Add ingredients from your fridge or take a photo, Chef!',
                   'color': kBlue,
                 },
                 {
                   'icon': Icons.auto_awesome,
                   'title': 'AI Recipe Generation',
                   'description':
-                      'Get personalized recipes using your ingredients',
+                      'Get personalized dishes using your ingredients, Chef',
                   'color': kBlue,
                 },
                 {
                   'icon': Icons.emoji_events,
                   'title': 'Pantry Mode',
                   'description':
-                      'Add ingredients to your pantry and use in meal planning!',
+                      'Stock ingredients in your pantry and use in meal planning, Chef!',
                   'color': kBlue,
                 },
               ],
@@ -3358,7 +3333,7 @@ class _DineInScreenState extends State<DineInScreen> {
         elevation: 2,
       ),
       body: Container(
-       decoration: BoxDecoration(
+        decoration: BoxDecoration(
           image: DecorationImage(
             image: AssetImage(
               isDarkMode
@@ -3368,7 +3343,7 @@ class _DineInScreenState extends State<DineInScreen> {
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
               isDarkMode
-                  ? Colors.black.withOpacity(0.5)   
+                  ? Colors.black.withOpacity(0.5)
                   : Colors.white.withOpacity(0.5),
               isDarkMode ? BlendMode.darken : BlendMode.lighten,
             ),
@@ -3382,7 +3357,7 @@ class _DineInScreenState extends State<DineInScreen> {
                     const CircularProgressIndicator(color: kAccent),
                     SizedBox(height: getPercentageHeight(2, context)),
                     Text(
-                      'Finding perfect ingredient pair...',
+                      'Finding perfect ingredient pair, Chef...',
                       style: textTheme.bodyMedium?.copyWith(
                         color: isDarkMode ? kWhite : kBlack,
                       ),
@@ -3404,8 +3379,8 @@ class _DineInScreenState extends State<DineInScreen> {
                       Center(
                         child: Text(
                           isPantryMode
-                              ? 'What\'s in Your Pantry?'
-                              : 'What\'s in Your Fridge?',
+                              ? 'Lets Organize the Pantry, Chef?'
+                              : 'Lets Fire Up the Stove, Chef?',
                           textAlign: TextAlign.center,
                           style: textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
@@ -3418,8 +3393,8 @@ class _DineInScreenState extends State<DineInScreen> {
                       Center(
                         child: Text(
                           isPantryMode
-                              ? 'Add ingredients to your pantry and use in meal planning!'
-                              : 'Add ingredients from your fridge and get personalized recipes!',
+                              ? 'Stock ingredients in your pantry and use in meal planning, Chef!'
+                              : 'Add ingredients from your fridge and get personalized recipes, Chef!',
                           textAlign: TextAlign.center,
                           style: textTheme.bodyMedium?.copyWith(
                             color: isDarkMode ? kLightGrey : kDarkGrey,

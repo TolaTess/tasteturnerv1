@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../helper/utils.dart';
+import 'notification_service.dart';
 
 enum PlantCategory {
   vegetable,
@@ -225,6 +226,51 @@ class PlantDetectionService extends GetxController {
     'star anise',
   ];
 
+  /// Normalize ingredient name for comparison (handles plurals, spaces, etc.)
+  /// Examples: "apples" -> "apple", "sesame oil" -> "sesameoil", "SesameOil" -> "sesameoil"
+  String _normalizeIngredientName(String name) {
+    // Convert to lowercase and remove spaces
+    String normalized =
+        name.toLowerCase().replaceAll(RegExp(r'\s+'), '').trim();
+
+    // Remove common plural endings
+    if (normalized.endsWith('ies')) {
+      // berries -> berri -> berry (but we'll keep as is for now)
+      normalized = normalized.substring(0, normalized.length - 3) + 'y';
+    } else if (normalized.endsWith('es') && normalized.length > 3) {
+      // Handle words ending in 'es'
+      // First check if removing just 's' gives us a word ending in 'e' (like "apples" -> "apple")
+      final withJustS =
+          normalized.substring(0, normalized.length - 1); // Remove just 's'
+      if (withJustS.endsWith('e') && withJustS.length > 1) {
+        // "apples" -> "apple" (remove just 's', not 'es')
+        normalized = withJustS;
+      } else {
+        // Handle other 'es' endings like "tomatoes" -> "tomato"
+        final beforeEs = normalized.substring(0, normalized.length - 2);
+        // Only remove 'es' if the word before it doesn't end in certain letters
+        // This prevents "sesame" -> "sesam" (since "sesam" ends with 'e', but we already handled that above)
+        if (!beforeEs.endsWith('s') &&
+            !beforeEs.endsWith('x') &&
+            !beforeEs.endsWith('z') &&
+            !beforeEs.endsWith('ch') &&
+            !beforeEs.endsWith('sh')) {
+          normalized = beforeEs;
+        }
+      }
+    } else if (normalized.endsWith('s') && normalized.length > 3) {
+      // Remove trailing 's' for simple plurals (apples -> apple)
+      // But avoid removing 's' from words that naturally end in 's'
+      final beforeS = normalized.substring(0, normalized.length - 1);
+      // Only remove 's' if the word before doesn't end in 's' (to avoid "rice" -> "ric")
+      if (!beforeS.endsWith('s')) {
+        normalized = beforeS;
+      }
+    }
+
+    return normalized;
+  }
+
   /// Detect plants from a meal's ingredients
   List<PlantIngredient> detectPlantsFromMeal(Meal meal) {
     final plants = <PlantIngredient>[];
@@ -232,10 +278,11 @@ class PlantDetectionService extends GetxController {
 
     for (final ingredientEntry in meal.ingredients.entries) {
       final ingredientName = ingredientEntry.key.toLowerCase().trim();
+      final normalizedName = _normalizeIngredientName(ingredientName);
 
-      // Skip if already seen (case-insensitive)
-      if (seenNames.contains(ingredientName)) continue;
-      seenNames.add(ingredientName);
+      // Skip if already seen (normalized comparison)
+      if (seenNames.contains(normalizedName)) continue;
+      seenNames.add(normalizedName);
 
       final category = _categorizeIngredient(ingredientName);
       if (category != null) {
@@ -264,10 +311,11 @@ class PlantDetectionService extends GetxController {
 
     for (final ingredientEntry in ingredients.entries) {
       final ingredientName = ingredientEntry.key.toLowerCase().trim();
+      final normalizedName = _normalizeIngredientName(ingredientName);
 
-      // Skip if already seen (case-insensitive)
-      if (seenNames.contains(ingredientName)) continue;
-      seenNames.add(ingredientName);
+      // Skip if already seen (normalized comparison)
+      if (seenNames.contains(normalizedName)) continue;
+      seenNames.add(normalizedName);
 
       final category = _categorizeIngredient(ingredientName);
       if (category != null) {
@@ -278,14 +326,9 @@ class PlantDetectionService extends GetxController {
           points: points,
           firstSeen: date,
         ));
-        debugPrint(
-            '🌱 Detected plant: ${ingredientEntry.key} -> ${category.name}');
-      } else {
-        debugPrint('🌱 Not a plant: ${ingredientEntry.key}');
       }
     }
 
-    debugPrint('🌱 Total plants detected: ${plants.length}');
     return plants;
   }
 
@@ -451,24 +494,47 @@ class PlantDetectionService extends GetxController {
                 .toList() ??
             [];
 
+        debugPrint(
+            '🌱 Found ${existingList.length} existing plants in Firestore (from meal)');
+
         for (final plant in existingList) {
-          existingPlants[plant.name.toLowerCase()] = plant;
+          final normalizedKey = _normalizeIngredientName(plant.name);
+          existingPlants[normalizedKey] = plant;
         }
+      } else {
+        debugPrint(
+            '🌱 No existing plant tracking document found, creating new one (from meal)');
       }
 
+      debugPrint('🌱 Detected ${detectedPlants.length} new plants from meal');
+      debugPrint(
+          '🌱 New plants: ${detectedPlants.map((p) => p.name).join(", ")}');
+
       // Add new plants (case-insensitive deduplication)
+      int newPlantsAdded = 0;
+      int existingPlantsUpdated = 0;
       for (final plant in detectedPlants) {
         final key = plant.name.toLowerCase();
         if (!existingPlants.containsKey(key)) {
           existingPlants[key] = plant;
+          newPlantsAdded++;
+          debugPrint('🌱 Adding new plant: ${plant.name}');
         } else {
           // Update firstSeen if this is earlier
           final existing = existingPlants[key]!;
           if (plant.firstSeen.isBefore(existing.firstSeen)) {
             existingPlants[key] = plant;
+            existingPlantsUpdated++;
+            debugPrint(
+                '🌱 Updating firstSeen for existing plant: ${plant.name}');
+          } else {
+            debugPrint('🌱 Plant already exists (skipping): ${plant.name}');
           }
         }
       }
+
+      debugPrint(
+          '🌱 Total plants after merge: ${existingPlants.length} (Added: $newPlantsAdded, Updated: $existingPlantsUpdated)');
 
       // Calculate total points
       final totalPoints = existingPlants.values
@@ -476,24 +542,41 @@ class PlantDetectionService extends GetxController {
           .fold(0.0, (sum, points) => sum + points);
 
       // Calculate previous and new levels
-      final previousCount = doc.exists
-          ? (doc.data()?['uniquePlants'] as List<dynamic>?)?.length ?? 0
-          : 0;
+      // Use the count from existingPlants map (which includes merged plants)
+      final previousCount = existingPlants.length -
+          newPlantsAdded; // Count before adding new ones
       final newCount = existingPlants.length;
+
+      debugPrint(
+          '🌱 Previous plant count: $previousCount, New count: $newCount');
 
       final previousLevel = _calculateLevel(previousCount);
       final newLevel = _calculateLevel(newCount);
 
-      // Save to Firestore
+      // Prepare the plant data
+      final uniquePlantsList =
+          existingPlants.values.map((p) => p.name).toList();
+      final plantDetailsList =
+          existingPlants.values.map((p) => p.toMap()).toList();
+
+      debugPrint(
+          '🌱 Saving ${uniquePlantsList.length} unique plants to Firestore (from meal)');
+      debugPrint('🌱 Plant names: ${uniquePlantsList.join(", ")}');
+
+      // Save to Firestore - use set() with merge to ensure all fields are updated
+      // Note: merge: true merges top-level fields, but replaces arrays (which is what we want)
       await docRef.set({
         'weekId': weekId,
         'weekStart': Timestamp.fromDate(weekStart),
-        'uniquePlants': existingPlants.values.map((p) => p.name).toList(),
-        'plantDetails': existingPlants.values.map((p) => p.toMap()).toList(),
+        'uniquePlants': uniquePlantsList,
+        'plantDetails': plantDetailsList,
         'totalPoints': totalPoints,
         'currentLevel': newLevel,
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      debugPrint(
+          '🌱 Successfully saved plant tracking data to Firestore (from meal)');
 
       // Check for milestone achievement and send notification
       if (newLevel > previousLevel && newLevel > 0) {
@@ -515,7 +598,10 @@ class PlantDetectionService extends GetxController {
       final weekId = _getWeekId(weekStart);
       final detectedPlants = detectPlantsFromIngredients(ingredients, mealDate);
 
-      if (detectedPlants.isEmpty) return;
+      if (detectedPlants.isEmpty) {
+        debugPrint('🌱 No plants detected from ingredients');
+        return;
+      }
 
       final docRef = firestore
           .collection('users')
@@ -533,24 +619,50 @@ class PlantDetectionService extends GetxController {
                 .toList() ??
             [];
 
+        debugPrint(
+            '🌱 Found ${existingList.length} existing plants in Firestore');
+
         for (final plant in existingList) {
-          existingPlants[plant.name.toLowerCase()] = plant;
+          final normalizedKey = _normalizeIngredientName(plant.name);
+          existingPlants[normalizedKey] = plant;
         }
+      } else {
+        debugPrint(
+            '🌱 No existing plant tracking document found, creating new one');
       }
 
-      // Add new plants (case-insensitive deduplication)
+      debugPrint(
+          '🌱 Detected ${detectedPlants.length} new plants from ingredients');
+      debugPrint(
+          '🌱 New plants: ${detectedPlants.map((p) => p.name).join(", ")}');
+
+      // Add new plants (normalized deduplication)
+      int newPlantsAdded = 0;
+      int existingPlantsUpdated = 0;
       for (final plant in detectedPlants) {
-        final key = plant.name.toLowerCase();
-        if (!existingPlants.containsKey(key)) {
-          existingPlants[key] = plant;
+        final normalizedKey = _normalizeIngredientName(plant.name);
+        if (!existingPlants.containsKey(normalizedKey)) {
+          existingPlants[normalizedKey] = plant;
+          newPlantsAdded++;
+          debugPrint(
+              '🌱 Adding new plant: ${plant.name} (normalized: $normalizedKey)');
         } else {
           // Update firstSeen if this is earlier
-          final existing = existingPlants[key]!;
+          final existing = existingPlants[normalizedKey]!;
           if (plant.firstSeen.isBefore(existing.firstSeen)) {
-            existingPlants[key] = plant;
+            existingPlants[normalizedKey] = plant;
+            existingPlantsUpdated++;
+            debugPrint(
+                '🌱 Updating firstSeen for existing plant: ${plant.name} (matched with: ${existing.name})');
+          } else {
+            debugPrint(
+                '🌱 Plant already exists (skipping): ${plant.name} (matched with: ${existing.name})');
           }
         }
       }
+
+      debugPrint(
+          '🌱 Total plants after merge: ${existingPlants.length} (Added: $newPlantsAdded, Updated: $existingPlantsUpdated)');
 
       // Calculate total points
       final totalPoints = existingPlants.values
@@ -558,24 +670,40 @@ class PlantDetectionService extends GetxController {
           .fold(0.0, (sum, points) => sum + points);
 
       // Calculate previous and new levels
-      final previousCount = doc.exists 
-          ? (doc.data()?['uniquePlants'] as List<dynamic>?)?.length ?? 0
-          : 0;
+      // Use the count from existingPlants map (which includes merged plants)
+      final previousCount = existingPlants.length -
+          newPlantsAdded; // Count before adding new ones
       final newCount = existingPlants.length;
-      
+
+      debugPrint(
+          '🌱 Previous plant count: $previousCount, New count: $newCount');
+
       final previousLevel = _calculateLevel(previousCount);
       final newLevel = _calculateLevel(newCount);
 
-      // Save to Firestore
+      // Prepare the plant data
+      final uniquePlantsList =
+          existingPlants.values.map((p) => p.name).toList();
+      final plantDetailsList =
+          existingPlants.values.map((p) => p.toMap()).toList();
+
+      debugPrint(
+          '🌱 Saving ${uniquePlantsList.length} unique plants to Firestore');
+      debugPrint('🌱 Plant names: ${uniquePlantsList.join(", ")}');
+
+      // Save to Firestore - use set() with merge to ensure all fields are updated
+      // Note: merge: true merges top-level fields, but replaces arrays (which is what we want)
       await docRef.set({
         'weekId': weekId,
         'weekStart': Timestamp.fromDate(weekStart),
-        'uniquePlants': existingPlants.values.map((p) => p.name).toList(),
-        'plantDetails': existingPlants.values.map((p) => p.toMap()).toList(),
+        'uniquePlants': uniquePlantsList,
+        'plantDetails': plantDetailsList,
         'totalPoints': totalPoints,
         'currentLevel': newLevel,
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      debugPrint('🌱 Successfully saved plant tracking data to Firestore');
 
       // Check for milestone achievement and send notification
       if (newLevel > previousLevel && newLevel > 0) {
@@ -583,6 +711,7 @@ class PlantDetectionService extends GetxController {
       }
     } catch (e) {
       debugPrint('Error tracking plants from ingredients: $e');
+      debugPrint('Error stack trace: ${e.toString()}');
     }
   }
 
@@ -649,12 +778,29 @@ class PlantDetectionService extends GetxController {
           return; // Should not happen
       }
 
-      // Send notification
-      await notificationService.showNotification(
-        id: 2000 + level, // Unique ID for each level
-        title: '🌈 Rainbow Milestone: $levelName!',
-        body: message,
-      );
+      // Send notification with payload to navigate to Rainbow Tracker
+      try {
+        final notificationService = NotificationService();
+        final payload = {
+          'type': 'plant_milestone',
+          'level': level,
+          'levelName': levelName,
+          'plantCount': plantCount,
+          'weekStart':
+              weekStart.toIso8601String(), // ISO 8601 format for parsing
+        };
+
+        await notificationService.showNotification(
+          id: 2000 + level, // Unique ID for each level
+          title: 'Rainbow Milestone: $levelName!',
+          body: message,
+          payload: payload,
+        );
+        debugPrint('🌱 Successfully sent notification for level $level');
+      } catch (e) {
+        debugPrint('🌱 Error showing notification: $e');
+        // Continue to mark as notified even if notification fails
+      }
 
       // Mark this level as notified
       notifiedLevels.add(level);

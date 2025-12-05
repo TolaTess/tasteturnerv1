@@ -81,45 +81,45 @@ class _InspirationScreenState extends State<InspirationScreen> {
     if (!mounted) return;
 
     try {
-    // Clear cache and refresh
+      // Clear cache and refresh
       if (mounted) {
-    setState(() {
-      selectedGoal = 'all';
-    });
+        setState(() {
+          selectedGoal = 'all';
+        });
       }
 
-    PostService.instance.clearCategoryCache('all');
+      PostService.instance.clearCategoryCache('all');
 
       // Trigger refresh in SearchContentGrid with null check
       final gridState = _gridKey.currentState;
       if (gridState != null && mounted) {
         await gridState.fetchContent();
-    }
+      }
 
-    // Show success feedback
+      // Show success feedback
       if (mounted) {
-        _showSuccessSnackbar('Posts refreshed!');
+        _showSuccessSnackbar('Station refreshed, Chef!');
       }
     } catch (e) {
       debugPrint('Error refreshing posts: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
                 Icon(Icons.error_outline, color: kWhite, size: 20),
-              SizedBox(width: 8),
-                Text('Failed to refresh posts. Please try again.'),
-            ],
-          ),
+                SizedBox(width: 8),
+                Text('Failed to refresh station, Chef. Please try again.'),
+              ],
+            ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
-        ),
-      );
+        );
       }
     }
   }
@@ -146,7 +146,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
       tutorials: [
         TutorialStep(
           tutorialId: 'add_diet_button',
-          message: 'This icon on a post means it matches your diet!',
+          message: 'This icon on a post means it matches your Menu, Chef!',
           targetKey: _addDietButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -158,65 +158,28 @@ class _InspirationScreenState extends State<InspirationScreen> {
   }
 
   /// Build the AppBar with title, info icon, and filter button
-  PreferredSizeWidget _buildAppBar(
-      BuildContext context, TextTheme textTheme, bool isDarkMode,
-      String? userGoal) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, TextTheme textTheme,
+      bool isDarkMode, String? userGoal) {
     return AppBar(
-        backgroundColor: kAccent,
-        toolbarHeight: getPercentageHeight(11, context),
-        automaticallyImplyLeading: false,
-        centerTitle: true,
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "What's on Your Plate?",
-                    style: textTheme.displayMedium
-                        ?.copyWith(fontSize: getTextScale(5.3, context)),
-                  ),
-                  SizedBox(width: getPercentageWidth(2, context)),
-                  InfoIconWidget(
-                    title: 'Community Inspiration',
-                    description:
-                        'Discover and share healthy meal ideas with the community',
-                    details: const [
-                      {
-                        'icon': Icons.check_circle,
-                        'title': 'Diet Matches',
-                        'description':
-                            'Posts marked with this icon match your dietary preferences',
-                        'color': kAccent,
-                      },
-                      {
-                        'icon': Icons.auto_awesome,
-                        'title': 'Filter by Recipe',
-                        'description': 'Filter posts by recipes only',
-                        'color': kAccent,
-                      },
-                      {
-                        'icon': Icons.people,
-                        'title': 'Community Posts',
-                        'description': 'See what others are cooking and eating',
-                        'color': kAccent,
-                      },
-                      {
-                        'icon': Icons.filter_list,
-                        'title': 'Analyze Meals',
-                        'description':
-                            'Analyze any post with AI and get insights',
-                        'color': kAccent,
-                      },
-                    ],
-                    iconColor: isDarkMode ? kWhite : kDarkGrey,
-                    tooltip: 'Inspiration Information',
-                  ),
-                _buildRecipeFilterButton(context, textTheme, isDarkMode),
+      backgroundColor: kAccent,
+      toolbarHeight: getPercentageHeight(13, context),
+      automaticallyImplyLeading: false,
+      centerTitle: true,
+      title: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: getPercentageHeight(2, context)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  "Chef, What's on Your Plate?",
+                  style: textTheme.displayMedium
+                      ?.copyWith(fontSize: getTextScale(5.3, context)),
+                ),
               ],
             ),
           ),
@@ -230,27 +193,25 @@ class _InspirationScreenState extends State<InspirationScreen> {
   Widget _buildRecipeFilterButton(
       BuildContext context, TextTheme textTheme, bool isDarkMode) {
     return IconButton(
-                    icon: Icon(
-                      filterByRecipe
-                          ? Icons.restaurant_menu
-                          : Icons.restaurant_menu_outlined,
-                      color: filterByRecipe
-                          ? kAccentLight.withValues(alpha: 0.7)
-                          : kWhite.withOpacity(0.7),
-                    ),
-                    tooltip: 'Show posts with recipes only',
-                    onPressed: () {
+      icon: Icon(
+        filterByRecipe ? Icons.restaurant_menu : Icons.restaurant_menu_outlined,
+        color: filterByRecipe
+            ? kAccentLight.withValues(alpha: 0.7)
+            : kWhite.withOpacity(0.7),
+      ),
+      tooltip: 'Show posts with dishes only, Chef',
+      onPressed: () {
         if (!mounted) return;
 
-                      setState(() {
-                        filterByRecipe = !filterByRecipe;
-                      });
+        setState(() {
+          filterByRecipe = !filterByRecipe;
+        });
 
-                      // Show feedback
+        // Show feedback
         _showInfoSnackbar(
-                            filterByRecipe
-                                ? 'Showing posts with recipes only'
-                                : 'Showing all posts',
+          filterByRecipe
+              ? 'Showing posts with dishes only, Chef'
+              : 'Showing all posts, Chef',
         );
       },
     );
@@ -259,47 +220,94 @@ class _InspirationScreenState extends State<InspirationScreen> {
   /// Build diet match indicator
   Widget _buildDietMatchIndicator(
       BuildContext context, TextTheme textTheme, String? userGoal) {
-    return Row(
-              key: _addDietButtonKey,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.check_circle,
-                  color: kWhite,
-                  size: getIconScale(3.5, context),
-                ),
-        const SizedBox(width: 8),
-                Text(
-                  "Meals that match your $userGoal goal",
-                  style: textTheme.bodySmall
-                      ?.copyWith(fontSize: getTextScale(2.5, context)),
-                ),
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    return Column(
+      children: [
+        Row(
+          key: _addDietButtonKey,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle,
+              color: kWhite,
+              size: getIconScale(3.5, context),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              "Dishes that match your $userGoal Menu, Chef",
+              style: textTheme.bodySmall
+                  ?.copyWith(fontSize: getTextScale(2.5, context)),
+            ),
+          ],
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            InfoIconWidget(
+              title: 'Station Guide, Chef',
+              description:
+                  'Discover and share healthy meal ideas with fellow chefs in the kitchen.',
+              details: const [
+                {
+                  'icon': Icons.check_circle,
+                  'title': 'Menu Matches',
+                  'description':
+                      'Posts marked with this icon match your Menu preferences, Chef',
+                  'color': kAccent,
+                },
+                {
+                  'icon': Icons.auto_awesome,
+                  'title': 'Filter by Cookbook',
+                  'description': 'Filter posts by dishes only, Chef',
+                  'color': kAccent,
+                },
+                {
+                  'icon': Icons.people,
+                  'title': 'Chef Community',
+                  'description': 'See what other chefs are plating, Chef',
+                  'color': kAccent,
+                },
+                {
+                  'icon': Icons.filter_list,
+                  'title': 'Analyze Dishes',
+                  'description':
+                      'Analyze any post with Turner the Sous Chef and get kitchen insights, Chef',
+                  'color': kAccent,
+                },
               ],
+              iconColor: isDarkMode ? kWhite : kDarkGrey,
+              tooltip: 'Station Guide, Chef',
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+             _buildRecipeFilterButton(context, textTheme, isDarkMode),
+          ],
+        ),
+      ],
     );
   }
 
   /// Build the main body content
   Widget _buildBody(BuildContext context) {
     return RefreshIndicator(
-        onRefresh: _refreshPosts,
-        color: kAccent,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        child: SingleChildScrollView(
-          controller: _scrollController,
+      onRefresh: _refreshPosts,
+      color: kAccent,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      child: SingleChildScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              // Main content grid
-              SearchContentGrid(
-                key: _gridKey,
-                screenLength: 24, // Show more images on this dedicated screen
-                listType: 'post',
-                selectedCategory: selectedGoal,
-                filterByRecipe: filterByRecipe,
-              ),
-            ],
-          ),
+        child: Column(
+          children: [
+            // Main content grid
+            SearchContentGrid(
+              key: _gridKey,
+              screenLength: 24, // Show more images on this dedicated screen
+              listType: 'post',
+              selectedCategory: selectedGoal,
+              filterByRecipe: filterByRecipe,
+            ),
+          ],
         ),
+      ),
     );
   }
 

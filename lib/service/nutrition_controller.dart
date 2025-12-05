@@ -11,6 +11,7 @@ import '../helper/utils.dart';
 import 'badge_service.dart';
 import 'cycle_adjustment_service.dart';
 import 'plant_detection_service.dart';
+import 'notification_service.dart';
 
 class NutritionController extends GetxController {
   static NutritionController instance = Get.find();
@@ -525,6 +526,7 @@ class NutritionController extends GetxController {
             calories: newCalories.toInt(),
             quantity: '1',
             mealId: 'Add Food',
+            macros: {}, // Empty macros for placeholder meal
           ),
           DateTime.now());
     } else {
@@ -753,6 +755,38 @@ class NutritionController extends GetxController {
         // Don't fail the meal logging if plant tracking fails
       }
 
+      // Schedule symptom check notification 1 hour after meal is logged
+      try {
+        final notificationService = NotificationService();
+        // Generate unique notification ID based on instanceId hash
+        final notificationId = meal.instanceId.hashCode.abs() %
+            2147483647; // Keep within int32 range
+
+        final dateId = DateFormat('yyyy-MM-dd').format(today);
+        final payload = {
+          'type': 'meal_symptom_check',
+          'mealId': meal.mealId,
+          'instanceId': meal.instanceId,
+          'mealName': meal.name,
+          'mealType': foodType,
+          'date': dateId,
+        };
+
+        await notificationService.scheduleDelayedNotification(
+          id: notificationId,
+          title: 'How are you feeling?',
+          body: 'Let us know how you\'re feeling after ${meal.name}',
+          delay: const Duration(hours: 1),
+          payload: payload,
+        );
+
+        debugPrint(
+            '📱 Scheduled symptom check notification for meal: ${meal.name} (ID: $notificationId)');
+      } catch (e) {
+        debugPrint('📱 Error scheduling symptom check notification: $e');
+        // Don't fail the meal logging if notification scheduling fails
+      }
+
       fetchMealsForToday(userId, today);
     } catch (e) {
       return;
@@ -857,9 +891,14 @@ class NutritionController extends GetxController {
     await notificationService.scheduleDailyReminder(
       id: 1001,
       title: "Morning, Chef 🍳",
-      body: "Mise en place is ready. We have a high-protein goal today. Shall I prep the breakfast suggestion?",
+      body:
+          "Mise en place is ready. We have a high-protein goal today. Shall I prep the breakfast suggestion?",
       hour: 8,
       minute: 0,
+      payload: {
+        'type': 'meal_reminder',
+        'mealType': 'Breakfast',
+      },
     );
 
     // Lunch reminder
@@ -869,6 +908,10 @@ class NutritionController extends GetxController {
       body: "Chef, lunch is on the pass. Ready to log it?",
       hour: 12,
       minute: 30,
+      payload: {
+        'type': 'meal_reminder',
+        'mealType': 'Lunch',
+      },
     );
 
     // Dinner reminder
@@ -878,6 +921,10 @@ class NutritionController extends GetxController {
       body: "Chef, dinner service is ready. Let's log it to the pass.",
       hour: 19,
       minute: 0,
+      payload: {
+        'type': 'meal_reminder',
+        'mealType': 'Dinner',
+      },
     );
   }
 }

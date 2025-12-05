@@ -100,7 +100,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         ),
         TutorialStep(
           tutorialId: 'add_program_button',
-          message: 'Tap here to view your programs, Chef!',
+          message: 'Tap here to view your menus, Chef!',
           targetKey: _addProgramButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -195,6 +195,13 @@ class _ProgramScreenState extends State<ProgramScreen> {
               Map<String, dynamic>.from(data['fitnessProgram'] ?? {}),
           'mealPlan': Map<String, dynamic>.from(data['mealPlan'] ?? {}),
           'nutrition': Map<String, dynamic>.from(data['nutrition'] ?? {}),
+          'portionDetails':
+              Map<String, dynamic>.from(data['portionDetails'] ?? {}),
+          'routine': data['routine'] != null
+              ? List<dynamic>.from(data['routine'])
+              : [],
+          'notAllowed': List<String>.from(data['notAllowed'] ?? []),
+          'programDetails': List<String>.from(data['programDetails'] ?? []),
         };
       }).toList();
 
@@ -343,8 +350,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
       if (programData == null) {
         if (mounted) {
-          _showErrorSnackbar(
-              'Program not on the menu, Chef. Please try again.');
+          _showErrorSnackbar('Menu not available, Chef. Please try again.');
         }
         return;
       }
@@ -352,7 +358,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
       final programId = programData['programId'] as String?;
       if (programId == null || programId.isEmpty) {
         if (mounted) {
-          _showErrorSnackbar('Invalid program data, Chef. Please try again.');
+          _showErrorSnackbar('Invalid menu data, Chef. Please try again.');
         }
         return;
       }
@@ -378,11 +384,15 @@ class _ProgramScreenState extends State<ProgramScreen> {
         return;
       }
 
+      // Load full program details before showing dialog
+      final fullProgramData = await _loadProgramDetails(programId);
+      final programToShow = fullProgramData ?? programData;
+
       final result = await showDialog<String>(
         context: context,
         barrierDismissible: false,
         builder: (context) => ProgramDetailWidget(
-          program: programData,
+          program: programToShow,
           isEnrolled: isEnrolled,
         ),
       );
@@ -396,14 +406,14 @@ class _ProgramScreenState extends State<ProgramScreen> {
           if (mounted) {
             setState(() => isLoading = false);
             _showSuccessSnackbar(
-                'You\'ve joined the ${programData['name'] ?? 'program'} program, Chef!');
+                'You\'ve joined the ${programData['name'] ?? 'menu'} menu, Chef!');
           }
         } catch (e) {
           if (mounted) {
             setState(() => isLoading = false);
             final errorMessage = e.toString().contains('already enrolled')
-                ? 'You are already enrolled in this program, Chef'
-                : 'Couldn\'t join program, Chef. Please try again.';
+                ? 'You are already enrolled in this menu, Chef'
+                : 'Couldn\'t join menu, Chef. Please try again.';
             _showErrorSnackbar(errorMessage);
           }
         }
@@ -502,7 +512,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         children: [
           Text(
             key: _addProgramButtonKey,
-            ' Current Programs, Chef',
+            ' Current Menu, Chef',
             style: textTheme.headlineMedium?.copyWith(
               color: isDarkMode ? kWhite : kDarkGrey,
             ),
@@ -533,6 +543,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
                     'guidelines': [],
                     'tips': [],
                     'options': [],
+                    'benefits': program.benefits,
+                    'notAllowed': program.notAllowed,
+                    'programDetails': program.programDetails,
+                    'portionDetails': program.portionDetails,
+                    'routine': [],
+                    'fitnessProgram': {},
                   };
                   Get.to(() => ProgramDetailWidget(
                         program: fallbackData,
@@ -569,7 +585,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
-                        Icons.fitness_center,
+                        Icons.restaurant_menu,
                         color: kAccent,
                         size: getIconScale(6, context),
                       ),
@@ -596,7 +612,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                   ? kWhite.withValues(alpha: 0.7)
                                   : kDarkGrey.withValues(alpha: 0.7),
                             ),
-                            maxLines: 3,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                           SizedBox(height: getPercentageHeight(0.8, context)),
@@ -616,7 +632,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                         width: getPercentageWidth(1, context)),
                                     Flexible(
                                       child: Text(
-                                        '$userCount members',
+                                        '$userCount chefs',
                                         style: textTheme.bodySmall?.copyWith(
                                           color: Colors.green,
                                           fontWeight: FontWeight.w500,
@@ -668,7 +684,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    'Tracking',
+                                    'View Progress',
                                     style: textTheme.bodySmall?.copyWith(
                                       color: Colors.purple,
                                       fontWeight: FontWeight.w500,
@@ -708,17 +724,17 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                 '${program.name} has been archived, Chef');
                           } catch (e) {
                             _showErrorSnackbar(
-                                'Couldn\'t archive program, Chef: ${e.toString()}');
+                                'Couldn\'t archive menu, Chef: ${e.toString()}');
                           }
                         } else if (value == 'leave') {
                           try {
                             await _programService
                                 .leaveProgram(program.programId);
                             _showSuccessSnackbar(
-                                'You\'ve left the ${program.name} program, Chef');
+                                'You\'ve left the ${program.name} menu, Chef');
                           } catch (e) {
                             _showErrorSnackbar(
-                                'Couldn\'t leave program, Chef: ${e.toString()}');
+                                'Couldn\'t leave menu, Chef: ${e.toString()}');
                           }
                         }
                       },
@@ -740,8 +756,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                             children: [
                               Icon(Icons.exit_to_app, color: kRed),
                               SizedBox(width: getPercentageWidth(2, context)),
-                              Text('Leave Program',
-                                  style: TextStyle(color: kRed)),
+                              Text('Leave Menu', style: TextStyle(color: kRed)),
                             ],
                           ),
                         ),
@@ -769,9 +784,11 @@ class _ProgramScreenState extends State<ProgramScreen> {
       return Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          collapsedIconColor: kAccent,
+          iconColor: kAccent,
           tilePadding: EdgeInsets.zero,
           title: Text(
-            'Archived Programs, Chef',
+            'Archived Menus',
             style: textTheme.headlineMedium?.copyWith(
               color: isDarkMode
                   ? kWhite.withValues(alpha: 0.7)
@@ -792,7 +809,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                         isEnrolled: true,
                       ));
                 } else if (mounted) {
-                  _showErrorSnackbar('Unable to load program details');
+                  _showErrorSnackbar('Unable to load menu details, Chef');
                 }
               },
               child: Container(
@@ -866,7 +883,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                               '${program.name} has been unarchived, Chef');
                         } catch (e) {
                           _showErrorSnackbar(
-                              'Couldn\'t unarchive program, Chef: ${e.toString()}');
+                              'Couldn\'t unarchive menu, Chef: ${e.toString()}');
                         }
                       },
                       child: Container(
@@ -903,46 +920,47 @@ class _ProgramScreenState extends State<ProgramScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'A Program Just for You, Chef',
+            'A Menu Just for You, Chef',
             style: textTheme.displayMedium
-                ?.copyWith(fontSize: getTextScale(4.5, context)),
+                ?.copyWith(fontSize: getTextScale(5, context)),
           ),
           SizedBox(width: getPercentageWidth(2, context)),
           InfoIconWidget(
-            title: 'Nutrition Programs',
+            title: 'Chef\'s Menu Programs',
             description:
-                'Join personalized programs to achieve your health goals',
+                'Step into a tailored kitchen journey, Chef! Join menus designed to sharpen your culinary health game.',
             details: const [
               {
                 'icon': Icons.fitness_center,
-                'title': 'Personalized Programs',
+                'title': 'Personalized for You, Chef',
                 'description':
-                    'Programs tailored to your diet preferences and fitness goals',
+                    'Every menu is prepped to fit your unique taste and health goals, Chef.',
                 'color': kAccent,
               },
               {
                 'icon': Icons.track_changes,
-                'title': 'Progress Tracking',
+                'title': 'Track Your Progress',
                 'description':
-                    'Monitor your progress with visual charts and milestones',
+                    'Check your culinary progress right on your Chef Dashboard, with easy-to-digest charts and milestones.',
                 'color': kAccent,
               },
               {
                 'icon': Icons.auto_awesome,
-                'title': 'Customize Your Program',
-                'description': 'Create a program tailored to your needs',
+                'title': 'Make It Your Own, Chef',
+                'description':
+                    'Customize your nutrition menu so it fits your pantry and your palate.',
                 'color': kAccent,
               },
               {
                 'icon': Icons.schedule,
-                'title': 'Flexible Duration',
+                'title': 'Choose Your Timing',
                 'description':
-                    'Programs ranging from 7 days to long-term commitments',
+                    'Menus from a quick 7-day boost to a long-term chef commitment—whatever fits your schedule, Chef.',
                 'color': kAccent,
               },
             ],
             iconColor: isDarkMode ? kWhite : kDarkGrey,
-            tooltip: 'Program Information',
+            tooltip: 'Menu Details for Chefs',
           ),
         ],
       ),
@@ -1092,7 +1110,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                 SizedBox(height: getPercentageHeight(2.5, context)),
 
                 Text(
-                  'See recipes for your $userDiet station, Chef',
+                  'See the Cookbook for $userDiet meals, Chef',
                   maxLines: 2,
                   style: textTheme.headlineMedium?.copyWith(
                     color: kAccent,
@@ -1117,7 +1135,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                         ));
                   },
                   icon: const Icon(Icons.restaurant, color: kWhite),
-                  label: Text('Recipes',
+                  label: Text('Cookbook',
                       style: textTheme.labelLarge?.copyWith(color: kWhite)),
                 ),
                 SizedBox(height: getPercentageHeight(1.5, context)),
@@ -1217,7 +1235,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                 ElevatedButton.icon(
                   icon: const Icon(Icons.auto_awesome, color: kWhite),
                   label: Text(
-                    'Customize Your Program, Chef', // Create Custom Menu with AI, Chef
+                    'Customize Your Menu', // Create Custom Menu with AI, Chef
                     style: textTheme.labelLarge?.copyWith(color: kWhite),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -1250,10 +1268,10 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
                 Obx(() => Text(
                       _programService.userPrograms.length > 1
-                          ? 'Explore More Programs, Chef'
+                          ? 'Explore More Menus, Chef'
                           : _programService.userPrograms.length == 1
-                              ? 'Explore More Programs, Chef'
-                              : 'Choose a Program, Chef',
+                              ? 'Explore More Menus, Chef'
+                              : 'Choose a Menu, Chef',
                       style: textTheme.headlineMedium?.copyWith(
                         color: kAccent,
                       ),
@@ -1276,7 +1294,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                 SizedBox(
                                     height: getPercentageHeight(2, context)),
                                 Text(
-                                  'Preparing programs...',
+                                  'Preparing menus...',
                                   style: textTheme.bodyMedium?.copyWith(
                                     color: isDarkMode ? kWhite : kDarkGrey,
                                   ),
@@ -1299,7 +1317,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                         height:
                                             getPercentageHeight(2, context)),
                                     Text(
-                                      'No programs on the menu, Chef',
+                                      'No menus on the menu, Chef',
                                       style: textTheme.bodyLarge?.copyWith(
                                         color: isDarkMode ? kWhite : kDarkGrey,
                                       ),
@@ -1308,7 +1326,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                         height:
                                             getPercentageHeight(1, context)),
                                     Text(
-                                      'Check back later for new programs, Chef',
+                                      'Check back later for new menus, Chef',
                                       style: textTheme.bodySmall?.copyWith(
                                         color:
                                             isDarkMode ? kLightGrey : kDarkGrey,
@@ -1348,10 +1366,61 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                       width: getPercentageWidth(70, context),
                                       height: getPercentageHeight(25, context),
                                       index: index,
-                                      onTap: () => _showProgramQuestionnaire(
-                                        programData['type'],
-                                        isDarkMode,
-                                      ),
+                                      onTap: () async {
+                                        final programId =
+                                            programData['programId'] as String?;
+                                        if (programId == null ||
+                                            programId.isEmpty) {
+                                          if (mounted) {
+                                            _showErrorSnackbar(
+                                                'Invalid menu data, Chef. Please try again.');
+                                          }
+                                          return;
+                                        }
+
+                                        final loadedProgramData =
+                                            await _loadProgramDetails(
+                                                programId);
+                                        if (loadedProgramData != null &&
+                                            mounted) {
+                                          Get.to(() => ProgramDetailWidget(
+                                                program: loadedProgramData,
+                                                isEnrolled: isEnrolled,
+                                              ));
+                                        } else if (mounted) {
+                                          // Fallback to basic program data
+                                          final fallbackData = {
+                                            'programId': programId,
+                                            'name': programData['name'] ?? '',
+                                            'description':
+                                                programData['description'] ??
+                                                    '',
+                                            'type': programData['type'],
+                                            'duration':
+                                                programData['duration'] ?? '',
+                                            'goals': [],
+                                            'guidelines': [],
+                                            'tips': [],
+                                            'options': [],
+                                            'benefits':
+                                                programData['benefits'] ?? [],
+                                            'notAllowed':
+                                                programData['notAllowed'] ?? [],
+                                            'programDetails':
+                                                programData['programDetails'] ??
+                                                    {},
+                                            'portionDetails':
+                                                programData['portionDetails'] ??
+                                                    {},
+                                            'routine': [],
+                                            'fitnessProgram': {},
+                                          };
+                                          Get.to(() => ProgramDetailWidget(
+                                                program: fallbackData,
+                                                isEnrolled: isEnrolled,
+                                              ));
+                                        }
+                                      },
                                       isProgram: true,
                                       isEnrolled: isEnrolled,
                                     );
