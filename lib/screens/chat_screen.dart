@@ -55,30 +55,30 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (chatId != null && chatId!.isNotEmpty) {
       try {
-      chatController.chatId = chatId!;
-      chatController.listenToMessages();
+        chatController.chatId = chatId!;
+        chatController.listenToFriendMessages();
         if (widget.friendId != null && widget.friendId!.isNotEmpty) {
-      chatController.markMessagesAsRead(chatId!, widget.friendId!);
+          chatController.markMessagesAsRead(chatId!, widget.friendId!);
         }
 
-      if (widget.dataSrc != null && widget.dataSrc!.isNotEmpty) {
-        if (widget.dataSrc?['screen'] == 'meal_design') {
-          _handleCalendarShare(widget.dataSrc!);
-        } else if (widget.dataSrc?['mediaPaths'] != null) {
-          _shareImage(widget.dataSrc?['mediaPaths'][0]);
+        if (widget.dataSrc != null && widget.dataSrc!.isNotEmpty) {
+          if (widget.dataSrc?['screen'] == 'meal_design') {
+            _handleCalendarShare(widget.dataSrc!);
+          } else if (widget.dataSrc?['mediaPaths'] != null) {
+            _shareImage(widget.dataSrc?['mediaPaths'][0]);
+          }
         }
-      }
       } catch (e) {
         debugPrint('Error initializing chat with chatId: $e');
       }
     } else if (widget.friendId != null && widget.friendId!.isNotEmpty) {
-      chatController.initializeChat(widget.friendId!).then((_) {
+      chatController.initializeFriendChat(widget.friendId!).then((_) {
         if (!mounted) return;
         setState(() {
           chatId = chatController.chatId;
         });
         if (widget.friendId != null && widget.friendId!.isNotEmpty) {
-        chatController.markMessagesAsRead(chatId!, widget.friendId!);
+          chatController.markMessagesAsRead(chatId!, widget.friendId!);
         }
 
         if (widget.dataSrc != null && widget.dataSrc!.isNotEmpty) {
@@ -292,85 +292,85 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
         child: chatId == null
-          ? noItemTastyWidget(
-              "No chat yet...",
-              "",
-              context,
-              false,
-              '',
-            )
-          : GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                FocusScope.of(context).unfocus();
-              },
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Obx(() {
-                      final messages = chatController.messages;
+            ? noItemTastyWidget(
+                "No chat yet...",
+                "",
+                context,
+                false,
+                '',
+              )
+            : GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  FocusScope.of(context).unfocus();
+                },
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Obx(() {
+                        final messages = chatController.messages;
 
-                      if (messages.isEmpty) {
-                        return const Center(
-                          child: Text("No messages yet."),
-                        );
-                      }
-
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (_scrollController.hasClients) {
-                          _scrollController.jumpTo(
-                              _scrollController.position.maxScrollExtent);
-                        }
-                      });
-
-                      return ListView.builder(
-                        controller: _scrollController,
-                        itemCount: messages.length,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        itemBuilder: (context, index) {
-                          final message = messages[index];
-
-                          // Check if we need to show a date header
-                          bool showDateHeader = false;
-                          if (index == 0) {
-                            // Always show date header for first message
-                            showDateHeader = true;
-                          } else {
-                            // Check if date is different from previous message
-                            final previousMessage = messages[index - 1];
-                            final currentDate =
-                                _getDateOnly(message.timestamp.toDate());
-                            final previousDate = _getDateOnly(
-                                previousMessage.timestamp.toDate());
-                            showDateHeader = currentDate != previousDate;
-                          }
-
-                          return Column(
-                            children: [
-                              if (showDateHeader)
-                                _buildDateHeader(message.timestamp.toDate(),
-                                    isDarkMode, textTheme),
-                              ChatItem(
-                                dataSrc: message,
-                                isMe: message.senderId == userService.userId,
-                                chatController: chatController,
-                                chatId: chatId!,
-                              ),
-                            ],
+                        if (messages.isEmpty) {
+                          return const Center(
+                            child: Text("No messages yet."),
                           );
-                        },
-                      );
-                    }),
-                  ),
-                  _buildInputSection(isDarkMode, textTheme,
-                      isDisabled: isPendingFriendRequest,
-                      hint: isPendingFriendRequest
-                          ? 'You can\'t send messages yet'
-                          : 'Type your caption...'),
-                  SizedBox(height: getPercentageHeight(3, context)),
-                ],
+                        }
+
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (_scrollController.hasClients) {
+                            _scrollController.jumpTo(
+                                _scrollController.position.maxScrollExtent);
+                          }
+                        });
+
+                        return ListView.builder(
+                          controller: _scrollController,
+                          itemCount: messages.length,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          itemBuilder: (context, index) {
+                            final message = messages[index];
+
+                            // Check if we need to show a date header
+                            bool showDateHeader = false;
+                            if (index == 0) {
+                              // Always show date header for first message
+                              showDateHeader = true;
+                            } else {
+                              // Check if date is different from previous message
+                              final previousMessage = messages[index - 1];
+                              final currentDate =
+                                  _getDateOnly(message.timestamp.toDate());
+                              final previousDate = _getDateOnly(
+                                  previousMessage.timestamp.toDate());
+                              showDateHeader = currentDate != previousDate;
+                            }
+
+                            return Column(
+                              children: [
+                                if (showDateHeader)
+                                  _buildDateHeader(message.timestamp.toDate(),
+                                      isDarkMode, textTheme),
+                                ChatItem(
+                                  dataSrc: message,
+                                  isMe: message.senderId == userService.userId,
+                                  chatController: chatController,
+                                  chatId: chatId!,
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      }),
+                    ),
+                    _buildInputSection(isDarkMode, textTheme,
+                        isDisabled: isPendingFriendRequest,
+                        hint: isPendingFriendRequest
+                            ? 'You can\'t send messages yet'
+                            : 'Type your caption...'),
+                    SizedBox(height: getPercentageHeight(3, context)),
+                  ],
+                ),
               ),
-            ),
       ),
     );
   }
@@ -447,7 +447,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     } catch (e) {
                       debugPrint('Error sending message: $e');
                       if (mounted && context.mounted) {
-                        _handleError('Failed to send message. Please try again.',
+                        _handleError(
+                            'Failed to send message. Please try again.',
                             details: e.toString());
                       }
                     }
@@ -456,7 +457,7 @@ class _ChatScreenState extends State<ChatScreen> {
               icon: Icons.send,
               size: kIconSizeMedium,
             ),
-            ),
+          ),
         ],
       ),
     );

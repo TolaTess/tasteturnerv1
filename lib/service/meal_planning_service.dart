@@ -30,9 +30,10 @@ class MealPlanningService {
       String enhancedPrompt = prompt;
       if (pantryIngredients != null && pantryIngredients.isNotEmpty) {
         final pantryList = pantryIngredients.join(', ');
-        enhancedPrompt = '$prompt\n\nAvailable pantry ingredients: $pantryList\nPlease prioritize using these ingredients in the meal suggestions.';
+        enhancedPrompt =
+            '$prompt\n\nAvailable pantry ingredients: $pantryList\nPlease prioritize using these ingredients in the meal suggestions.';
       }
-      
+
       final result = await geminiService.generateMealsIntelligently(
         enhancedPrompt,
         contextInformation,
@@ -292,6 +293,8 @@ $familyMemberName's Context:
 $variationNote
 
 Please generate ${mealCount ?? 10} diverse meals appropriate for $familyMemberName that align with the request and their specific needs. Ensure variety and avoid repeating the same meals.
+
+Give practical, encouraging meal suggestions. Be specific and helpful!
 """;
       } else {
         prompt = """
@@ -308,6 +311,8 @@ User Context:
 $variationNote
 
 Please generate ${mealCount ?? 10} diverse meals that align with the user's request and preferences. Ensure variety and avoid repeating the same meals.
+
+Give practical, encouraging meal suggestions. Be specific and helpful!
 """;
       }
 
@@ -316,20 +321,24 @@ Please generate ${mealCount ?? 10} diverse meals that align with the user's requ
       if (familyMemberName == null || familyMemberName.isEmpty) {
         final user = userService.currentUser.value;
         if (user != null) {
-          final cycleData = user.settings['cycleTracking'] as Map<String, dynamic>?;
+          final cycleData =
+              user.settings['cycleTracking'] as Map<String, dynamic>?;
           if (cycleData != null && (cycleData['isEnabled'] as bool? ?? false)) {
             final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
             if (lastPeriodStartStr != null) {
               final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
               if (lastPeriodStart != null) {
-                final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
+                final cycleLength =
+                    (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
                 final cycleService = CycleAdjustmentService.instance;
-                final phase = cycleService.getCurrentPhase(lastPeriodStart, cycleLength);
+                final phase =
+                    cycleService.getCurrentPhase(lastPeriodStart, cycleLength);
                 final phaseName = cycleService.getPhaseName(phase);
                 final suggestions = cycleService.getPhaseFoodSuggestions(phase);
                 final suggestionList = suggestions.join(', ');
-                
-                cycleContext = '\nCycle Phase: $phaseName\nRecommended foods for this phase: $suggestionList\n';
+
+                cycleContext =
+                    '\nCycle Phase: $phaseName\nRecommended foods for this phase: $suggestionList\n';
               }
             }
           }

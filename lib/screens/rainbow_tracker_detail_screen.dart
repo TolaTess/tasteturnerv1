@@ -156,11 +156,13 @@ class _RainbowTrackerDetailScreenState
         ),
         title: Text(
           'Rainbow Tracker',
-          style: textTheme.titleLarge?.copyWith(
+          style: textTheme.displaySmall?.copyWith(
             color: isDarkMode ? kWhite : kBlack,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w400,
+            fontSize: getTextScale(7, context),
           ),
         ),
+        centerTitle: true,
       ),
       body: _isLoading
           ? Center(

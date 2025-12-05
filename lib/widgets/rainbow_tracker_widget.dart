@@ -88,6 +88,23 @@ class _RainbowTrackerWidgetState extends State<RainbowTrackerWidget> {
     }
   }
 
+  String _getCategoryName(PlantCategory category) {
+    switch (category) {
+      case PlantCategory.vegetable:
+        return 'Vegetables';
+      case PlantCategory.fruit:
+        return 'Fruits';
+      case PlantCategory.grain:
+        return 'Grains';
+      case PlantCategory.legume:
+        return 'Legumes';
+      case PlantCategory.nutSeed:
+        return 'Nuts & Seeds';
+      case PlantCategory.herbSpice:
+        return 'Herbs & Spices';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -263,6 +280,8 @@ class _RainbowTrackerWidgetState extends State<RainbowTrackerWidget> {
                           children: score.categoryBreakdown.entries
                               .take(4)
                               .map((entry) {
+                            // Get display name for the category
+                            final categoryName = _getCategoryName(entry.key);
                             return Container(
                               padding: EdgeInsets.symmetric(
                                 horizontal: getPercentageWidth(1.5, context),
@@ -273,7 +292,7 @@ class _RainbowTrackerWidgetState extends State<RainbowTrackerWidget> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                '${entry.key}: ${entry.value}',
+                                '$categoryName: ${entry.value}',
                                 style: textTheme.bodySmall?.copyWith(
                                   fontSize: getTextScale(2.5, context),
                                   color: kAccent,

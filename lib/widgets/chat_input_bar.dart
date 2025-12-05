@@ -4,26 +4,22 @@ import 'package:tasteturner/helper/utils.dart';
 
 class ChatInputBar extends StatelessWidget {
   final TextEditingController controller;
+  final FocusNode? focusNode;
   final bool isListening;
   final bool canUseAI;
   final VoidCallback onSend;
   final VoidCallback onImagePick;
   final VoidCallback onVoiceToggle;
-  final bool isPlanning;
-  final bool isReadyToGenerate;
-  final VoidCallback onGeneratePlan;
 
   const ChatInputBar({
     super.key,
     required this.controller,
+    this.focusNode,
     required this.isListening,
     required this.canUseAI,
     required this.onSend,
     required this.onImagePick,
     required this.onVoiceToggle,
-    this.isPlanning = false,
-    this.isReadyToGenerate = false,
-    required this.onGeneratePlan,
   });
 
   @override
@@ -77,13 +73,14 @@ class ChatInputBar extends StatelessWidget {
                     Expanded(
                       child: TextField(
                         controller: controller,
+                        focusNode: focusNode,
                         maxLines: 5,
                         minLines: 1,
                         textCapitalization: TextCapitalization.sentences,
                         style: theme.textTheme.bodyMedium,
                         decoration: InputDecoration(
                           hintText:
-                              isListening ? 'Listening...' : 'Ask Buddy...',
+                              isListening ? 'Listening...' : 'Ask Turner...',
                           hintStyle: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.textTheme.bodyMedium?.color
                                 ?.withOpacity(0.5),
@@ -126,11 +123,8 @@ class ChatInputBar extends StatelessWidget {
             ),
             SizedBox(width: getPercentageWidth(2, context)),
 
-            // Send / Generate Button
-            if (isPlanning && isReadyToGenerate)
-              _buildGenerateButton(context)
-            else
-              _buildSendButton(context),
+            // Send Button
+            _buildSendButton(context),
           ],
         ),
       ),
@@ -186,39 +180,6 @@ class ChatInputBar extends StatelessWidget {
             Icons.send_rounded,
             color: Colors.white,
             size: 20,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGenerateButton(BuildContext context) {
-    return Material(
-      color: kAccent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onGeneratePlan,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(
-                Icons.auto_awesome,
-                color: Colors.white,
-                size: 18,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Generate',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ],
           ),
         ),
       ),

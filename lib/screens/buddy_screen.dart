@@ -13,8 +13,8 @@ import '../service/chat_controller.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/chat_item.dart';
 import '../widgets/icon_widget.dart';
-import '../widgets/planning_form.dart';
 import '../screens/premium_screen.dart';
+import '../data_models/meal_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
@@ -31,6 +31,7 @@ class _TastyScreenState extends State<TastyScreen>
     with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController textController = TextEditingController();
+  final FocusNode _textFieldFocusNode = FocusNode();
   String? chatId;
 
   late ChatController chatController;
@@ -41,13 +42,11 @@ class _TastyScreenState extends State<TastyScreen>
   bool _isListening = false;
   String _recognizedText = '';
 
-  // State for meal plan quick action buttons (shown when entering from buddy tab)
-  bool _showMealPlanQuickActions = false;
+  // Quick actions visibility state
+  bool _showQuickActions = true;
 
   // Pending mode switches (deferred to post-frame callback to avoid chatId initialization issues)
   bool _pendingMealPlanMode = false;
-  bool _pendingPlanningMode = false;
-  bool _fromProgramScreen = false; // Track if coming from program screen
 
   @override
   void initState() {
@@ -60,11 +59,11 @@ class _TastyScreenState extends State<TastyScreen>
     }
     chatId = userService.buddyId;
 
-    // Initialize TabController for 3 modes
-    _tabController = TabController(length: 3, vsync: this);
+    // Initialize TabController for 2 modes (Sous Chef and Meal Plan)
+    _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabChange);
 
-    // Check if planning mode or meal plan mode should be enabled from navigation
+    // Check if meal plan mode should be enabled from navigation
     // Note: Mode switch is deferred to post-frame callback to ensure chatId is initialized
     final args = Get.arguments;
     if (args != null && args is Map) {
@@ -89,9 +88,6 @@ class _TastyScreenState extends State<TastyScreen>
         }
 
         _pendingMealPlanMode = true;
-      } else if (args['planningMode'] == true) {
-        _pendingPlanningMode = true;
-        _fromProgramScreen = true; // Mark that we're coming from program screen
       }
     }
 
@@ -105,7 +101,7 @@ class _TastyScreenState extends State<TastyScreen>
       // Handle pending mode switches (deferred from initState to avoid chatId initialization issues)
       if (_pendingMealPlanMode) {
         _pendingMealPlanMode = false;
-        _tabController.index = 2;
+        _tabController.index = 1; // Meal Plan is now index 1 (was index 2)
         // Only switch mode if chatId is initialized
         if (chatId != null && chatId!.isNotEmpty) {
           chatController.switchMode('meal');
@@ -113,25 +109,6 @@ class _TastyScreenState extends State<TastyScreen>
           chatController.currentMode.value = 'meal';
         }
         _showMealPlanWelcomeWithOptions();
-      } else if (_pendingPlanningMode) {
-        _pendingPlanningMode = false;
-        // Only enter planning mode if chatId is initialized
-        if (chatId != null && chatId!.isNotEmpty) {
-          // Switch mode first to load correct messages, then enter planning mode
-          chatController.switchMode('planner').then((_) {
-            chatController.enterPlanningMode();
-          });
-        } else {
-          chatController.currentMode.value = 'planner';
-        }
-        _tabController.index = 1;
-
-        // If coming from program screen, open the form automatically
-        if (_fromProgramScreen) {
-          chatController.showForm.value = true;
-          chatController.isFormSubmitted.value = false;
-          chatController.planningFormData.value = null;
-        }
       }
 
       // Initialize mode-specific content
@@ -141,13 +118,12 @@ class _TastyScreenState extends State<TastyScreen>
 
   void _handleTabChange() {
     if (!_tabController.indexIsChanging) {
-      final modes = ['sous chef', 'planner', 'meal'];
+      final modes = ['sous chef', 'meal'];
       final newMode = modes[_tabController.index];
       if (chatController.currentMode.value != newMode) {
-        // Clear any welcome messages that might have been added for the wrong mode
-        _clearWelcomeMessagesForWrongMode(newMode);
-
         // Only switch mode if chatId is initialized
+        // Mode switching now only controls where new messages are routed,
+        // not which messages are displayed
         if (chatId != null && chatId!.isNotEmpty) {
           chatController.switchMode(newMode);
         } else {
@@ -155,9 +131,11 @@ class _TastyScreenState extends State<TastyScreen>
           chatController.currentMode.value = newMode;
         }
 
-        // If manually switching to planner mode (not from program screen), open form immediately
-        if (newMode == 'planner' && !_fromProgramScreen) {
-          chatController.showForm.value = true;
+        // Show quick actions when switching to meal mode
+        if (newMode == 'meal') {
+          setState(() {
+            _showQuickActions = true;
+          });
         }
 
         _initializeModeContent();
@@ -165,65 +143,12 @@ class _TastyScreenState extends State<TastyScreen>
     }
   }
 
-  // Clear welcome messages that don't match the current mode
-  void _clearWelcomeMessagesForWrongMode(String correctMode) {
-    final messages = chatController.messages;
-    final messagesToRemove = <ChatScreenData>[];
-
-    for (final msg in messages) {
-      // Check if this is a welcome message for a different mode
-      if (msg.senderId == 'buddy' || msg.senderId == 'systemMessage') {
-        final isTastyWelcome = chatController.tastyWelcomeMessages.any(
-            (welcome) => msg.messageContent.contains(welcome.substring(0, 20)));
-        final isPlannerWelcome = chatController.plannerWelcomeMessages.any(
-            (welcome) => msg.messageContent.contains(welcome.substring(0, 20)));
-        final isMealPlanWelcome = chatController.mealPlanWelcomeMessages.any(
-            (welcome) => msg.messageContent.contains(welcome.substring(0, 20)));
-
-        // Remove welcome messages that don't match the current mode
-        if (correctMode == 'planner' && (isTastyWelcome || isMealPlanWelcome)) {
-          messagesToRemove.add(msg);
-        } else if (correctMode == 'meal' &&
-            (isTastyWelcome || isPlannerWelcome)) {
-          messagesToRemove.add(msg);
-        } else if (correctMode == 'sous chef' &&
-            (isPlannerWelcome || isMealPlanWelcome)) {
-          messagesToRemove.add(msg);
-        }
-      }
-    }
-
-    if (messagesToRemove.isNotEmpty && mounted) {
-      setState(() {
-        for (final msg in messagesToRemove) {
-          messages.remove(msg);
-        }
-      });
-      debugPrint(
-          'Cleared ${messagesToRemove.length} welcome message(s) for wrong mode');
-    }
-  }
-
   void _initializeModeContent() {
     final currentMode = chatController.currentMode.value;
-    if (currentMode == 'planner') {
-      chatController.initializePlannerMode(_fromProgramScreen);
-    } else if (currentMode == 'meal') {
+    if (currentMode == 'meal') {
       chatController.initializeMealPlanMode();
     } else {
       chatController.initializeTastyMode(context);
-    }
-  }
-
-  // Removed - using planner mode initialization instead
-
-  void _onNewMessage() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
     }
   }
 
@@ -248,10 +173,9 @@ class _TastyScreenState extends State<TastyScreen>
 
     try {
       final messages = chatController.messages;
-      final chatContent = messages.map((m) => m.messageContent).join('\n');
-      final summaryPrompt = "Summarize this conversation: $chatContent";
-      final summary =
-          await geminiService.getResponse(summaryPrompt, maxTokens: 512);
+      // Use the last message content as summary instead of calling AI
+      // This prevents unnecessary AI calls when leaving the screen
+      final summary = messages.last.messageContent;
 
       // Prepare update data
       final updateData = {
@@ -276,9 +200,86 @@ class _TastyScreenState extends State<TastyScreen>
 
   // Speech-to-text methods
   Future<void> _startListening() async {
-    // Request microphone permission
-    final status = await Permission.microphone.request();
-    if (!status.isGranted) {
+    // Check microphone permission status
+    final status = await Permission.microphone.status;
+
+    if (status.isDenied) {
+      // Request permission
+      final requestResult = await Permission.microphone.request();
+      if (!requestResult.isGranted) {
+        if (mounted) {
+          showTastySnackbar(
+            'Permission Required',
+            'Microphone permission is needed for voice notes.',
+            context,
+            backgroundColor: kRed,
+          );
+        }
+        return;
+      }
+    } else if (status.isPermanentlyDenied || status.isRestricted) {
+      // Permission permanently denied or restricted - open settings
+      if (mounted) {
+        final shouldOpenSettings = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            final isDarkMode = getThemeProvider(context).isDarkMode;
+            final textTheme = Theme.of(context).textTheme;
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+              title: Text(
+                'Microphone Permission Required',
+                style: textTheme.titleMedium?.copyWith(
+                  color: isDarkMode ? kWhite : kBlack,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Text(
+                'Microphone access was denied. To use voice notes, please enable microphone permission in Settings → TasteTurner → Microphone.',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: isDarkMode ? kWhite.withOpacity(0.9) : kDarkGrey,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(
+                    'Cancel',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? kWhite.withOpacity(0.7) : kLightGrey,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    'Open Settings',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: kWhite,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+
+        if (shouldOpenSettings == true) {
+          await openAppSettings();
+        }
+      }
+      return;
+    } else if (!status.isGranted) {
       if (mounted) {
         showTastySnackbar(
           'Permission Required',
@@ -368,6 +369,7 @@ class _TastyScreenState extends State<TastyScreen>
     _speech.stop();
     _scrollController.dispose();
     textController.dispose();
+    _textFieldFocusNode.dispose();
     _tabController.dispose();
     // Don't await async operations in dispose - use deactivate instead
     super.dispose();
@@ -498,197 +500,140 @@ class _TastyScreenState extends State<TastyScreen>
                 FocusScope.of(context).unfocus();
               },
               child: Column(
-              children: [
-                SizedBox(height: getPercentageHeight(1, context)),
-                // Top bar with back button and tabs aligned
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(2, context),
-                    vertical: getPercentageHeight(1, context),
-                  ),
-                  child: Row(
-                    children: [
-                      // Back button for message screen and buddy screen - aligned with tabs
-                      if (widget.screen == 'message' ||
-                          widget.screen == 'buddy')
-                        Container(
-                          margin: EdgeInsets.only(
-                              right: getPercentageWidth(2, context)),
-                          decoration: BoxDecoration(
-                            color: themeProvider.isDarkMode
-                                ? kDarkGrey
-                                : kAccentLight.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              Get.back();
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: EdgeInsets.all(
-                                  getPercentageWidth(2.5, context)),
-                              child: Icon(
-                                Icons.arrow_back_ios_new,
-                                size: getPercentageWidth(4, context),
-                                color: themeProvider.isDarkMode
-                                    ? kWhite
-                                    : kDarkGrey,
-                              ),
-                            ),
-                          ),
-                        ),
-                      // Mode Switcher
-                      Expanded(
-                        child: ChatModeSwitcher(
-                          controller: _tabController,
-                          isDarkMode: themeProvider.isDarkMode,
-                          tabs: [
-                            ChatModeTab(
-                              icon: Icons.chat_bubble_outline,
-                              label: 'Sous Chef',
-                            ),
-                            ChatModeTab(
-                              icon: Icons.edit_note,
-                              label: 'Planner',
-                            ),
-                            ChatModeTab(
-                              icon: Icons.restaurant_menu,
-                              label: 'Meal Plan',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Mode Banner
-                _buildModeBanner(themeProvider, textTheme),
-                // Planning Form (show when in planner mode and showForm is true)
-                Obx(() {
-                  final currentMode = chatController.currentMode.value;
-                  final showForm = chatController.showForm.value;
-                  final isPlannerMode = currentMode == 'planner';
-
-                  // Scroll to form when it appears
-                  if (isPlannerMode && showForm) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (_scrollController.hasClients) {
-                        _scrollController.animateTo(
-                          0,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                        );
-                      }
-                    });
-                  }
-
-                  return AnimatedSize(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    child: (isPlannerMode && showForm)
-                        ? ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxHeight:
-                                  MediaQuery.of(context).size.height * 0.5,
-                            ),
-                            child: SingleChildScrollView(
-                              child: PlanningForm(
-                                onSubmit: (formData) {
-                                  _sendFormToAIForConfirmation(formData);
-                                },
-                                onClose: () {
-                                  chatController.showForm.value = false;
-                                },
-                                isDarkMode: themeProvider.isDarkMode,
-                                initialData:
-                                    chatController.planningFormData.value,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                  );
-                }),
-
-                Expanded(
-                  child: Obx(() {
-                    final messages = chatController.messages;
-                    final currentMode = chatController.currentMode.value;
-
-                    if (messages.isEmpty) {
-                      // Show quick actions for meal plan mode when no messages
-                      if (currentMode == 'meal' && _showMealPlanQuickActions) {
-                        return SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              _buildMealPlanQuickActions(
-                                  themeProvider.isDarkMode),
-                            ],
-                          ),
-                        );
-                      }
-                      return _buildEmptyState(
-                          currentMode, themeProvider.isDarkMode);
-                    }
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (_scrollController.hasClients) {
-                        _scrollController
-                            .jumpTo(_scrollController.position.maxScrollExtent);
-                      }
-                    });
-
-                    return Column(
+                children: [
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  // Top bar with back button and tabs aligned
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(2, context),
+                      vertical: getPercentageHeight(1, context),
+                    ),
+                    child: Row(
                       children: [
-                        // Show meal plan quick actions at the top when enabled
-                        if (currentMode == 'meal' && _showMealPlanQuickActions)
-                          _buildMealPlanQuickActions(themeProvider.isDarkMode),
-
-                        // Chat messages list
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              // Close form when tapping on chat area (only in planner mode)
-                              if (chatController.currentMode.value ==
-                                      'planner' &&
-                                  chatController.showForm.value) {
-                                chatController.showForm.value = false;
-                              }
-                            },
-                            behavior: HitTestBehavior.translucent,
-                            child: ListView.builder(
-                              controller: _scrollController,
-                              itemCount: messages.length,
-                              padding: EdgeInsets.symmetric(
-                                  vertical: getPercentageHeight(1, context)),
-                              itemBuilder: (context, index) {
-                                final message = messages[index];
-                                return ChatItem(
-                                  dataSrc: message,
-                                  isMe: message.senderId == userService.userId,
-                                  chatController: chatController,
-                                  chatId: chatId!,
-                                  onPlanSubmit: () {
-                                    // Trigger plan generation when submit button is clicked
-                                    chatController
-                                        .generatePlanFromConversation(context);
-                                  },
-                                );
-                              },
+                        // Back button for message screen and buddy screen - aligned with tabs
+                        if (widget.screen == 'message' ||
+                            widget.screen == 'buddy')
+                          Container(
+                            margin: EdgeInsets.only(
+                                right: getPercentageWidth(2, context)),
+                            decoration: BoxDecoration(
+                              color: themeProvider.isDarkMode
+                                  ? kDarkGrey
+                                  : kAccentLight.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                            child: InkWell(
+                              onTap: () {
+                                Get.back();
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: EdgeInsets.all(
+                                    getPercentageWidth(2.5, context)),
+                                child: Icon(
+                                  Icons.arrow_back_ios_new,
+                                  size: getPercentageWidth(4, context),
+                                  color: themeProvider.isDarkMode
+                                      ? kWhite
+                                      : kDarkGrey,
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Mode Switcher
+                        Expanded(
+                          child: ChatModeSwitcher(
+                            controller: _tabController,
+                            isDarkMode: themeProvider.isDarkMode,
+                            tabs: [
+                              ChatModeTab(
+                                icon: Icons.chat_bubble_outline,
+                                label: 'Sous Chef',
+                              ),
+                              ChatModeTab(
+                                icon: Icons.restaurant_menu,
+                                label: 'Meal Plan',
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    );
-                  }),
-                ),
-                // Input Section
-                Obx(() {
-                  final isPlanning = chatController.isPlanningMode.value;
-                  final isReady = chatController.isReadyToGenerate.value;
+                    ),
+                  ),
+                  // Mode Banner
+                  _buildModeBanner(themeProvider, textTheme),
 
-                  return ChatInputBar(
+                  Expanded(
+                    child: Obx(() {
+                      final messages = chatController.messages;
+                      final currentMode = chatController.currentMode.value;
+
+                      if (messages.isEmpty) {
+                        // Show quick actions for meal plan mode when no messages and visible
+                        if (currentMode == 'meal' && _showQuickActions) {
+                          return SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                _buildMealPlanQuickActions(
+                                    themeProvider.isDarkMode, context),
+                              ],
+                            ),
+                          );
+                        }
+                        return _buildEmptyState(
+                            currentMode, themeProvider.isDarkMode);
+                      }
+
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (_scrollController.hasClients) {
+                          _scrollController.jumpTo(
+                              _scrollController.position.maxScrollExtent);
+                        }
+                      });
+
+                      return Column(
+                        children: [
+                          // Show meal plan quick actions at the top when in meal mode and visible
+                          if (currentMode == 'meal' && _showQuickActions)
+                            Flexible(
+                              child: _buildMealPlanQuickActions(
+                                  themeProvider.isDarkMode, context),
+                            ),
+
+                          // Chat messages list
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                // Dismiss keyboard when tapping chat area
+                                FocusScope.of(context).unfocus();
+                              },
+                              behavior: HitTestBehavior.translucent,
+                              child: ListView.builder(
+                                controller: _scrollController,
+                                itemCount: messages.length,
+                                padding: EdgeInsets.symmetric(
+                                    vertical: getPercentageHeight(1, context)),
+                                itemBuilder: (context, index) {
+                                  final message = messages[index];
+                                  return ChatItem(
+                                    dataSrc: message,
+                                    isMe:
+                                        message.senderId == userService.userId,
+                                    chatController: chatController,
+                                    chatId: chatId!,
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ),
+                  // Input Section
+                  ChatInputBar(
                     controller: textController,
+                    focusNode: _textFieldFocusNode,
                     isListening: _isListening,
                     canUseAI: canUseAI(),
                     onSend: () async {
@@ -716,18 +661,13 @@ class _TastyScreenState extends State<TastyScreen>
                     },
                     onVoiceToggle:
                         _isListening ? _stopListening : _startListening,
-                    isPlanning: isPlanning,
-                    isReadyToGenerate: isReady,
-                    onGeneratePlan: () =>
-                        chatController.generatePlanFromConversation(context),
-                  );
-                }),
-                SizedBox(height: getPercentageHeight(3, context)),
-              ],
+                  ),
+                  SizedBox(height: getPercentageHeight(3, context)),
+                ],
+              ),
             ),
           ),
         ),
-      ),
       );
     } else {
       return Scaffold(
@@ -748,9 +688,9 @@ class _TastyScreenState extends State<TastyScreen>
         if (!mounted) return;
 
         // Sync tab controller with current mode
-        final modes = ['sous chef', 'planner', 'meal'];
+        final modes = ['sous chef', 'meal'];
         final modeIndex = modes.indexOf(chatController.currentMode.value);
-        if (modeIndex >= 0 && modeIndex < 3) {
+        if (modeIndex >= 0 && modeIndex < 2) {
           _tabController.index = modeIndex;
         }
 
@@ -786,149 +726,419 @@ class _TastyScreenState extends State<TastyScreen>
 
   // Show meal plan welcome with quick action buttons (when entering from buddy tab)
   void _showMealPlanWelcomeWithOptions() {
+    // Quick actions are now always shown when in meal mode
+  }
+
+  // Show favorite meals dialog for remix selection
+  Future<void> _showFavoriteMealsDialog(BuildContext context) async {
     if (!mounted) return;
-    setState(() {
-      _showMealPlanQuickActions = true;
-    });
+
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+
+    try {
+      // Fetch favorite meals
+      final favoriteMeals = await mealManager.fetchFavoriteMeals();
+
+      if (favoriteMeals.isEmpty) {
+        // No favorite meals - show message
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            title: Text(
+              'No Favorite Meals',
+              style: textTheme.titleMedium?.copyWith(
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+            ),
+            content: Text(
+              'Chef, you don\'t have any favorite meals yet. Please favorite some meals first, then I can help you remix them!',
+              style: textTheme.bodyMedium?.copyWith(
+                color: isDarkMode ? kLightGrey : kDarkGrey,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
+                  'OK',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode ? kWhite : kAccent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // Show dialog with favorite meals list
+      if (!mounted) return;
+      final selectedMeal = await showDialog<Meal>(
+        context: context,
+        barrierDismissible: true,
+        builder: (dialogContext) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Text(
+            'Select Meal to Remix',
+            style: textTheme.titleMedium?.copyWith(
+              color: isDarkMode ? kWhite : kBlack,
+            ),
+          ),
+          content: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: favoriteMeals.length,
+              itemBuilder: (context, index) {
+                final meal = favoriteMeals[index];
+                return ListTile(
+                  title: Text(
+                    capitalizeFirstLetter(meal.title),
+                    style: TextStyle(
+                      fontSize: getTextScale(3, context),
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
+                  ),
+                  subtitle: meal.calories > 0
+                      ? Text(
+                          '${meal.calories} kcal',
+                          style: TextStyle(
+                            fontSize: getTextScale(2.5, context),
+                            color: isDarkMode ? kLightGrey : kDarkGrey,
+                          ),
+                        )
+                      : null,
+                  trailing: Icon(
+                    Icons.auto_fix_high,
+                    color: kAccent,
+                  ),
+                  onTap: () {
+                    Navigator.pop(dialogContext, meal);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      // If meal was selected, process remix
+      if (selectedMeal != null && mounted) {
+        await chatController.processRemixForMeal(selectedMeal, context);
+      }
+    } catch (e) {
+      debugPrint('Error showing favorite meals dialog: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to load favorite meals. Please try again.',
+          context,
+        );
+      }
+    }
   }
 
   // Handle meal plan quick action selection
-  void _handleMealPlanQuickAction(String action) {
+  void _handleMealPlanQuickAction(String action, bool isDarkMode) {
     if (!mounted) return;
 
-    setState(() {
-      _showMealPlanQuickActions = false;
-    });
+    // Dismiss keyboard first
+    FocusScope.of(context).unfocus();
 
-    chatController.handleMealPlanQuickAction(action);
+    // If custom action, focus the text input field (no confirmation needed)
+    if (action == 'custom') {
+      // Use a small delay to ensure the UI is ready
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && _textFieldFocusNode.canRequestFocus) {
+          _textFieldFocusNode.requestFocus();
+        }
+      });
+      return;
+    }
+
+    // For remix, show favorite meals dialog directly (no confirmation)
+    if (action == 'remix') {
+      setState(() {
+        _showQuickActions = false;
+      });
+      _showFavoriteMealsDialog(context);
+      return;
+    }
+
+    // Show confirmation dialog for other actions
+    _showMealPlanActionConfirmation(action, isDarkMode);
+  }
+
+  // Show confirmation dialog before executing meal plan action
+  void _showMealPlanActionConfirmation(String action, bool isDarkMode) {
+    if (!mounted) return;
+
+    final textTheme = Theme.of(context).textTheme;
+
+    // Get action details
+    String title;
+    String message;
+    switch (action) {
+      case '7days':
+        title = 'Create 7-Day Meal Plan';
+        message =
+            'This will generate a complete 7-day meal plan with breakfast, lunch, and dinner. Continue?';
+        break;
+      case 'single':
+        title = 'Get Single Meal Suggestion';
+        message = 'This will suggest a single healthy meal for you. Continue?';
+        break;
+      case 'quick':
+        title = 'Get Quick Meal Ideas';
+        message =
+            'This will suggest 3 quick and easy meal ideas you can make in under 30 minutes. Continue?';
+        break;
+      default:
+        title = 'Confirm Action';
+        message = 'Do you want to continue?';
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Text(
+            title,
+            style: textTheme.titleLarge?.copyWith(
+              color: isDarkMode ? kWhite : kBlack,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            message,
+            style: textTheme.bodyMedium?.copyWith(
+              color: isDarkMode ? kLightGrey : kDarkGrey,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                // Ensure keyboard stays dismissed
+                FocusScope.of(context).unfocus();
+              },
+              child: Text(
+                'Cancel',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                // Ensure keyboard stays dismissed before executing action
+                FocusScope.of(context).unfocus();
+                // Hide quick actions after action is executed
+                setState(() {
+                  _showQuickActions = false;
+                });
+                // Execute action
+                chatController.handleMealPlanQuickAction(action);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccent,
+                foregroundColor: kWhite,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Build meal plan quick actions widget
-  Widget _buildMealPlanQuickActions(bool isDarkMode) {
+  Widget _buildMealPlanQuickActions(bool isDarkMode, BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                  Theme.of(context).colorScheme.secondary.withOpacity(0.1),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      constraints: BoxConstraints(maxHeight: getPercentageHeight(50, context)),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                ),
               ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.restaurant_menu,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        chatController.familyMemberName.value != null
-                            ? '🎯 Planning for ${chatController.familyMemberName.value}'
-                            : '🍽️ What would you like to plan?',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      // Icon(
+                      //   Icons.restaurant_menu,
+                      //   color: Theme.of(context).colorScheme.primary,
+                      //   size: 24,
+                      // ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          chatController.familyMemberName.value != null
+                              ? '🎯 Planning for ${chatController.familyMemberName.value}'
+                              : '🍽️ Chef, What would you like to plan?',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Choose a quick option below or type your own request:',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode
-                            ? kWhite.withValues(alpha: 0.7)
-                            : kBlack.withValues(alpha: 0.7),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          color: isDarkMode
+                              ? kWhite.withOpacity(0.7)
+                              : kBlack.withOpacity(0.7),
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _showQuickActions = false;
+                          });
+                        },
+                        tooltip: 'Close',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
-                ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  Text(
+                    'Choose a quick option below or type your own request:',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: isDarkMode
+                              ? kWhite.withValues(alpha: 0.7)
+                              : kBlack.withValues(alpha: 0.7),
+                        ),
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
 
-                // Main action buttons - 7 days and single meal
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildQuickActionButton(
-                        icon: Icons.calendar_view_week,
-                        label: '7-Day Plan',
-                        sublabel: 'Full week meals',
-                        onTap: () => _handleMealPlanQuickAction('7days'),
-                        isPrimary: true,
+                  // Main action buttons - 7 days and single meal
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildQuickActionButton(
+                          isDarkMode: isDarkMode,
+                          icon: Icons.calendar_view_week,
+                          label: '7-Day Plan',
+                          sublabel: 'Full week meals',
+                          onTap: () =>
+                              _handleMealPlanQuickAction('7days', isDarkMode),
+                          isPrimary: true,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildQuickActionButton(
-                        icon: Icons.restaurant,
-                        label: 'Single Meal',
-                        sublabel: 'Quick suggestion',
-                        onTap: () => _handleMealPlanQuickAction('single'),
-                        isPrimary: true,
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      Expanded(
+                        child: _buildQuickActionButton(
+                          isDarkMode: isDarkMode,
+                          icon: Icons.restaurant,
+                          label: 'Single Meal',
+                          sublabel: 'Quick suggestion',
+                          onTap: () =>
+                              _handleMealPlanQuickAction('single', isDarkMode),
+                          isPrimary: true,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                    ],
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
 
-                // Secondary action buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildQuickActionButton(
-                        icon: Icons.menu_book,
-                        label: 'Recipe',
-                        sublabel: 'Detailed instructions',
-                        onTap: () => _handleMealPlanQuickAction('recipe'),
-                        isPrimary: false,
+                  // Secondary action buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildQuickActionButton(
+                          isDarkMode: isDarkMode,
+                          icon: Icons.auto_fix_high,
+                          label: 'Remix',
+                          sublabel: 'Remix favorite meal',
+                          onTap: () =>
+                              _handleMealPlanQuickAction('remix', isDarkMode),
+                          isPrimary: false,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildQuickActionButton(
-                        icon: Icons.timer,
-                        label: 'Quick Meals',
-                        sublabel: 'Under 30 min',
-                        onTap: () => _handleMealPlanQuickAction('quick'),
-                        isPrimary: false,
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      Expanded(
+                        child: _buildQuickActionButton(
+                          isDarkMode: isDarkMode,
+                          icon: Icons.timer,
+                          label: 'Quick Meals',
+                          sublabel: 'Under 30 min',
+                          onTap: () =>
+                              _handleMealPlanQuickAction('quick', isDarkMode),
+                          isPrimary: false,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
 
-                // Custom option
-                OutlinedButton.icon(
-                  onPressed: () => _handleMealPlanQuickAction('custom'),
-                  icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('Type my own request'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 44),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  // Custom option
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        _handleMealPlanQuickAction('custom', isDarkMode),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Type my own request'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -940,6 +1150,7 @@ class _TastyScreenState extends State<TastyScreen>
     required String sublabel,
     required VoidCallback onTap,
     required bool isPrimary,
+    required bool isDarkMode,
   }) {
     return Material(
       color: isPrimary
@@ -1000,12 +1211,6 @@ class _TastyScreenState extends State<TastyScreen>
       Color color;
 
       switch (currentMode) {
-        case 'planner':
-          title = 'Planner Mode';
-          description = 'Create a personalized nutrition program';
-          icon = Icons.edit_note;
-          color = kAccent;
-          break;
         case 'meal':
           title = 'Meal Plan Mode';
           description = 'Plan meals, get recipes, and add to calendar';
@@ -1066,20 +1271,6 @@ class _TastyScreenState extends State<TastyScreen>
                 ],
               ),
             ),
-            if (currentMode == 'planner' &&
-                chatController.isFormSubmitted.value)
-              IconButton(
-                icon: Icon(
-                  Icons.edit,
-                  color: color,
-                  size: getIconScale(5, context),
-                ),
-                onPressed: () {
-                  chatController.isFormSubmitted.value = false;
-                  chatController.planningFormData.value = null;
-                },
-                tooltip: 'Edit Form',
-              ),
           ],
         ),
       );
@@ -1089,74 +1280,6 @@ class _TastyScreenState extends State<TastyScreen>
   // Removed - no longer using feature items with new tab design
   // Removed - planner mode is now a tab, no need to exit dialog
 
-  Future<void> _sendFormToAIForConfirmation(
-      Map<String, dynamic> formData) async {
-    if (!mounted) return;
-
-    debugPrint('Form submitted with data: $formData');
-
-    // Store form data in controller
-    chatController.setPlanningFormData(formData);
-
-    // Static confirmation message (no AI until user confirms)
-    // Always show the "Based on these preferences..." line
-    final additionalDetailsText =
-        formData['additionalDetails']?.toString().trim();
-    final hasAdditionalDetails =
-        additionalDetailsText != null && additionalDetailsText.isNotEmpty;
-
-    final confirmationMessage = """Perfect! I've received your program details:
-
-📅 Duration: ${formData['duration']}
-🎯 Goal: ${formData['goal']}
-🥗 Diet Type: ${formData['dietType']}
-💪 Activity Level: ${formData['activityLevel']}
-${hasAdditionalDetails ? '📝 Additional Details: $additionalDetailsText\n' : ''}Based on these preferences, I'll create a personalized nutrition program that focuses on ${formData['goal']} while respecting your ${formData['dietType']} dietary preferences.
-
-If you're happy with these details, click "Submit" below to generate your custom program. If you'd like to make any changes, click "Amend Form".""";
-
-    final confirmationChatMessage = ChatScreenData(
-      messageContent: confirmationMessage,
-      senderId: 'buddy',
-      timestamp: Timestamp.now(),
-      imageUrls: [],
-      messageId: '',
-      actionButtons: {
-        'amendForm': 'Amend Form',
-        'submitPlan': 'Submit',
-      },
-    );
-
-    debugPrint('Adding confirmation message to chat');
-    debugPrint('Confirmation message content: $confirmationMessage');
-    debugPrint('Full message length: ${confirmationMessage.length}');
-
-    // Mark form as submitted
-    chatController.isFormSubmitted.value = true;
-
-    // Add message locally first for immediate UI feedback
-    chatController.messages.add(confirmationChatMessage);
-    final messageCount = chatController.messages.length;
-    debugPrint('Message added locally, count: $messageCount');
-    debugPrint(
-        'Last message content: ${chatController.messages.last.messageContent.substring(0, 50)}...');
-
-    // Force UI update
-    if (mounted) {
-      setState(() {});
-    }
-    _onNewMessage();
-
-    // Don't save to Firestore yet - only save when user clicks Submit
-    // Message will persist locally until user leaves the screen or clicks Submit
-    debugPrint(
-        'Confirmation message added locally (not saved to Firestore yet)');
-    debugPrint('Final message count: ${chatController.messages.length}');
-
-    // Hide form after submission
-    chatController.showForm.value = false;
-  }
-
   Widget _buildEmptyState(String mode, bool isDarkMode) {
     IconData icon;
     String title;
@@ -1164,17 +1287,6 @@ If you're happy with these details, click "Submit" below to generate your custom
     List<String> quickStarters;
 
     switch (mode) {
-      case 'planner':
-        icon = Icons.edit_note;
-        title = 'Design Your Program';
-        subtitle =
-            'Create a personalized nutrition plan tailored to your goals.';
-        quickStarters = [
-          'Create a 7-day plan',
-          'I want to lose weight',
-          'Build muscle plan',
-        ];
-        break;
       case 'meal':
         icon = Icons.restaurant_menu;
         title = 'Plan Your Meals';

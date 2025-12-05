@@ -49,13 +49,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     } else {
       // For regular recipes
       if (widget.mealData != null) {
+        _meal = widget.mealData;
+        // If instructions are empty and we have a valid mealId, start listening for real-time updates
         if (widget.mealData!.instructions.isEmpty &&
             widget.mealData!.mealId.isNotEmpty) {
-          // If instructions are empty and we have a valid mealId, start listening for real-time updates
           _listenToMeal();
-        } else {
-          _meal = widget.mealData;
         }
+      } else if (widget.mealId != null && widget.mealId!.isNotEmpty) {
+        // If only mealId is provided, fetch the meal
+        _getMealById(widget.mealId!);
       }
     }
 
@@ -75,8 +77,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   void _listenToMeal() {
     setState(() => _loading = true);
 
+    // Use _meal.mealId if available, otherwise fall back to widget.mealData
+    final mealIdToListen = _meal?.mealId ?? widget.mealData?.mealId ?? '';
+
     // Check if mealId is valid before attempting to listen
-    if (widget.mealData?.mealId.isEmpty ?? true) {
+    if (mealIdToListen.isEmpty) {
       debugPrint(
           'Warning: mealId is empty, cannot listen to Firestore document');
       setState(() => _loading = false);
@@ -85,7 +90,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     _mealSubscription = firestore
         .collection('meals')
-        .doc(widget.mealData!.mealId)
+        .doc(mealIdToListen)
         .snapshots()
         .listen((snapshot) {
       if (!mounted) {
@@ -98,8 +103,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
           final meal = Meal.fromJson(snapshot.id, data);
 
-          if (meal.instructions.isNotEmpty) {}
-
           setState(() {
             _meal = meal;
             _loading = false;
@@ -108,14 +111,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           // If instructions are now populated, we can stop listening
           if (meal.instructions.isNotEmpty) {
             _mealSubscription?.cancel();
-          } else {}
+          }
         } catch (e, stackTrace) {
+          debugPrint('Error parsing meal data: $e');
           debugPrint('Stack trace: $stackTrace');
           setState(() => _loading = false);
         }
-      } else {}
+      } else {
+        setState(() => _loading = false);
+      }
     }, onError: (error) {
-      setState(() => _loading = false);
+      debugPrint('Error listening to meal updates: $error');
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     });
   }
 
@@ -165,9 +174,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_meal != null) {
-      debugPrint('meal: ${_meal?.suggestions}');
-    }
     if (_meal == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -232,7 +238,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               ),
 
               // Turner's Notes section
-              if (_meal != null) _buildTurnersNotes(context),
+              if (_meal != null) ..._buildTurnersNotes(context),
 
               if (_meal!.suggestions != null &&
                   _meal!.suggestions!.isNotEmpty &&
@@ -478,61 +484,63 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   /// Build Turner's Notes section widget
-  Widget _buildTurnersNotes(BuildContext context) {
-    if (_meal == null) return const SizedBox.shrink();
+  List<Widget> _buildTurnersNotes(BuildContext context) {
+    if (_meal == null) return [];
 
     final notes = _generateTurnerNotes(_meal!);
-    if (notes.isEmpty) return const SizedBox.shrink();
+    if (notes.isEmpty) return [];
 
     final isDarkMode = getThemeProvider(context).isDarkMode;
 
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: EdgeInsets.only(
-          left: getPercentageWidth(5, context),
-          right: getPercentageWidth(5, context),
-          top: getPercentageHeight(2, context),
-        ),
-        padding: EdgeInsets.all(getPercentageWidth(3, context)),
-        decoration: BoxDecoration(
-          color: kAccent.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: kAccent.withValues(alpha: 0.3),
-            width: 1,
+    return [
+      SliverToBoxAdapter(
+        child: Container(
+          margin: EdgeInsets.only(
+            left: getPercentageWidth(5, context),
+            right: getPercentageWidth(5, context),
+            top: getPercentageHeight(2, context),
+          ),
+          padding: EdgeInsets.all(getPercentageWidth(3, context)),
+          decoration: BoxDecoration(
+            color: kAccent.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: kAccent.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Turner\'s Notes',
+                style: TextStyle(
+                  fontSize: getTextScale(4.5, context),
+                  fontWeight: FontWeight.w700,
+                  color: kAccent,
+                ),
+              ),
+              SizedBox(height: getPercentageHeight(1, context)),
+              ...notes.map((note) => Padding(
+                    padding: EdgeInsets.only(
+                        bottom: getPercentageHeight(0.5, context)),
+                    child: RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: getTextScale(3.5, context),
+                          fontStyle: FontStyle.italic,
+                          color: isDarkMode ? kWhite : kBlack,
+                          height: 1.5,
+                        ),
+                        children: _parseTurnerNote(note),
+                      ),
+                    ),
+                  )),
+            ],
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Turner\'s Notes',
-              style: TextStyle(
-                fontSize: getTextScale(4.5, context),
-                fontWeight: FontWeight.w700,
-                color: kAccent,
-              ),
-            ),
-            SizedBox(height: getPercentageHeight(1, context)),
-            ...notes.map((note) => Padding(
-                  padding: EdgeInsets.only(
-                      bottom: getPercentageHeight(0.5, context)),
-                  child: RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontSize: getTextScale(3.5, context),
-                        fontStyle: FontStyle.italic,
-                        color: isDarkMode ? kWhite : kBlack,
-                        height: 1.5,
-                      ),
-                      children: _parseTurnerNote(note),
-                    ),
-                  ),
-                )),
-          ],
-        ),
       ),
-    );
+    ];
   }
 }
 

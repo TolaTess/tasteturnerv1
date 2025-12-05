@@ -23,23 +23,13 @@ void main() {
 
     test('Initial state is correct', () {
       expect(chatController.currentMode.value, 'tasty');
-      expect(chatController.isPlanningMode.value, false);
       expect(chatController.showForm.value, false);
       expect(chatController.messages.length, 0);
     });
 
-    test('Mode switching works', () {
-      // Direct state manipulation for testing
-      chatController.currentMode.value = 'planner';
-      expect(chatController.currentMode.value, 'planner');
-
-      chatController.currentMode.value = 'meal';
-      expect(chatController.currentMode.value, 'meal');
-    });
 
     test('Welcome messages are populated', () {
       expect(chatController.tastyWelcomeMessages, isNotEmpty);
-      expect(chatController.plannerWelcomeMessages, isNotEmpty);
       expect(chatController.mealPlanWelcomeMessages, isNotEmpty);
     });
 

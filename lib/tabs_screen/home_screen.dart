@@ -37,6 +37,10 @@ import '../helper/onboarding_prompt_helper.dart';
 import '../widgets/onboarding_prompt.dart';
 import '../pages/edit_goal.dart';
 import '../widgets/notification_preference_dialog.dart';
+import '../screens/rainbow_tracker_detail_screen.dart';
+import '../screens/badges_screen.dart';
+import '../service/badge_service.dart';
+import '../service/plant_detection_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -71,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _showGoalsPrompt = false;
   bool _tutorialCompleted = false;
   Worker? _unreadNotificationsWorker;
+  final RxInt _rainbowPlantsCount = 0.obs;
 
   @override
   void initState() {
@@ -714,6 +719,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final userId = userService.userId;
       if (userId != null && userId.isNotEmpty) {
         chatController.loadUserChats(userId);
+        // Load badge data for quick stats display
+        try {
+          await BadgeService.instance.loadUserProgress(userId);
+        } catch (e) {
+          debugPrint('Error loading badge data: $e');
+        }
+        // Load rainbow tracker data
+        try {
+          final plantDetectionService = PlantDetectionService.instance;
+          final weekStart = getWeekStart(DateTime.now());
+          final score = await plantDetectionService.getPlantDiversityScore(
+            userId,
+            weekStart,
+          );
+          _rainbowPlantsCount.value = score.uniquePlants;
+          debugPrint('Loaded rainbow plants count: ${score.uniquePlants}');
+        } catch (e) {
+          debugPrint('Error loading rainbow tracker data: $e');
+          _rainbowPlantsCount.value = 0;
+        }
       }
 
       // Run independent operations in parallel with timeout
@@ -1198,6 +1223,176 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return const SizedBox.shrink();
   }
 
+  /// Build quick stats row (streak, badges, points, rainbow tracker)
+  Widget _buildQuickStatsRow(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
+    return Obx(() {
+      final badgeService = BadgeService.instance;
+      return Container(
+        margin:
+            EdgeInsets.symmetric(horizontal: getPercentageWidth(4.5, context)),
+        padding: EdgeInsets.symmetric(
+          horizontal: getPercentageWidth(2, context),
+          vertical: getPercentageHeight(1.5, context),
+        ),
+        decoration: BoxDecoration(
+          color: isDarkMode
+              ? kDarkGrey.withValues(alpha: 0.5)
+              : kAccentLight.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: kAccent.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            // Streak Card
+            _buildStatCard(
+              context: context,
+              icon: Icons.local_fire_department,
+              iconColor: Colors.orange,
+              value: badgeService.streakDays.value.toString(),
+              label: 'Day Streak',
+              isDarkMode: isDarkMode,
+              textTheme: textTheme,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BadgesScreen(),
+                  ),
+                );
+              },
+            ),
+            // Divider
+            Container(
+              width: 1,
+              height: getPercentageHeight(4, context),
+              color: kAccent.withValues(alpha: 0.2),
+            ),
+            // Badges Card
+            _buildStatCard(
+              context: context,
+              icon: Icons.emoji_events,
+              iconColor: Colors.deepPurple,
+              value: badgeService.earnedBadges.length.toString(),
+              label: 'Badges',
+              isDarkMode: isDarkMode,
+              textTheme: textTheme,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BadgesScreen(),
+                  ),
+                );
+              },
+            ),
+            // Divider
+            Container(
+              width: 1,
+              height: getPercentageHeight(4, context),
+              color: kAccent.withValues(alpha: 0.2),
+            ),
+            // Points Card
+            // _buildStatCard(
+            //   context: context,
+            //   icon: Icons.star,
+            //   iconColor: Colors.amber,
+            //   value: badgeService.totalPoints.value.toString(),
+            //   label: 'points',
+            //   isDarkMode: isDarkMode,
+            //   textTheme: textTheme,
+            //   onTap: () {
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //         builder: (context) => const ProfileScreen(),
+            //       ),
+            //     );
+            //   },
+            // ),
+            // Divider
+            Container(
+              width: 1,
+              height: getPercentageHeight(4, context),
+              color: kAccent.withValues(alpha: 0.2),
+            ),
+            // Rainbow Tracker Card
+            Obx(() => _buildStatCard(
+                  context: context,
+                  icon: Icons.eco,
+                  iconColor: kAccent,
+                  value: _rainbowPlantsCount.value.toString(),
+                  label: 'Plants',
+                  isDarkMode: isDarkMode,
+                  textTheme: textTheme,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RainbowTrackerDetailScreen(
+                          weekStart: getWeekStart(DateTime.now()),
+                        ),
+                      ),
+                    );
+                  },
+                )),
+          ],
+        ),
+      );
+    });
+  }
+
+  /// Build individual stat card
+  Widget _buildStatCard({
+    required BuildContext context,
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required String label,
+    required bool isDarkMode,
+    required TextTheme textTheme,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: iconColor,
+              size: getIconScale(6, context),
+            ),
+            SizedBox(height: getPercentageHeight(0.5, context)),
+            Text(
+              value,
+              style: textTheme.titleLarge?.copyWith(
+                fontSize: getTextScale(5, context),
+                fontWeight: FontWeight.bold,
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(0.2, context)),
+            Text(
+              label,
+              style: textTheme.bodySmall?.copyWith(
+                fontSize: getTextScale(2.5, context),
+                color: isDarkMode
+                    ? kLightGrey.withValues(alpha: 0.8)
+                    : kDarkGrey.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Build shopping day banner
   Widget? _buildShoppingDayBanner(
       BuildContext context, bool isDarkMode, TextTheme textTheme) {
@@ -1222,7 +1417,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Text(
               familyMode
                   ? "Shopping Day, Chef: \nTime to stock the pantry for healthy family meals! Check your smart grocery list for kid-friendly essentials."
-                  : "Shopping Day, Chef: \nReady to stock the pantry? Your grocery list is loaded with healthy picks for your goals!",
+                  : "Shopping Day, Chef: \nReady to stock the pantry? Your grocery list is loaded with great ingredients from your menu!",
               style: textTheme.bodyMedium?.copyWith(
                 color: kAccentLight,
               ),
@@ -1518,6 +1713,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       thickness: 1.5,
                     ),
                     SizedBox(height: getPercentageHeight(1, context)),
+
+                    // Quick Stats Row (Streak, Badges, Points, Rainbow Tracker)
+                    _buildQuickStatsRow(context, isDarkMode, textTheme),
+                    SizedBox(height: getPercentageHeight(2, context)),
+
                     // Milestones tracker
                     Obx(() => GestureDetector(
                           onTap: () {

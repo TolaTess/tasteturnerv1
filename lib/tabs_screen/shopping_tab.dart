@@ -438,51 +438,216 @@ class _ShoppingTabState extends State<ShoppingTab> {
   }
 
   void _showDayPicker(BuildContext context, bool isDarkMode) async {
+    final textTheme = Theme.of(context).textTheme;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) {
-        return SafeArea(
-          child: SingleChildScrollView(
+        return Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? kDarkGrey : kWhite,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDarkMode
+                    ? kWhite.withValues(alpha: 0.1)
+                    : kBlack.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, -5),
+              ),
+            ],
+          ),
+          child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: _daysOfWeek.map((day) {
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _saveSelectedDay(day);
-                  },
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          day,
-                          style: TextStyle(
-                            color: isDarkMode ? kWhite : kBlack,
-                            fontSize: getTextScale(3.5, context),
-                          ),
-                        ),
-                        if (_selectedDay == day)
-                          const Icon(Icons.check, color: kAccent, size: 18)
-                      ],
+              children: [
+                // Drag handle
+                Container(
+                  margin: EdgeInsets.only(
+                    top: getPercentageHeight(1, context),
+                    bottom: getPercentageHeight(1, context),
+                  ),
+                  width: getPercentageWidth(10, context),
+                  height: getPercentageHeight(0.3, context),
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? kLightGrey.withValues(alpha: 0.5)
+                        : kDarkGrey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+
+                // Title
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(5, context),
+                    vertical: getPercentageHeight(1, context),
+                  ),
+                  child: Text(
+                    'Select Shopping Day',
+                    style: textTheme.displaySmall?.copyWith(
+                      fontSize: getTextScale(6, context),
+                      fontWeight: FontWeight.w600,
+                      color: isDarkMode ? kWhite : kBlack,
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+
+                SizedBox(height: getPercentageHeight(1, context)),
+
+                // Days list
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(4, context),
+                    vertical: getPercentageHeight(1, context),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: _daysOfWeek.map((day) {
+                      final isSelected = _selectedDay == day;
+                      final dayIcon = _getDayIcon(day);
+
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _saveSelectedDay(day);
+                        },
+                        child: Container(
+                          margin: EdgeInsets.only(
+                            bottom: getPercentageHeight(1, context),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(4, context),
+                            vertical: getPercentageHeight(2, context),
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? kAccent.withValues(alpha: 0.15)
+                                : isDarkMode
+                                    ? kDarkGrey.withValues(alpha: 0.5)
+                                    : kAccentLight.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected
+                                  ? kAccent
+                                  : isDarkMode
+                                      ? kLightGrey.withValues(alpha: 0.2)
+                                      : kAccent.withValues(alpha: 0.2),
+                              width: isSelected ? 2 : 1,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: kAccent.withValues(alpha: 0.2),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            children: [
+                              // Day icon
+                              Container(
+                                padding: EdgeInsets.all(
+                                  getPercentageWidth(2.5, context),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? kAccent.withValues(alpha: 0.2)
+                                      : isDarkMode
+                                          ? kLightGrey.withValues(alpha: 0.1)
+                                          : kAccent.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  dayIcon,
+                                  color: isSelected
+                                      ? kAccent
+                                      : isDarkMode
+                                          ? kLightGrey
+                                          : kAccent.withValues(alpha: 0.7),
+                                  size: getIconScale(5, context),
+                                ),
+                              ),
+
+                              SizedBox(width: getPercentageWidth(3, context)),
+
+                              // Day name
+                              Expanded(
+                                child: Text(
+                                  day,
+                                  style: textTheme.titleLarge?.copyWith(
+                                    fontSize: getTextScale(4.5, context),
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? kAccent
+                                        : isDarkMode
+                                            ? kWhite
+                                            : kBlack,
+                                  ),
+                                ),
+                              ),
+
+                              // Check icon
+                              if (isSelected)
+                                Container(
+                                  padding: EdgeInsets.all(
+                                    getPercentageWidth(1.5, context),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: kAccent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.check,
+                                    color: kWhite,
+                                    size: getIconScale(4, context),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                SizedBox(height: getPercentageHeight(2, context)),
+              ],
             ),
           ),
         );
       },
     );
+  }
+
+  IconData _getDayIcon(String day) {
+    switch (day.toLowerCase()) {
+      case 'monday':
+        return Icons.calendar_today;
+      case 'tuesday':
+        return Icons.event;
+      case 'wednesday':
+        return Icons.calendar_month;
+      case 'thursday':
+        return Icons.date_range;
+      case 'friday':
+        return Icons.today;
+      case 'saturday':
+        return Icons.weekend;
+      case 'sunday':
+        return Icons.wb_sunny;
+      default:
+        return Icons.calendar_today;
+    }
   }
 
   @override
@@ -512,8 +677,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 {
                   'icon': Icons.shopping_cart,
                   'title': 'Smart Lists',
-                  'description':
-                      'Generated lists based on your meal plans',
+                  'description': 'Generated lists based on your meal plans',
                   'color': kAccentLight,
                 },
                 {
@@ -584,207 +748,209 @@ class _ShoppingTabState extends State<ShoppingTab> {
         child: Column(
           children: [
             // Header card with shopping day and view info
-          Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: getPercentageHeight(1, context),
-              horizontal: getPercentageWidth(2.5, context),
-            ),
-            child: Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                vertical: getPercentageHeight(1, context),
+                horizontal: getPercentageWidth(2.5, context),
               ),
-              color: isDarkMode ? kDarkGrey : kWhite,
-              child: Column(
-                children: [
-                  GestureDetector(
-                    onTap: () => _showDayPicker(context, isDarkMode),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: getPercentageHeight(1, context),
-                        horizontal: getPercentageWidth(3.5, context),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildInfoColumn(
-                            context,
-                            title: 'Market Day',
-                            icon: Icons.edit_calendar,
-                            text: _selectedDay ?? 'Select Day',
-                            textTheme: textTheme,
-                          ),
-                          Obx(() => _buildInfoColumn(
-                                context,
-                                title: _is54321View ? 'View' : 'Stock',
-                                icon: _is54321View
-                                    ? Icons.grid_view
-                                    : Icons.shopping_basket,
-                                text: _is54321View
-                                    ? '54321'
-                                    : _getItemCountText(),
-                                textTheme: textTheme,
-                              )),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (!_is54321View) ...[
-                    Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () => Get.to(() => IngredientFeatures(
-                                items: macroManager.ingredient,
-                              )),
-                          child: Text(
-                            'View Walk-In Pantry',
-                            style: textTheme.displayMedium?.copyWith(
-                              fontSize: getTextScale(4, context),
-                              fontWeight: FontWeight.normal,
-                              color: kAccentLight,
-                            ),
-                          ),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                color: isDarkMode ? kDarkGrey : kWhite,
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _showDayPicker(context, isDarkMode),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: getPercentageHeight(1, context),
+                          horizontal: getPercentageWidth(3.5, context),
                         ),
-                        SizedBox(height: getPercentageHeight(1, context)),
-                        GestureDetector(
-                          onTap: () => _saveViewPreference(!_is54321View),
-                          child: Text(
-                            'Click to view 54321 list',
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: kAccent,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: getPercentageHeight(1, context)),
-                  ],
-                ],
-              ),
-            ),
-          ),
-
-          // 54321 View
-          if (_is54321View) ...[
-            _build54321View(context, isDarkMode, textTheme),
-          ] else ...[
-            // Regular shopping list view
-            Expanded(
-              child: Obx(() {
-                final generatedItems = _macroManager.generatedShoppingList;
-                final manualItems = _macroManager.manualShoppingList;
-                final hasItems =
-                    generatedItems.isNotEmpty || manualItems.isNotEmpty;
-
-                List<Widget> listWidgets = [];
-
-                if (hasItems) {
-                  // Add Generate Button at the top only if there are new meals
-                  if (_newItemsCount.value > 0) {
-                    listWidgets.add(
-                      ShoppingListGenerateButton(
-                        isGenerating: _isGenerating,
-                        newItemsCount: _newItemsCount,
-                        macroManager: _macroManager,
-                        onGeneratingStateChanged: (isGenerating) {
-                          if (mounted) {
-                            setState(() {
-                              _isGenerating = isGenerating;
-                            });
-                          }
-                        },
-                        onSuccess: () async {
-                          if (mounted) {
-                            await _checkForNewItems();
-                          }
-                        },
-                      ),
-                    );
-                  }
-
-                  if (manualItems.isNotEmpty) {
-                    listWidgets.add(_buildSectionHeader(
-                        'Chef\'s Selection', textTheme, context,
-                        isManual: true));
-                    listWidgets.addAll(_buildConsolidatedList(
-                        manualItems.toList(),
-                        isManual: true));
-                  }
-
-                  if (generatedItems.isNotEmpty) {
-                    listWidgets.add(_buildSectionHeader(
-                        'From This Week\'s Menu', textTheme, context,
-                        isGenerated: true));
-                    listWidgets.addAll(_buildConsolidatedList(
-                        generatedItems.toList(),
-                        isManual: false));
-                  }
-                } else {
-                  // Show empty state with manual generation button
-                  listWidgets.add(
-                    Padding(
-                      padding: EdgeInsets.only(
-                          top: getPercentageHeight(10, context)),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(
-                              Icons.shopping_cart_outlined,
-                              size: getPercentageWidth(20, context),
-                              color: isDarkMode
-                                  ? kWhite.withOpacity(0.5)
-                                  : kBlack.withOpacity(0.5),
+                            _buildInfoColumn(
+                              context,
+                              title: 'Market Day',
+                              icon: Icons.edit_calendar,
+                              text: _selectedDay ?? 'Select Day',
+                              textTheme: textTheme,
                             ),
-                            SizedBox(height: getPercentageHeight(2, context)),
-                            Text(
-                              'Your market list is empty, Chef!',
-                              style: textTheme.titleMedium,
-                            ),
-                            SizedBox(height: getPercentageHeight(1, context)),
-                            GestureDetector(
-                              onTap: () => Get.to(() => BottomNavSec(selectedIndex: 3)),
-                              child: Text(
-                                'Chef, how about a spin of the wheel?',
-                                style: textTheme.bodyMedium
-                                    ?.copyWith(color: kBlue, decoration: TextDecoration.underline),
-                              ),
-                            ),
-                            SizedBox(height: getPercentageHeight(3, context)),
-                            // Only show button if there are new meals
-                            if (_newItemsCount.value > 0)
-                              ShoppingListGenerateButton(
-                                isGenerating: _isGenerating,
-                                newItemsCount: _newItemsCount,
-                                macroManager: _macroManager,
-                                showInEmptyState: true,
-                                onGeneratingStateChanged: (isGenerating) {
-                                  if (mounted) {
-                                    setState(() {
-                                      _isGenerating = isGenerating;
-                                    });
-                                  }
-                                },
-                                onSuccess: () async {
-                                  if (mounted) {
-                                    await _checkForNewItems();
-                                  }
-                                },
-                              ),
+                            Obx(() => _buildInfoColumn(
+                                  context,
+                                  title: _is54321View ? 'View' : 'Stock',
+                                  icon: _is54321View
+                                      ? Icons.grid_view
+                                      : Icons.shopping_basket,
+                                  text: _is54321View
+                                      ? '54321'
+                                      : _getItemCountText(),
+                                  textTheme: textTheme,
+                                )),
                           ],
                         ),
                       ),
                     ),
-                  );
-                }
-
-                return ListView(
-                  children: listWidgets,
-                );
-              }),
+                    if (!_is54321View) ...[
+                      Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () => Get.to(() => IngredientFeatures(
+                                  items: macroManager.ingredient,
+                                )),
+                            child: Text(
+                              'View Walk-In Pantry',
+                              style: textTheme.displayMedium?.copyWith(
+                                fontSize: getTextScale(4, context),
+                                fontWeight: FontWeight.normal,
+                                color: kAccentLight,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: getPercentageHeight(1, context)),
+                          GestureDetector(
+                            onTap: () => _saveViewPreference(!_is54321View),
+                            child: Text(
+                              'Click to view 54321 list',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: kAccent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: getPercentageHeight(1, context)),
+                    ],
+                  ],
+                ),
+              ),
             ),
+
+            // 54321 View
+            if (_is54321View) ...[
+              _build54321View(context, isDarkMode, textTheme),
+            ] else ...[
+              // Regular shopping list view
+              Expanded(
+                child: Obx(() {
+                  final generatedItems = _macroManager.generatedShoppingList;
+                  final manualItems = _macroManager.manualShoppingList;
+                  final hasItems =
+                      generatedItems.isNotEmpty || manualItems.isNotEmpty;
+
+                  List<Widget> listWidgets = [];
+
+                  if (hasItems) {
+                    // Add Generate Button at the top only if there are new meals
+                    if (_newItemsCount.value > 0) {
+                      listWidgets.add(
+                        ShoppingListGenerateButton(
+                          isGenerating: _isGenerating,
+                          newItemsCount: _newItemsCount,
+                          macroManager: _macroManager,
+                          onGeneratingStateChanged: (isGenerating) {
+                            if (mounted) {
+                              setState(() {
+                                _isGenerating = isGenerating;
+                              });
+                            }
+                          },
+                          onSuccess: () async {
+                            if (mounted) {
+                              await _checkForNewItems();
+                            }
+                          },
+                        ),
+                      );
+                    }
+
+                    if (manualItems.isNotEmpty) {
+                      listWidgets.add(_buildSectionHeader(
+                          'Chef\'s Selection', textTheme, context,
+                          isManual: true));
+                      listWidgets.addAll(_buildConsolidatedList(
+                          manualItems.toList(),
+                          isManual: true));
+                    }
+
+                    if (generatedItems.isNotEmpty) {
+                      listWidgets.add(_buildSectionHeader(
+                          'From This Week\'s Menu', textTheme, context,
+                          isGenerated: true));
+                      listWidgets.addAll(_buildConsolidatedList(
+                          generatedItems.toList(),
+                          isManual: false));
+                    }
+                  } else {
+                    // Show empty state with manual generation button
+                    listWidgets.add(
+                      Padding(
+                        padding: EdgeInsets.only(
+                            top: getPercentageHeight(10, context)),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.shopping_cart_outlined,
+                                size: getPercentageWidth(20, context),
+                                color: isDarkMode
+                                    ? kWhite.withOpacity(0.5)
+                                    : kBlack.withOpacity(0.5),
+                              ),
+                              SizedBox(height: getPercentageHeight(2, context)),
+                              Text(
+                                'Your market list is empty, Chef!',
+                                style: textTheme.titleMedium,
+                              ),
+                              SizedBox(height: getPercentageHeight(1, context)),
+                              GestureDetector(
+                                onTap: () => Get.to(
+                                    () => BottomNavSec(selectedIndex: 3)),
+                                child: Text(
+                                  'Chef, how about a spin of the wheel?',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                      color: kBlue,
+                                      decoration: TextDecoration.underline),
+                                ),
+                              ),
+                              SizedBox(height: getPercentageHeight(3, context)),
+                              // Only show button if there are new meals
+                              if (_newItemsCount.value > 0)
+                                ShoppingListGenerateButton(
+                                  isGenerating: _isGenerating,
+                                  newItemsCount: _newItemsCount,
+                                  macroManager: _macroManager,
+                                  showInEmptyState: true,
+                                  onGeneratingStateChanged: (isGenerating) {
+                                    if (mounted) {
+                                      setState(() {
+                                        _isGenerating = isGenerating;
+                                      });
+                                    }
+                                  },
+                                  onSuccess: () async {
+                                    if (mounted) {
+                                      await _checkForNewItems();
+                                    }
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView(
+                    children: listWidgets,
+                  );
+                }),
+              ),
+            ],
           ],
-        ],
         ),
       ),
     );

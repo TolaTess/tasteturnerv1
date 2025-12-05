@@ -92,7 +92,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         ),
         TutorialStep(
           tutorialId: 'add_tasty_ai_button',
-          message: 'Tap here to speak to Turner the Sous Chef!',
+          message: 'Tap here to speak to Sous Chef Turner!',
           targetKey: _addTastyAIButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -1142,7 +1142,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
                 // AI Coach Section
                 Text(
-                  'Speak to "Turner" the Sous Chef',
+                  'Speak to Sous Chef Turner',
                   style: textTheme.displaySmall?.copyWith(
                     color: kAccent,
                     fontSize: getTextScale(7, context),
@@ -1230,34 +1230,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
                   ),
                 ],
                 SizedBox(height: getPercentageHeight(2.5, context)),
-
-                // Create Custom Plan Button
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.auto_awesome, color: kWhite),
-                  label: Text(
-                    'Customize Your Menu', // Create Custom Menu with AI, Chef
-                    style: textTheme.labelLarge?.copyWith(color: kWhite),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(5, context),
-                      vertical: getPercentageHeight(1.5, context),
-                    ),
-                  ),
-                  onPressed: () {
-                    if (!canUseAI()) {
-                      showPremiumRequiredDialog(context, isDarkMode);
-                      return;
-                    }
-                    Get.to(() => const TastyScreen(screen: 'message'),
-                        arguments: {'planningMode': true});
-                  },
-                ),
-                SizedBox(height: getPercentageHeight(2, context)),
 
                 // Current enrolled programs section
                 _buildEnrolledProgramsSection(context, textTheme, isDarkMode),

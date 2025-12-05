@@ -54,7 +54,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   List<Meal> _allMeals = [];
   List<MacroData> _allIngredients = [];
   List<dynamic> _searchResults = [];
-  final userId = userService.userId ?? '';
+  final String userId = userService.userId ?? '';
   final TextEditingController _searchController = TextEditingController();
   final MealApiService _apiService = MealApiService();
   final FoodApiService _macroApiService = FoodApiService();
@@ -97,6 +97,32 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
   void _clearPendingItems() {
     _pendingMacroItems.clear();
+  }
+
+  // Helper method to retry operations with exponential backoff
+  Future<T> _retryOperation<T>(
+    Future<T> Function() operation, {
+    int maxRetries = 3,
+    Duration initialDelay = const Duration(seconds: 1),
+  }) async {
+    int attempt = 0;
+    Duration delay = initialDelay;
+
+    while (attempt < maxRetries) {
+      try {
+        return await operation();
+      } catch (e) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          rethrow;
+        }
+        // Exponential backoff: 1s, 2s, 4s
+        await Future.delayed(delay);
+        delay = Duration(seconds: delay.inSeconds * 2);
+        debugPrint('Retry attempt $attempt/$maxRetries after error: $e');
+      }
+    }
+    throw Exception('Max retries exceeded');
   }
 
   // Method to manually refresh meal data for a specific meal type
@@ -258,7 +284,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       await _calorieAdjustmentService.loadAdjustmentsFromSharedPrefs();
     } catch (e) {
       debugPrint('Error loading data: $e');
-      // TODO: Handle error
+      if (mounted && context.mounted) {
+        _handleError(
+          'Failed to load data',
+          details:
+              'Please try again. If the problem persists, restart the app.',
+        );
+      }
     }
   }
 
@@ -319,20 +351,23 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
     // Now fetch API results asynchronously and append them
     if (query.length >= 3) {
-      final apiMealsFuture = _apiService.fetchMeals(
-        limit: 5, // Limit API results
-        searchQuery: query,
-      );
-      final apiIngredientsFuture = _macroApiService.searchIngredients(query);
+      // Use retry logic for API calls
+      final apiMealsFuture = _retryOperation(() => _apiService.fetchMeals(
+            limit: 5, // Limit API results
+            searchQuery: query,
+          ));
+      final apiIngredientsFuture =
+          _retryOperation(() => _macroApiService.searchIngredients(query));
 
       // Wait for both API calls
       final results = await Future.wait([
         apiMealsFuture,
         apiIngredientsFuture,
       ]);
-      // Before updating, check if the query is still the latest
-      if (currentQuery != _searchController.text) {
-        // User has typed something else, so don't update
+      // Before updating, check if the query is still the latest and widget is mounted
+      if (!mounted || currentQuery != _searchController.text) {
+        // User has typed something else or widget is disposed, so don't update
+        _isSearching.value = false;
         return;
       }
       List<Meal> apiMeals = results[0] as List<Meal>;
@@ -356,24 +391,29 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       }).toList();
 
       // Append API results to the current search results, but only if they match the query
-      setState(() {
-        // Only keep items that match the current query
-        final filteredLocal = _searchResults.where((item) {
-          final title = item is Meal
-              ? item.title
-              : item is MacroData
-                  ? item.title
-                  : item is IngredientData
-                      ? item.title
-                      : null;
-          return title != null &&
-              title != 'Unknown' &&
-              title.toLowerCase().contains(query.toLowerCase());
-        }).toList();
-        _searchResults = [...filteredLocal, ...apiResults];
-      });
+      // Double-check mounted and query match before updating
+      if (mounted && currentQuery == _searchController.text) {
+        setState(() {
+          // Only keep items that match the current query
+          final filteredLocal = _searchResults.where((item) {
+            final title = item is Meal
+                ? item.title
+                : item is MacroData
+                    ? item.title
+                    : item is IngredientData
+                        ? item.title
+                        : null;
+            return title != null &&
+                title != 'Unknown' &&
+                title.toLowerCase().contains(query.toLowerCase());
+          }).toList();
+          _searchResults = [...filteredLocal, ...apiResults];
+        });
+      }
     }
-    _isSearching.value = false;
+    if (mounted) {
+      _isSearching.value = false;
+    }
   }
 
   void _showSearchResults(BuildContext context, String mealType) {
@@ -747,8 +787,86 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     );
   }
 
-  void _showFillRemainingMacrosDialog(BuildContext context) {
+  // Helper method to fetch current macros from daily summary
+  Future<Map<String, double>> _getCurrentMacros() async {
+    try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(currentDate);
+      final summaryDoc = await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('daily_summary')
+          .doc(dateStr)
+          .get();
+
+      if (!summaryDoc.exists) {
+        return {'protein': 0.0, 'carbs': 0.0, 'fat': 0.0};
+      }
+
+      final data = summaryDoc.data() ?? {};
+      final nutritionalInfo = data['nutritionalInfo'] as Map<String, dynamic>?;
+
+      // Check direct fields first (standard path from cloud function), then fall back to nutritionalInfo
+      final proteinRaw = data['protein'] ?? nutritionalInfo?['protein'];
+      final protein = proteinRaw is int
+          ? proteinRaw.toDouble()
+          : proteinRaw is double
+              ? proteinRaw
+              : (proteinRaw is String
+                  ? double.tryParse(proteinRaw) ?? 0.0
+                  : 0.0);
+
+      final carbsRaw = data['carbs'] ?? nutritionalInfo?['carbs'];
+      final carbs = carbsRaw is int
+          ? carbsRaw.toDouble()
+          : carbsRaw is double
+              ? carbsRaw
+              : (carbsRaw is String ? double.tryParse(carbsRaw) ?? 0.0 : 0.0);
+
+      final fatRaw = data['fat'] ?? nutritionalInfo?['fat'];
+      final fat = fatRaw is int
+          ? fatRaw.toDouble()
+          : fatRaw is double
+              ? fatRaw
+              : (fatRaw is String ? double.tryParse(fatRaw) ?? 0.0 : 0.0);
+
+      return {'protein': protein, 'carbs': carbs, 'fat': fat};
+    } catch (e) {
+      debugPrint('Error fetching current macros: $e');
+      return {'protein': 0.0, 'carbs': 0.0, 'fat': 0.0};
+    }
+  }
+
+  Future<void> _showFillRemainingMacrosDialog(BuildContext context) async {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    // Show loading dialog while fetching macros
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: EdgeInsets.all(getPercentageWidth(5, context)),
+          decoration: BoxDecoration(
+            color: isDarkMode ? kDarkGrey : kWhite,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: kAccent),
+              SizedBox(height: getPercentageHeight(2, context)),
+              Text(
+                'Loading macros...',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                  fontSize: getTextScale(3.5, context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 
     // Get current totals and goals
     final settings = userService.currentUser.value?.settings ?? {};
@@ -762,9 +880,17 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         double.tryParse(settings['fatGoal']?.toString() ?? '0') ?? 0.0;
 
     final currentCalories = dailyDataController.totalCalories.value;
-    final currentProtein = 0.0; // TODO: Get from daily summary
-    final currentCarbs = 0.0; // TODO: Get from daily summary
-    final currentFat = 0.0; // TODO: Get from daily summary
+
+    // Fetch current macros from daily summary
+    final currentMacros = await _getCurrentMacros();
+    final currentProtein = currentMacros['protein'] ?? 0.0;
+    final currentCarbs = currentMacros['carbs'] ?? 0.0;
+    final currentFat = currentMacros['fat'] ?? 0.0;
+
+    // Close loading dialog
+    if (mounted && context.mounted) {
+      Navigator.pop(context);
+    }
 
     // Calculate remaining macros
     final remainingCalories = (targetCalories - currentCalories).round();
@@ -1474,13 +1600,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         },
       );
 
-      // Add meal to selected meal type
-      await dailyDataController.addUserMeal(
-        userId,
-        mealTypeResult,
-        userMeal,
-        currentDate,
-      );
+      // Add meal to selected meal type with retry logic
+      await _retryOperation(() => dailyDataController.addUserMeal(
+            userId,
+            mealTypeResult,
+            userMeal,
+            currentDate,
+          ));
 
       // Refresh data
       await _refreshMealData(mealTypeResult);
@@ -1545,40 +1671,62 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         ),
       );
 
-      // Fetch last 30 days
+      // Fetch last 30 days in parallel for better performance
+      final dateQueries = <Future<Map<String, dynamic>?>>[];
+
       for (int i = 1; i <= 30; i++) {
         final checkDate = currentDate.subtract(Duration(days: i));
         final dateStr = dateFormat.format(checkDate);
 
-        try {
-          final mealsDoc = await firestore
+        dateQueries.add(
+          firestore
               .collection('userMeals')
               .doc(userId)
               .collection('meals')
               .doc(dateStr)
-              .get();
+              .get()
+              .then((mealsDoc) {
+            if (mealsDoc.exists) {
+              final mealsData =
+                  mealsDoc.data()?['meals'] as Map<String, dynamic>? ?? {};
+              int totalMeals = 0;
+              for (var mealType in ['Breakfast', 'Lunch', 'Dinner', 'Fruits']) {
+                final mealList = mealsData[mealType] as List<dynamic>? ?? [];
+                totalMeals += mealList.length;
+              }
 
-          if (mealsDoc.exists) {
-            final mealsData =
-                mealsDoc.data()?['meals'] as Map<String, dynamic>? ?? {};
-            int totalMeals = 0;
-            for (var mealType in ['Breakfast', 'Lunch', 'Dinner', 'Fruits']) {
-              final mealList = mealsData[mealType] as List<dynamic>? ?? [];
-              totalMeals += mealList.length;
+              if (totalMeals > 0) {
+                return {
+                  'date': checkDate,
+                  'dateStr': dateStr,
+                  'mealCount': totalMeals,
+                };
+              }
             }
+            return null;
+          }).catchError((e) {
+            debugPrint('Error checking date $dateStr: $e');
+            return null;
+          }),
+        );
+      }
 
-            if (totalMeals > 0) {
-              recentDates.add({
-                'date': checkDate,
-                'dateStr': dateStr,
-                'mealCount': totalMeals,
-              });
-            }
-          }
-        } catch (e) {
-          debugPrint('Error checking date $dateStr: $e');
+      // Wait for all queries to complete in parallel
+      final results = await Future.wait(dateQueries);
+
+      // Filter out null results and add to recentDates
+      for (var result in results) {
+        if (result != null) {
+          recentDates.add(result);
         }
       }
+
+      // Sort by date (most recent first)
+      recentDates.sort((a, b) {
+        final dateA = a['date'] as DateTime;
+        final dateB = b['date'] as DateTime;
+        return dateB.compareTo(dateA);
+      });
 
       // Close loading dialog
       if (mounted) Navigator.pop(context);
@@ -1978,13 +2126,14 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         final mealType = entry.key;
         final meals = entry.value;
 
-        for (var meal in meals) {
+        for (var mealIndex = 0; mealIndex < meals.length; mealIndex++) {
+          final meal = meals[mealIndex];
           try {
             // Create new instance with originalMealId and NEW instanceId
-            // Add small delay to ensure unique instanceId
-            await Future.delayed(const Duration(milliseconds: 1));
-            final newInstanceId =
-                DateTime.now().millisecondsSinceEpoch.toString();
+            // Use timestamp + index + random component to ensure uniqueness
+            final timestamp = DateTime.now().millisecondsSinceEpoch;
+            final random = (DateTime.now().microsecondsSinceEpoch % 10000);
+            final newInstanceId = '${timestamp}_${mealIndex}_$random';
 
             final newInstance = meal.copyWith({
               'originalMealId': meal.mealId,
@@ -1993,12 +2142,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               'loggedAt': DateTime.now(),
             });
 
-            await dailyDataController.addUserMeal(
-              userId,
-              mealType,
-              newInstance,
-              currentDate,
-            );
+            await _retryOperation(() => dailyDataController.addUserMeal(
+                  userId,
+                  mealType,
+                  newInstance,
+                  currentDate,
+                ));
 
             successCount++;
             debugPrint(
@@ -2503,18 +2652,22 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       // Calculate total calories that will exist after adding
                       final totalCalories = existingCalories + newCalories;
 
-                      // Save all pending items
+                      // Save all pending items with retry logic
+                      // Use userService.userId directly with null coalescing to avoid type inference issues
+                      final String currentUserId =
+                          (userService.userId ?? '') as String;
                       for (var item in _pendingMacroItems) {
-                        await dailyDataController.addUserMeal(
-                          userId ?? '',
-                          mealType,
-                          item,
-                          currentDate,
-                        );
+                        await _retryOperation(
+                            () => dailyDataController.addUserMeal(
+                                  currentUserId,
+                                  mealType,
+                                  item,
+                                  currentDate,
+                                ));
                       }
 
                       // Check for calorie overage using the pre-calculated values
-                      if (mounted) {
+                      if (mounted && context.mounted) {
                         // Also refresh the calorie adjustment service to ensure it has current data
                         await _calorieAdjustmentService
                             .loadAdjustmentsFromSharedPrefs();
@@ -2533,7 +2686,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       // Refresh the meal data to ensure UI shows current state
                       await _refreshMealData(mealType);
 
-                      if (mounted) {
+                      if (mounted && context.mounted) {
                         showTastySnackbar(
                           'Success',
                           'Logged ${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'} to $mealType, Chef',
@@ -2543,7 +2696,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       _clearPendingItems();
                       Navigator.pop(context);
                     } catch (e) {
-                      if (mounted) {
+                      if (mounted && context.mounted) {
                         showTastySnackbar(
                           'Error',
                           'Failed to save items: $e',
@@ -2812,7 +2965,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       padding: EdgeInsets.symmetric(
                           horizontal: getPercentageWidth(2, context)),
                       child: GestureDetector(
-                        onTap: () => _showFillRemainingMacrosDialog(context),
+                        onTap: () {
+                          _showFillRemainingMacrosDialog(context);
+                        },
                         child: Container(
                           padding:
                               EdgeInsets.all(getPercentageWidth(3, context)),
@@ -3156,7 +3311,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   DateFormat('yyyy-MM-dd').format(yesterday);
 
                               // Get yesterday's summary data
-                              final userId = userService.userId ?? '';
+                              final String userId = userService.userId ?? '';
                               Map<String, dynamic> yesterdaySummary = {};
 
                               if (userId.isNotEmpty) {
@@ -3214,7 +3369,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                   child: Column(
                                     children: [
                                       Text(
-                                        'View Today\'s Action Items',
+                                        'View Today\'s Prep List',
                                         style: textTheme.titleMedium?.copyWith(
                                           color: kAccent,
                                           fontWeight: FontWeight.w600,
@@ -3225,7 +3380,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                           height: getPercentageHeight(
                                               0.5, context)),
                                       Text(
-                                        'Based on yesterday\'s summary',
+                                        'Based on yesterday\'s service',
                                         style: textTheme.bodySmall?.copyWith(
                                           color: kAccent.withValues(alpha: 0.7),
                                           fontSize: getTextScale(2.5, context),
@@ -3273,7 +3428,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      'Quick Update',
+                                      'Quick Service Update',
                                       style: textTheme.titleLarge?.copyWith(
                                         fontSize:
                                             getPercentageWidth(5, context),

@@ -271,7 +271,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
                   'icon': Icons.filter_list,
                   'title': 'Analyze Dishes',
                   'description':
-                      'Analyze any post with Turner the Sous Chef and get kitchen insights, Chef',
+                      'Analyze any post with Sous Chef Turner and get kitchen insights, Chef',
                   'color': kAccent,
                 },
               ],

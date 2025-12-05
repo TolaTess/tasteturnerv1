@@ -2,20 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
-
 import 'package:intl/intl.dart';
-import 'package:tasteturner/service/program_service.dart';
-import 'package:tasteturner/data_models/program_model.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../helper/helper_functions.dart';
+import '../data_models/meal_model.dart';
 
 import '../service/meal_planning_service.dart';
-import '../widgets/bottom_model.dart';
 
 class ChatController extends GetxController {
   static ChatController instance = Get.find();
@@ -28,18 +23,12 @@ class ChatController extends GetxController {
       _messagesSubscription;
 
   // Mode-based chat state
-  final RxString currentMode =
-      'sous chef'.obs; // 'sous chef', 'planner', 'meal'
+  final RxString currentMode = 'sous chef'.obs; // 'sous chef', 'meal'
   final Map<String, List<ChatScreenData>> modeMessages = {};
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
-      _modeMessagesSubscription;
+  List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>?
+      _modeSubscriptions = [];
 
   // Planning mode state
-  final RxBool isPlanningMode = false.obs;
-  final RxList<ChatScreenData> planningConversation = <ChatScreenData>[].obs;
-  final RxBool isReadyToGenerate = false.obs;
-  final Rx<Map<String, dynamic>?> planningFormData =
-      Rx<Map<String, dynamic>?>(null);
   final RxBool isFormSubmitted = false.obs;
   final RxBool showForm = false.obs;
 
@@ -52,19 +41,16 @@ class ChatController extends GetxController {
   // Pantry Ingredients (for Meal Plan mode)
   final RxList<String> pantryIngredients = <String>[].obs;
 
+  // Chat type tracking
+  bool isBuddyChat = false;
+
   // Welcome Messages
   final List<String> tastyWelcomeMessages = [
-    "Morning, Chef. Turner here, your Sous Chef. What's on the pass today?",
+    "Morning, Chef. Sous Chef Turner here. What's on the pass today?",
     "Chef, the station is ready. How can I assist with your nutrition goals today?",
     "Welcome back, Chef. Mise en place is set. What are we working on?",
     "Chef, I'm here to help you manage the kitchen. What do you need?"
-  ];
-
-  final List<String> plannerWelcomeMessages = [
-    "Chef, let's design your meal program. What goals are we working toward?",
-    "Ready to structure your nutrition plan, Chef? Tell me what you're aiming for.",
-    "Chef, I can help you create a personalized program. What's the vision?",
-    "Planning mode activated, Chef. Let's build a program that fits your kitchen."
+        "Ready to fill the calendar with great meals, Chef? Let's get planning."
   ];
 
   final List<String> mealPlanWelcomeMessages = [
@@ -72,9 +58,10 @@ class ChatController extends GetxController {
     "Let's organize the weekly menu, Chef. Any specific preferences or dietary needs?",
     "Chef, tell me what you're in the mood for, and I'll suggest some dishes.",
     "Ready to fill the calendar with great meals, Chef? Let's get planning."
+        "Chef, time to plan the week's menu. What are we cooking?",
   ];
 
-  // Initialize chat and listen for messages
+  // Initialize chat and listen for messages (for buddy chats with modes)
   Future<void> initializeChat(String friendId) async {
     if (friendId.isEmpty) {
       debugPrint("Cannot initialize chat: friendId is empty");
@@ -86,6 +73,7 @@ class ChatController extends GetxController {
       return;
     }
     chatId = await getOrCreateChatId(currentUserId, friendId);
+    isBuddyChat = true; // Mark as buddy chat
 
     // Set up mode subcollections and migrate if needed
     await _setupModeSubcollections();
@@ -93,8 +81,26 @@ class ChatController extends GetxController {
     // Load current mode from chat document or default to 'sous chef'
     await _loadCurrentMode();
 
-    // Listen to messages for current mode
-    listenToModeMessages(currentMode.value);
+    // Listen to messages from all modes simultaneously
+    listenToAllModeMessages();
+  }
+
+  // Initialize friend chat (simple messages collection, no modes)
+  Future<void> initializeFriendChat(String friendId) async {
+    if (friendId.isEmpty) {
+      debugPrint("Cannot initialize friend chat: friendId is empty");
+      return;
+    }
+    final currentUserId = userService.userId ?? '';
+    if (currentUserId.isEmpty) {
+      debugPrint("Cannot initialize friend chat: userId is empty");
+      return;
+    }
+    chatId = await getOrCreateChatId(currentUserId, friendId);
+    isBuddyChat = false; // Mark as friend chat
+
+    // Listen to simple messages collection (no modes)
+    listenToFriendMessages();
   }
 
   // Set up mode subcollections and migrate existing messages if needed
@@ -154,7 +160,7 @@ class ChatController extends GetxController {
       if (chatDoc.exists) {
         final data = chatDoc.data();
         final mode = data?['currentMode'] as String?;
-        if (mode != null && ['sous chef', 'planner', 'meal'].contains(mode)) {
+        if (mode != null && ['sous chef', 'meal'].contains(mode)) {
           currentMode.value = mode;
         }
       }
@@ -165,15 +171,12 @@ class ChatController extends GetxController {
 
   // Switch to a different mode
   Future<void> switchMode(String mode) async {
-    if (!['sous chef', 'planner', 'meal'].contains(mode)) {
+    if (!['sous chef', 'meal'].contains(mode)) {
       debugPrint('Invalid mode: $mode');
       return;
     }
 
     if (currentMode.value == mode) return;
-
-    // Cancel current subscription
-    _modeMessagesSubscription?.cancel();
 
     // Update current mode
     currentMode.value = mode;
@@ -190,8 +193,8 @@ class ChatController extends GetxController {
       }
     }
 
-    // Listen to messages for new mode
-    listenToModeMessages(mode);
+    // Note: We don't need to switch listeners anymore since we listen to all modes
+    // The mode switcher now only controls where new messages are routed
   }
 
   // Get mode subcollection name
@@ -199,27 +202,156 @@ class ChatController extends GetxController {
     return '${mode}_messages';
   }
 
-  // Listen to messages for a specific mode
+  // Listen to messages for a specific mode (kept for backward compatibility)
   void listenToModeMessages(String mode) {
+    // This method is kept for backward compatibility but is no longer used
+    // Use listenToAllModeMessages() instead
+    listenToAllModeMessages();
+  }
+
+  // Listen to messages from all modes simultaneously and merge them
+  void listenToAllModeMessages() {
+    if (chatId.isEmpty) {
+      debugPrint("Chat ID is empty");
+      return;
+    }
+
+    // Cancel existing subscriptions if any
+    _cancelAllModeSubscriptions();
+
+    try {
+      final modes = ['sous chef', 'meal'];
+      _modeSubscriptions = [];
+
+      for (final mode in modes) {
+        final subcollectionName = _getModeSubcollection(mode);
+        final subscription = firestore
+            .collection('chats')
+            .doc(chatId)
+            .collection(subcollectionName)
+            .orderBy('timestamp', descending: false)
+            .snapshots()
+            .listen(
+          (querySnapshot) {
+            final modeMessagesList = querySnapshot.docs
+                .map((doc) {
+                  try {
+                    return ChatScreenData.fromFirestore(doc.data(),
+                        messageId: doc.id);
+                  } catch (e) {
+                    debugPrint("Error parsing message data: $e");
+                    return null;
+                  }
+                })
+                .whereType<ChatScreenData>()
+                .toList();
+
+            // Cache messages for this mode
+            modeMessages[mode] = modeMessagesList;
+
+            // Merge all modes and update observable
+            _mergeAndUpdateMessages();
+          },
+          onError: (e) {
+            debugPrint("Error listening to $mode messages: $e");
+            modeMessages[mode] = [];
+            _mergeAndUpdateMessages();
+            try {
+              Get.snackbar(
+                'Connection Error',
+                'Unable to load messages. Please check your connection and try again.',
+                snackPosition: SnackPosition.BOTTOM,
+                duration: const Duration(seconds: 3),
+              );
+            } catch (_) {
+              // Ignore if Get.context is not available
+            }
+          },
+        );
+
+        _modeSubscriptions!.add(subscription);
+      }
+    } catch (e) {
+      debugPrint("Error setting up mode message listeners: $e");
+      modeMessages['sous chef'] = [];
+      modeMessages['meal'] = [];
+      messages.clear();
+    }
+  }
+
+  // Merge messages from all modes and update the observable
+  void _mergeAndUpdateMessages() {
+    final existingMessages = List<ChatScreenData>.from(messages);
+    final mergedMessages = <ChatScreenData>[];
+
+    // Add all messages from both modes
+    for (final mode in ['sous chef', 'meal']) {
+      final modeMessagesList = modeMessages[mode] ?? [];
+      for (final msg in modeMessagesList) {
+        mergedMessages.add(msg);
+      }
+    }
+
+    // Add any local messages that don't have IDs yet (pending save)
+    // These are messages added locally but not yet in Firestore
+    for (final msg in existingMessages) {
+      // Deduplicate based on messageId if available, otherwise fall back to timestamp/content check
+      final isDuplicate = mergedMessages.any((m) =>
+          (msg.messageId.isNotEmpty && m.messageId == msg.messageId) ||
+          (msg.messageId.isEmpty &&
+              m.messageContent == msg.messageContent &&
+              m.senderId == msg.senderId &&
+              (m.timestamp
+                      .toDate()
+                      .difference(msg.timestamp.toDate())
+                      .inSeconds
+                      .abs() <
+                  5)));
+
+      if (!isDuplicate) {
+        mergedMessages.add(msg);
+      }
+    }
+
+    // Sort by timestamp
+    mergedMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    messages.value = mergedMessages;
+  }
+
+  // Cancel all mode subscriptions
+  void _cancelAllModeSubscriptions() {
+    if (_modeSubscriptions != null) {
+      for (final subscription in _modeSubscriptions!) {
+        subscription.cancel();
+      }
+      _modeSubscriptions = [];
+    }
+  }
+
+  // Listen to simple messages collection for friend chats (no modes)
+  void listenToFriendMessages() {
     if (chatId.isEmpty) {
       debugPrint("Chat ID is empty");
       return;
     }
 
     // Cancel existing subscription if any
-    _modeMessagesSubscription?.cancel();
+    _messagesSubscription?.cancel();
+
+    // Also cancel mode subscriptions if they exist
+    _cancelAllModeSubscriptions();
 
     try {
-      final subcollectionName = _getModeSubcollection(mode);
-      _modeMessagesSubscription = firestore
+      _messagesSubscription = firestore
           .collection('chats')
           .doc(chatId)
-          .collection(subcollectionName)
+          .collection('messages') // Simple messages collection
           .orderBy('timestamp', descending: false)
           .snapshots()
           .listen(
         (querySnapshot) {
-          final modeMessagesList = querySnapshot.docs
+          final messagesList = querySnapshot.docs
               .map((doc) {
                 try {
                   return ChatScreenData.fromFirestore(doc.data(),
@@ -232,54 +364,11 @@ class ChatController extends GetxController {
               .whereType<ChatScreenData>()
               .toList();
 
-          // Cache messages for this mode
-          modeMessages[mode] = modeMessagesList;
-
-          // Update observable messages if this is the current mode
-          if (currentMode.value == mode) {
-            // Merge with existing messages to avoid losing locally added messages
-            // that haven't been picked up by Firestore yet
-            final existingMessages = List<ChatScreenData>.from(messages);
-            final mergedMessages = <ChatScreenData>[];
-
-            // First add all Firestore messages
-            for (final msg in modeMessagesList) {
-              mergedMessages.add(msg);
-            }
-
-            // Then add any local messages that don't have IDs yet (pending save)
-            // These are messages added locally but not yet in Firestore
-            for (final msg in existingMessages) {
-              // Deduplicate based on messageId if available, otherwise fall back to timestamp/content check
-              final isDuplicate = mergedMessages.any((m) =>
-                  (msg.messageId.isNotEmpty && m.messageId == msg.messageId) ||
-                  (msg.messageId.isEmpty &&
-                      m.messageContent == msg.messageContent &&
-                      m.senderId == msg.senderId &&
-                      (m.timestamp
-                              .toDate()
-                              .difference(msg.timestamp.toDate())
-                              .inSeconds
-                              .abs() <
-                          5)));
-
-              if (!isDuplicate) {
-                mergedMessages.add(msg);
-              }
-            }
-
-            // Sort by timestamp
-            mergedMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-            messages.value = mergedMessages;
-          }
+          messages.value = messagesList;
         },
         onError: (e) {
-          debugPrint("Error listening to mode messages: $e");
-          modeMessages[mode] = [];
-          if (currentMode.value == mode) {
-            messages.clear();
-          }
+          debugPrint("Error listening to messages: $e");
+          messages.value = [];
           try {
             Get.snackbar(
               'Connection Error',
@@ -293,11 +382,8 @@ class ChatController extends GetxController {
         },
       );
     } catch (e) {
-      debugPrint("Error setting up mode message listener: $e");
-      modeMessages[mode] = [];
-      if (currentMode.value == mode) {
-        messages.clear();
-      }
+      debugPrint("Error setting up message listener: $e");
+      messages.value = [];
     }
   }
 
@@ -767,63 +853,6 @@ class ChatController extends GetxController {
   }
 
   // Planning mode methods
-  void enterPlanningMode() {
-    isPlanningMode.value = true;
-    planningConversation.clear();
-    isReadyToGenerate.value = false;
-  }
-
-  void exitPlanningMode() {
-    isPlanningMode.value = false;
-    isReadyToGenerate.value = false;
-    planningFormData.value = null;
-    isFormSubmitted.value = false;
-    showForm.value = false;
-    planningConversation.clear();
-  }
-
-  void setPlanningFormData(Map<String, dynamic> data) {
-    planningFormData.value = data;
-    isFormSubmitted.value = true;
-  }
-
-  void addPlanningMessage(ChatScreenData message) {
-    if (isPlanningMode.value) {
-      planningConversation.add(message);
-      // Check if ready to generate (simple heuristic: at least 4 exchanges)
-      if (planningConversation.length >= 8) {
-        // Check if AI has asked key questions
-        final hasGoals = planningConversation.any((msg) =>
-            msg.messageContent.toLowerCase().contains('goal') &&
-            msg.senderId == 'buddy');
-        final hasDuration = planningConversation.any((msg) =>
-            msg.messageContent.toLowerCase().contains('duration') &&
-            msg.senderId == 'buddy');
-        if (hasGoals && hasDuration) {
-          isReadyToGenerate.value = true;
-        }
-      }
-    }
-  }
-
-  void checkReadyToGenerate() {
-    // More sophisticated check: look for AI suggesting to generate
-    final lastMessage =
-        planningConversation.isNotEmpty ? planningConversation.last : null;
-    if (lastMessage != null &&
-        lastMessage.senderId == 'buddy' &&
-        (lastMessage.messageContent
-                .toLowerCase()
-                .contains('ready to generate') ||
-            lastMessage.messageContent
-                .toLowerCase()
-                .contains('create your plan') ||
-            lastMessage.messageContent
-                .toLowerCase()
-                .contains('generate the plan'))) {
-      isReadyToGenerate.value = true;
-    }
-  }
 
   // --- AI Chat Logic ---
 
@@ -956,67 +985,15 @@ class ChatController extends GetxController {
     return 'the meal items';
   }
 
-  // Helper method to send remix response
-  Future<void> _sendRemixResponse(
-      String prompt,
-      Map<String, dynamic> userContext,
-      String currentUserId,
-      String chatId) async {
-    try {
-      final response = await geminiService.getResponse(
-        prompt,
-        maxTokens: 512,
-        role: buddyAiRole,
-      );
-
-      final message = ChatScreenData(
-        messageContent: response,
-        senderId: 'buddy',
-        timestamp: Timestamp.now(),
-        imageUrls: [],
-        messageId: '',
-      );
-      messages.add(message);
-
-      await saveMessageToMode(
-        mode: currentMode.value,
-        content: response,
-        senderId: 'buddy',
-      );
-    } catch (e) {
-      debugPrint("Error getting remix suggestions: $e");
-      final fallbackContent =
-          "I'd love to help you remix those ingredients! Here are some ideas based on your ${userContext['dietPreference']} goals: try adding more protein with some lean meat or legumes, swap refined grains for whole grains, and add colorful vegetables for extra nutrients. What specific ingredient would you like to focus on? 😊";
-
-      final message = ChatScreenData(
-        messageContent: fallbackContent,
-        senderId: 'buddy',
-        timestamp: Timestamp.now(),
-        imageUrls: [],
-        messageId: '',
-      );
-      messages.add(message);
-
-      await saveMessageToMode(
-        mode: currentMode.value,
-        content: fallbackContent,
-        senderId: 'buddy',
-      );
-    }
-  }
-
   // Main method to send message to AI
   Future<void> sendMessageToAI(String userInput, BuildContext context,
-      {bool isSystemMessage = false, bool isHealthJourneyMode = false}) async {
+      {bool isHealthJourneyMode = false}) async {
     if (chatId.isEmpty || !canUseAI()) return;
 
     final currentUserId = userService.userId!;
 
     // Handle mode-specific message routing
-    if (currentMode.value == 'planner') {
-      await _handlePlannerModeMessage(userInput);
-      return;
-    } else if (currentMode.value == 'meal') {
+    if (currentMode.value == 'meal') {
       await handleMealPlanModeMessage(userInput);
       return;
     }
@@ -1052,61 +1029,6 @@ class ChatController extends GetxController {
 
       // Trigger detailed food analysis
       await handleDetailedFoodAnalysis(context, chatId);
-      return;
-    }
-
-    // Check for Option 1 - Remix ingredients
-    if (userInputLower.contains('option 1') ||
-        userInputLower.contains('1') ||
-        userInputLower.contains('remix')) {
-      FirebaseAnalytics.instance.logEvent(name: 'buddy_remix_ingredients');
-
-      final messageId = const Uuid().v4();
-      final userMessage = ChatScreenData(
-        messageContent: userInput,
-        senderId: currentUserId,
-        timestamp: Timestamp.now(),
-        imageUrls: [],
-        messageId: messageId,
-      );
-      messages.add(userMessage);
-
-      await saveMessageToMode(
-        mode: currentMode.value,
-        content: userInput,
-        senderId: currentUserId,
-        messageId: messageId,
-      );
-
-      // Get user context and food analysis data
-      final userContext = getUserContext();
-      final analysisId = getLastFoodAnalysisId();
-
-      if (analysisId != null) {
-        final analysisData = await getFoodAnalysisData(analysisId);
-        final validatedData = _validateFoodAnalysisData(analysisData);
-        // Create remix suggestions based on actual analyzed ingredients
-        final ingredients = _extractIngredientsFromAnalysis(validatedData);
-        final remixPrompt = """
-User wants to remix their meal containing: $ingredients
-
-For their ${userContext['dietPreference']} diet and ${userContext['fitnessGoal']} goals.
-
-Give 3-4 specific ingredient substitutions or cooking method improvements. Be encouraging and practical!
-""";
-        await _sendRemixResponse(
-            remixPrompt, userContext, currentUserId, chatId);
-        return;
-      }
-
-      // Fallback if no analysis data
-      final remixPrompt = """
-User wants to remix their meal for ${userContext['dietPreference']} diet and ${userContext['fitnessGoal']} goals.
-
-Give 3-4 specific ingredient or cooking suggestions. Be encouraging and practical!
-""";
-
-      await _sendRemixResponse(remixPrompt, userContext, currentUserId, chatId);
       return;
     }
 
@@ -1179,7 +1101,7 @@ Give 3-4 practical tips. Be encouraging!
       try {
         final response = await geminiService.getResponse(
           optimizePrompt,
-          maxTokens: 512,
+          maxTokens: 4096,
           role: buddyAiRole,
         );
 
@@ -1222,165 +1144,65 @@ Give 3-4 practical tips. Be encouraging!
       return;
     }
 
-    // Check for spin wheel command
-    if (userInputLower.contains('spin') || userInputLower.contains('wheel')) {
-      FirebaseAnalytics.instance.logEvent(name: 'buddy_spin_wheel');
-      try {
-        // Get ingredients from Firestore first
-        final ingredients = await macroManager.getIngredientsByCategory('all');
-        final mealList = await mealManager.fetchMealsByCategory('all');
-
-        final messageId = const Uuid().v4();
-        final userMessage = ChatScreenData(
-          messageContent: userInput,
-          senderId: currentUserId,
-          timestamp: Timestamp.now(),
-          imageUrls: [],
-          messageId: messageId,
-        );
-        messages.add(userMessage);
-
-        await saveMessageToMode(
-          mode: currentMode.value,
-          content: userInput,
-          senderId: currentUserId,
-          messageId: messageId,
-        );
-
-        // Add AI response with countdown
-        const aiResponse =
-            "🎡 Preparing your Spin Wheel!\n\nIn just 5 seconds, you'll be able to:\n"
-            "• Select from different macro categories\n"
-            "• Add your own custom ingredients\n"
-            "• Spin for random meal suggestions\n\n"
-            "Loading the wheel... ⏳";
-
-        final aiMessage = ChatScreenData(
-          messageContent: aiResponse,
-          senderId: 'buddy',
-          timestamp: Timestamp.now(),
-          imageUrls: [],
-          messageId: '',
-        );
-        messages.add(aiMessage);
-
-        await saveMessageToMode(
-          mode: currentMode.value,
-          content: aiResponse,
-          senderId: 'buddy',
-        );
-
-        // Wait before showing the spin wheel
-        await Future.delayed(const Duration(seconds: 5));
-        // Note: context is required here
-        showSpinWheel(
-          context,
-          'Carbs',
-          ingredients,
-          mealList,
-          'All',
-          true,
-        );
-      } catch (e) {
-        showTastySnackbar(
-          'Please try again.',
-          'Failed to load ingredients. Please try again.',
-          context,
-        );
-      }
-      return;
-    }
-
     // Add user messages to UI and Firestore first
-    if (!isSystemMessage) {
-      // Remove any system messages when user starts interacting
-      // _removeSystemMessages(); // TODO: Implement if needed
+    // Add message to UI
+    final messageId = const Uuid().v4();
+    final userMessage = ChatScreenData(
+      messageContent: userInput,
+      senderId: currentUserId,
+      timestamp: Timestamp.now(),
+      imageUrls: [],
+      messageId: messageId,
+    );
 
-      // Add message to UI
-      final messageId = const Uuid().v4();
-      final userMessage = ChatScreenData(
-        messageContent: userInput,
-        senderId: currentUserId,
-        timestamp: Timestamp.now(),
-        imageUrls: [],
-        messageId: messageId,
-      );
+    messages.add(userMessage);
 
-      messages.add(userMessage);
+    // Save to Firestore
+    await saveMessageToMode(
+      mode: currentMode.value,
+      content: userInput,
+      senderId: currentUserId,
+      messageId: messageId,
+    );
 
-      // Track planning conversation
-      if (isPlanningMode.value) {
-        addPlanningMessage(userMessage);
-      }
-
-      // Save to Firestore
-      await saveMessageToMode(
-        mode: currentMode.value,
-        content: userInput,
-        senderId: currentUserId,
-        messageId: messageId,
-      );
-
-      // Only trigger Gemini if the last message is from the user
-      if (messages.isNotEmpty && messages.last.senderId != currentUserId) {
-        return;
-      }
-    }
-
-    // Only trigger Gemini if the last message is from the user OR if it's a system message
-    if (isSystemMessage ||
-        (messages.isNotEmpty && messages.last.senderId == currentUserId)) {
+    // Only trigger Gemini if the last message is from the user
+    if (messages.isNotEmpty && messages.last.senderId == currentUserId) {
       try {
-        String response;
-        if (!isSystemMessage &&
-            messages.isNotEmpty &&
-            messages.last.senderId == 'systemMessage') {
-          // If this is a follow-up question from the user
-          response =
-              "Is there anything else you'd like to know about what we just discussed? I'm here to help!";
-        } else {
-          final username = userService.currentUser.value?.displayName;
-          String prompt = "${userInput}, user name is ${username ?? ''}".trim();
+        final username = userService.currentUser.value?.displayName;
+        String prompt = "${userInput}, user name is ${username ?? ''}".trim();
 
-          // Add Food Health Journey context if mode is active
-          if (isHealthJourneyMode) {
-            prompt =
-                """[Food Health Journey Mode - Track and guide the user's nutrition journey]
+        // Add Food Health Journey context if mode is active
+        if (isHealthJourneyMode) {
+          prompt =
+              """[Food Health Journey Mode - Track and guide the user's nutrition journey]
 
 $prompt
 
 IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutrition guidance, track progress, offer encouragement, and help the user achieve their health goals. Be supportive and focus on long-term wellness.""";
-          }
-
-          // Note: Planning mode is handled in _handlePlannerModeMessage
-
-          // Use higher token limit for system messages (initial greeting) to accommodate model "thoughts"
-          // The model uses ~511 tokens for thoughts, so we need at least 1024+ for actual response
-          final tokenLimit = isSystemMessage ? 2048 : 512;
-
-          response = await geminiService.getResponse(
-            prompt,
-            maxTokens: tokenLimit,
-            role: buddyAiRole,
-          );
-
-          // Handle empty or error responses
-          if (response.contains("Error") || response.isEmpty) {
-            // For system messages (initial greeting), use fallback welcome message
-            if (isSystemMessage) {
-              debugPrint("AI greeting failed, using fallback welcome message");
-              // Use a random welcome message as fallback
-              response = tastyWelcomeMessages[
-                  DateTime.now().microsecond % tastyWelcomeMessages.length];
-            } else {
-              // For regular messages, throw exception to show error handling
-              throw Exception("Failed to generate response");
-            }
-          }
         }
 
+        // Use higher token limit to accommodate model "thoughts" and prevent empty responses
+        // The model uses ~511 tokens for thoughts, so we need significantly more for actual response
+        // Set to 4096 to ensure we get complete responses even with thoughts
+        final tokenLimit = 4096;
+
+        final response = await geminiService.getResponse(
+          prompt,
+          maxTokens: tokenLimit,
+          role: buddyAiRole,
+        );
+
+        // Handle empty or error responses
+        if (response.contains("Error") || response.isEmpty) {
+          // Throw exception to show error handling
+          throw Exception("Failed to generate response");
+        }
+
+        // Filter out system instructions from the response
+        final cleanedResponse = _filterSystemInstructions(response);
+
         final aiResponseMessage = ChatScreenData(
-          messageContent: response,
+          messageContent: cleanedResponse,
           senderId: 'buddy',
           timestamp: Timestamp.now(),
           imageUrls: [],
@@ -1391,163 +1213,36 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
 
         await saveMessageToMode(
           mode: currentMode.value,
-          content: response,
+          content: cleanedResponse,
           senderId: 'buddy',
         );
       } catch (e) {
         debugPrint("Error getting AI response: $e");
-        
-        // For system messages, use fallback welcome message instead of error
-        if (isSystemMessage) {
-          debugPrint("System message failed, using fallback welcome message");
-          final fallbackContent = tastyWelcomeMessages[
-              DateTime.now().microsecond % tastyWelcomeMessages.length];
-          
-          final message = ChatScreenData(
-            messageContent: fallbackContent,
-            senderId: 'buddy',
-            timestamp: Timestamp.now(),
-            imageUrls: [],
-            messageId: '',
-          );
-          messages.add(message);
+        // Show error snackbar
+        showTastySnackbar(
+          'Please try again.',
+          'The station had a hiccup. Please try again.',
+          context,
+        );
+        // Add a fallback AI message so the user can type again
+        final fallbackContent =
+            "Chef, I had a moment there. Please send that again.";
 
-          await saveMessageToMode(
-            mode: currentMode.value,
-            content: fallbackContent,
-            senderId: 'buddy',
-          );
-        } else {
-          // For regular messages, show error snackbar
-          showTastySnackbar(
-            'Please try again.',
-            'The station had a hiccup. Please try again.',
-            context,
-          );
-          // Add a fallback AI message so the user can type again
-          final fallbackContent =
-              "Chef, I had a moment there. Please send that again.";
-
-          final message = ChatScreenData(
-            messageContent: fallbackContent,
-            senderId: 'buddy',
-            timestamp: Timestamp.now(),
-            imageUrls: [],
-            messageId: '',
-          );
-          messages.add(message);
-
-          await saveMessageToMode(
-            mode: currentMode.value,
-            content: fallbackContent,
-            senderId: 'buddy',
-          );
-        }
-      }
-    }
-  }
-
-  // Handle planner mode messages
-  Future<void> _handlePlannerModeMessage(String userInput) async {
-    if (chatId.isEmpty || !canUseAI()) return;
-
-    final currentUserId = userService.userId!;
-
-    // Add user message to UI
-    final userMessage = ChatScreenData(
-      messageContent: userInput,
-      senderId: currentUserId,
-      timestamp: Timestamp.now(),
-      imageUrls: [],
-      messageId: '',
-    );
-
-    messages.add(userMessage);
-
-    await saveMessageToMode(
-      mode: currentMode.value,
-      content: userInput,
-      senderId: currentUserId,
-    );
-
-    // Check if form is submitted and user is confirming
-    final formData = planningFormData.value;
-    final isSubmitted = isFormSubmitted.value;
-
-    if (isSubmitted && formData != null) {
-      // Check if user is confirming or wants to amend
-      final userInputLower = userInput.toLowerCase();
-      if (userInputLower.contains('yes') ||
-          userInputLower.contains('confirm') ||
-          userInputLower.contains('proceed') ||
-          userInputLower.contains('create') ||
-          userInputLower.contains('generate')) {
-        // User confirmed - generate plan
-        isReadyToGenerate.value = true; // Trigger UI to show generate button
-
-        final responseMessage = ChatScreenData(
-          messageContent:
-              "Great! I'm ready to generate your plan. Click the 'Generate Plan' button above to proceed!",
+        final message = ChatScreenData(
+          messageContent: fallbackContent,
           senderId: 'buddy',
           timestamp: Timestamp.now(),
           imageUrls: [],
           messageId: '',
         );
-        messages.add(responseMessage);
-        await saveMessageToMode(
-          mode: currentMode.value,
-          content: responseMessage.messageContent,
-          senderId: 'buddy',
-        );
-        return;
-      } else if (userInputLower.contains('amend') ||
-          userInputLower.contains('change') ||
-          userInputLower.contains('edit')) {
-        // User wants to amend - show form again
-        isFormSubmitted.value = false;
-        planningFormData.value = null;
-        showForm.value = true;
-
-        final responseMessage = ChatScreenData(
-          messageContent:
-              "No problem! Let's update your preferences. Please fill out the form again.",
-          senderId: 'buddy',
-          timestamp: Timestamp.now(),
-          imageUrls: [],
-          messageId: '',
-        );
-        messages.add(responseMessage);
+        messages.add(message);
 
         await saveMessageToMode(
           mode: currentMode.value,
-          content: responseMessage.messageContent,
+          content: fallbackContent,
           senderId: 'buddy',
         );
-        return;
       }
-    }
-
-    // If form not submitted yet, just acknowledge
-    if (!isSubmitted) {
-      final responseMessage = ChatScreenData(
-        messageContent:
-            "Please fill out the form above to get started with creating your nutrition program.",
-        senderId: 'buddy',
-        timestamp: Timestamp.now(),
-        imageUrls: [],
-        messageId: '',
-        actionButtons: {
-          'openForm': 'Fill Program Details Form',
-        },
-      );
-      messages.add(responseMessage);
-
-      await saveMessageToMode(
-        mode: currentMode.value,
-        content: responseMessage.messageContent,
-        senderId: 'buddy',
-        actionButtons: responseMessage.actionButtons,
-      );
     }
   }
 
@@ -1568,11 +1263,10 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
             : 'Suggest a single healthy meal';
         mealCount = 1;
         break;
-      case 'recipe':
-        prompt =
-            'Give me a detailed recipe with ingredients and step-by-step instructions';
-        mealCount = 1;
-        break;
+      case 'remix':
+        // Remix is handled in buddy_screen.dart via dialog
+        // This case should not be reached, but kept for safety
+        return;
       case 'quick':
         prompt =
             'Suggest 3 quick and easy meal ideas I can make in under 30 minutes';
@@ -1660,8 +1354,32 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
 
       if (result['success'] == true) {
         final meals = result['meals'] as List<dynamic>? ?? [];
-        final mealIds = result['mealIds'] as List<dynamic>? ?? [];
+        var mealIds = result['mealIds'] as List<dynamic>? ?? [];
         final resultFamilyMemberName = result['familyMemberName'] as String?;
+
+        // If mealIds is empty but meals exist, extract IDs from meals array
+        if (mealIds.isEmpty && meals.isNotEmpty) {
+          mealIds = meals
+              .map((meal) {
+                if (meal is Map<String, dynamic>) {
+                  // Try different possible ID fields
+                  return meal['id'] ?? meal['mealId'];
+                }
+                return null;
+              })
+              .whereType<String>()
+              .where((id) => id.isNotEmpty)
+              .toList();
+        }
+
+        // Also check existingMealIds if available
+        if (mealIds.isEmpty) {
+          final existingMealIds =
+              result['existingMealIds'] as List<dynamic>? ?? [];
+          if (existingMealIds.isNotEmpty) {
+            mealIds = existingMealIds.map((id) => id.toString()).toList();
+          }
+        }
 
         if (meals.isNotEmpty) {
           // Format meal list for display
@@ -1756,124 +1474,26 @@ Click "View Meals" to browse and add them to your calendar!""";
       return;
     }
 
+    // Only show local greeting if messages are empty (first time entering)
+    // No AI call - just use local welcome message
+    // AI will only be called when user writes or clicks on meal items
     if (messages.isEmpty) {
-      final now = DateTime.now();
-      final lastWelcome = await _getLastGeminiWelcomeDate();
-      final isToday = lastWelcome != null &&
-          lastWelcome.year == now.year &&
-          lastWelcome.month == now.month &&
-          lastWelcome.day == now.day;
-
-      if (!isToday) {
-        try {
-          final userContext = getUserContext();
-          final initialPrompt = _createInitialPrompt(userContext);
-          await sendMessageToAI(initialPrompt, context, isSystemMessage: true);
-          await _setLastGeminiWelcomeDate(now);
-          
-          // Verify that a message was actually added (fallback should have been used if AI failed)
-          // If still no messages, add fallback welcome message
-          if (messages.isEmpty) {
-            debugPrint("No messages after greeting attempt, adding fallback welcome message");
-            final fallbackContent = tastyWelcomeMessages[
-                DateTime.now().microsecond % tastyWelcomeMessages.length];
-            final message = ChatScreenData(
-              messageContent: fallbackContent,
-              senderId: 'buddy',
-              timestamp: Timestamp.now(),
-              imageUrls: [],
-              messageId: '',
-            );
-            messages.add(message);
-            await saveMessageToMode(
-              mode: currentMode.value,
-              content: fallbackContent,
-              senderId: 'buddy',
-            );
-          }
-        } catch (e) {
-          debugPrint("Error initializing tasty mode greeting: $e");
-          // Ensure we always have a welcome message even if everything fails
-          if (messages.isEmpty) {
-            final fallbackContent = tastyWelcomeMessages[
-                DateTime.now().microsecond % tastyWelcomeMessages.length];
-            final message = ChatScreenData(
-              messageContent: fallbackContent,
-              senderId: 'buddy',
-              timestamp: Timestamp.now(),
-              imageUrls: [],
-              messageId: '',
-            );
-            messages.add(message);
-            await saveMessageToMode(
-              mode: currentMode.value,
-              content: fallbackContent,
-              senderId: 'buddy',
-            );
-          }
-        }
-      } else {
-        // Show system message if it's today but no messages in current session
-        _showSystemMessage();
-      }
-    }
-  }
-
-  // Initialize Planner Mode
-  Future<void> initializePlannerMode(bool fromProgramScreen) async {
-    // Wait for mode to stabilize and messages to load from Firestore
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Verify we're still in planner mode before proceeding
-    if (currentMode.value != 'planner') {
-      debugPrint(
-          'Mode changed from planner to ${currentMode.value}, skipping welcome message');
-      return;
-    }
-
-    // Check if planner mode has no messages (first time entering)
-    final plannerMessages = getModeMessages('planner');
-    final currentMessages = messages;
-
-    // Check if there's already a welcome message from buddy
-    final hasWelcomeMessage = plannerMessages.any((msg) =>
-            msg.senderId == 'buddy' &&
-            (msg.messageContent.contains('Ready to create') ||
-                msg.messageContent.contains('design a custom') ||
-                msg.messageContent.contains('help you build'))) ||
-        currentMessages.any((msg) =>
-            msg.senderId == 'buddy' &&
-            (msg.messageContent.contains('Ready to create') ||
-                msg.messageContent.contains('design a custom') ||
-                msg.messageContent.contains('help you build')));
-
-    // If no planner messages exist and no welcome message, show welcome message
-    if (plannerMessages.isEmpty &&
-        currentMessages.isEmpty &&
-        !hasWelcomeMessage) {
-      final welcomeMessage = _getWelcomeMessageForPlanner();
+      final welcomeContent = tastyWelcomeMessages[
+          DateTime.now().microsecond % tastyWelcomeMessages.length];
       final message = ChatScreenData(
-        messageContent: welcomeMessage,
+        messageContent: welcomeContent,
         senderId: 'buddy',
         timestamp: Timestamp.now(),
         imageUrls: [],
         messageId: '',
-        actionButtons: {
-          'openForm': 'Fill Program Details Form',
-        },
       );
-
       messages.add(message);
-      // Don't save static welcome messages to Firestore - they're UI-only
-      debugPrint('Planner welcome message shown (not saved to Firestore)');
-    }
-
-    // Show form when entering planner mode
-    if (fromProgramScreen) {
-      // Coming from program screen - open form automatically immediately
-      showForm.value = true;
-      isFormSubmitted.value = false;
-      planningFormData.value = null;
+      await saveMessageToMode(
+        mode: currentMode.value,
+        content: welcomeContent,
+        senderId: 'buddy',
+      );
+      debugPrint("Sous chef local greeting shown (no AI call)");
     }
   }
 
@@ -1929,764 +1549,234 @@ Click "View Meals" to browse and add them to your calendar!""";
         DateTime.now().microsecond % mealPlanWelcomeMessages.length];
   }
 
-  String _getWelcomeMessageForPlanner() {
-    return plannerWelcomeMessages[
-        DateTime.now().microsecond % plannerWelcomeMessages.length];
-  }
+  // Process remix for selected meal
+  Future<void> processRemixForMeal(
+      Meal selectedMeal, BuildContext context) async {
+    if (chatId.isEmpty) return;
 
-  // Helper: Get last Gemini welcome date
-  Future<DateTime?> _getLastGeminiWelcomeDate() async {
-    final preference = await SharedPreferences.getInstance();
-    final key = 'last_gemini_welcome_date_${userService.userId}';
-    final dateString = preference.getString(key);
-    if (dateString == null) return null;
-    return DateTime.tryParse(dateString);
-  }
-
-  // Helper: Set last Gemini welcome date
-  Future<void> _setLastGeminiWelcomeDate(DateTime date) async {
-    final preference = await SharedPreferences.getInstance();
-    final key = 'last_gemini_welcome_date_${userService.userId}';
-    await preference.setString(key, date.toIso8601String());
-  }
-
-  String _createInitialPrompt(Map<String, dynamic> userContext) {
-    return """
-Greet the user as "Chef" and offer guidance based on:
-- Username: ${userContext['displayName']} - address them as "Chef ${userContext['displayName']}" or just "Chef"
-- Goal: ${userContext['fitnessGoal']}
-- Summary of previous chat: ${userContext['chatSummary']}
-- Current Weight: ${userContext['currentWeight']}
-- Goal Weight: ${userContext['goalWeight']}
-- Starting Weight: ${userContext['startingWeight']}
-- Food Goal: ${userContext['foodGoal']}
-- Diet Preference: ${userContext['dietPreference']}
-
-Remember: You are Turner, the Sous Chef. Be professional, solution-oriented, and use kitchen terminology naturally. Address the user as "Chef" throughout.
-""";
-  }
-
-  void _showSystemMessage() {
-    // Get appropriate welcome message based on current mode
-    String randomMessage;
-    switch (currentMode.value) {
-      case 'planner':
-        randomMessage = plannerWelcomeMessages[
-            DateTime.now().microsecond % plannerWelcomeMessages.length];
-        break;
-      case 'meal':
-        randomMessage = mealPlanWelcomeMessages[
-            DateTime.now().microsecond % mealPlanWelcomeMessages.length];
-        break;
-      default: // sous chef
-        randomMessage = tastyWelcomeMessages[
-            DateTime.now().microsecond % tastyWelcomeMessages.length];
-        break;
-    }
-
-    // Don't add system message if there's already one at the end
-    if (messages.isNotEmpty && messages.last.senderId == 'systemMessage') {
-      return;
-    }
-
-    messages.add(ChatScreenData(
-      messageContent: randomMessage,
-      senderId: 'systemMessage',
-      timestamp: Timestamp.now(),
-      imageUrls: [],
-      messageId: '',
-    ));
-    // Note: System messages are NOT saved to Firestore - they're UI-only
-  }
-
-  Future<void> generatePlanFromConversation(BuildContext context) async {
-    if (!canUseAI()) return;
-
-    // Save the confirmation message to Firestore now that user has clicked Submit
-    final confirmationMessage = messages.firstWhere(
-      (msg) => msg.messageContent
-          .contains('Perfect! I\'ve received your program details'),
-      orElse: () => ChatScreenData(
-        messageContent: '',
-        senderId: '',
-        timestamp: Timestamp.now(),
-        imageUrls: [],
-        messageId: '',
-      ),
-    );
-
-    if (confirmationMessage.messageContent.isNotEmpty &&
-        confirmationMessage.messageId.isEmpty) {
-      // Only save if it hasn't been saved yet (messageId is empty)
-      debugPrint(
-          'Saving confirmation message to Firestore before generating plan');
-
-      // Ensure actionButtons are properly formatted (only string values)
-      Map<String, dynamic>? sanitizedActionButtons;
-      if (confirmationMessage.actionButtons != null) {
-        sanitizedActionButtons = {};
-        confirmationMessage.actionButtons!.forEach((key, value) {
-          // Only allow string values in actionButtons for Firestore
-          if (value is String) {
-            sanitizedActionButtons![key] = value;
-          } else {
-            sanitizedActionButtons![key] = value.toString();
-          }
-        });
-      }
-
-      try {
-        await saveMessageToMode(
-          mode: 'buddy', // Always save to buddy collection for confirmation
-          content: confirmationMessage.messageContent,
-          senderId: 'buddy',
-          actionButtons: sanitizedActionButtons,
-        );
-      } catch (e, stackTrace) {
-        debugPrint('Error saving confirmation message: $e');
-        debugPrint('Stack trace: $stackTrace');
-        // Continue with plan generation even if message save fails
-      }
-    }
-
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(color: kAccent),
-      ),
-    );
+    final currentUserId = userService.userId!;
 
     try {
-      // Get form data and conversation context
-      final formData = planningFormData.value;
-      final conversationText = planningConversation
-          .map((msg) =>
-              '${msg.senderId == userService.userId ? "User" : "AI"}: ${msg.messageContent}')
-          .join('\n');
-
-      // Build generation prompt with form data as primary source
-      String formDataSection = '';
-      final formDietType = formData?['dietType']?.toString() ?? 'general';
-      if (formData != null) {
-        formDataSection = """
-Form Data:
-- Duration: ${formData['duration']}
-- Goal: ${formData['goal']}
-- Diet Type: ${formData['dietType']}
-- Activity Level: ${formData['activityLevel']}
-${formData['additionalDetails']?.toString().isNotEmpty == true ? '- Additional Details: ${formData['additionalDetails']}' : ''}
-
-""";
-      }
-
-      // Generate meals using meal mode method (10-15 meals)
-      debugPrint(
-          'Generating meals for custom program using meal mode method...');
-      final mealPlanningService = MealPlanningService.instance;
-
-      // Build prompt for meal generation
-      final mealPrompt =
-          """Create a meal plan based on the following requirements:
-      
-Diet Type: $formDietType
-$formDataSection${conversationText.isNotEmpty ? 'Refinement Conversation:\n$conversationText\n' : ''}
-
-Generate 10-15 diverse meals that align with these requirements.""";
-
-      // Get user context
-      final userContext = getUserContext();
-      final contextInfo = """
-Target: ${userContext['displayName']}
-Fitness Goal: ${userContext['fitnessGoal']}
-Diet Preference: $formDietType
-Daily Calorie Target: ${userContext['foodGoal']} kcal
-""";
-
-      // Generate meals using meal mode method
-      final mealResult = await mealPlanningService.generateMealPlan(
-        mealPrompt,
-        contextInfo,
-        cuisine: formDietType.toLowerCase(),
-        mealCount: 12, // Generate 12 meals (between 10-15)
-      );
-
-      if (!mealResult['success'] || (mealResult['meals'] as List).isEmpty) {
-        throw Exception('Failed to generate meals for program');
-      }
-
-      final generatedMeals = mealResult['meals'] as List<dynamic>;
-      final mealIds = mealResult['mealIds'] as List<String>? ?? [];
-      debugPrint('Generated ${generatedMeals.length} meals for custom program');
-
-      // Create empty meal plan structure - user will distribute meals themselves
-      final daysOfWeek = [
-        'Monday',
-        'Tuesday',
-        'Wednesday',
-        'Thursday',
-        'Friday',
-        'Saturday',
-        'Sunday'
-      ];
-      final mealPlanMap = <String, List<String>>{};
-
-      // Initialize all days with empty arrays - user will distribute meals themselves
-      for (final day in daysOfWeek) {
-        mealPlanMap[day] = [];
-      }
-
-      debugPrint(
-          'Created ${mealIds.length} meals - user will distribute them across days');
-
-      // Simplified prompt for basic program structure only
-      // Server-side will enrich with routine, benefits, requirements, etc.
-      final generationPrompt = """Diet Type: $formDietType
-
-Based on the user's form responses and our conversation, create a basic nutrition program structure.
-
-$formDataSection${conversationText.isNotEmpty ? 'Refinement Conversation:\n$conversationText\n' : ''}
-
-Please create a JSON object with ONLY the following basic structure (server will add details later):
-{
-  "name": "Program name (be creative and personalized)",
-  "description": "Detailed description of the program",
-  "duration": "e.g., '7 days', '30 days', '90 days'",
-  "type": "custom",
-  "weeklyPlans": [
-    {
-      "week": 1,
-      "goals": ["week goal"],
-      "mealPlan": {
-        "Monday": [],
-        "Tuesday": [],
-        "Wednesday": [],
-        "Thursday": [],
-        "Friday": [],
-        "Saturday": [],
-        "Sunday": []
-      },
-      "nutritionGuidelines": {
-        "calories": "guideline",
-        "protein": "guideline",
-        "carbs": "guideline"
-      },
-      "tips": ["tip1", "tip2"]
-    }
-  ]
-}
-
-IMPORTANT: 
-- Return ONLY the fields above (name, description, duration, type, weeklyPlans)
-- Do NOT include: goals, requirements, benefits, recommendations, programDetails, notAllowed, routine, portionDetails
-- These will be added by the server automatically
-- weeklyPlans must have at least 1 week
-- mealPlan will be populated with generated meal IDs - just return empty arrays
-- Return ONLY valid JSON, no additional text.""";
-
-      // Use form dietType instead of user settings dietPreference
-      // Set includeDietContext and includeProgramContext to false to prevent using user settings/current program
-      final response = await geminiService.getResponse(
-        generationPrompt,
-        maxTokens: 4096,
-        role: buddyAiRole,
-        includeDietContext: false, // Don't use user settings dietPreference
-        includeProgramContext:
-            false, // Don't include current program context when creating new program
-      );
-
-      if (!context.mounted) return;
-
-      // Parse JSON response
-      String jsonStr = response.trim();
-      debugPrint('=== JSON Parsing: Starting ===');
-      debugPrint('Raw response length: ${response.length}');
-      debugPrint(
-          'Raw response preview (first 500 chars): ${response.substring(0, response.length > 500 ? 500 : response.length)}');
-
-      // Remove markdown code blocks if present
-      if (jsonStr.startsWith('```json')) {
-        jsonStr = jsonStr.substring(7);
-      }
-      if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.substring(3);
-      }
-      if (jsonStr.endsWith('```')) {
-        jsonStr = jsonStr.substring(0, jsonStr.length - 3);
-      }
-      jsonStr = jsonStr.trim();
-
-      debugPrint('Cleaned JSON string length: ${jsonStr.length}');
-
-      final programData = json.decode(jsonStr) as Map<String, dynamic>;
-      debugPrint('Parsed programData keys: ${programData.keys.toList()}');
-      debugPrint('Program name: ${programData['name']}');
-
-      final weeklyPlansRaw = programData['weeklyPlans'] as List<dynamic>? ?? [];
-      debugPrint('Number of weekly plans in JSON: ${weeklyPlansRaw.length}');
-
-      // Store generated meal IDs in program data for user to distribute later
-      // Meals are already created via MealPlanningService, just need to store IDs
-      if (weeklyPlansRaw.isNotEmpty) {
-        final firstWeek = weeklyPlansRaw[0] as Map<String, dynamic>;
-        // Set empty meal plan structure - user will distribute meals themselves
-        firstWeek['mealPlan'] = mealPlanMap;
-        // Store available meal IDs separately so user can assign them
-        firstWeek['availableMealIds'] = mealIds;
-        debugPrint(
-            'Created ${mealIds.length} meals - user will distribute them across days');
-      }
-
-      // Meals are already created, just use the program data
-      final updatedProgramData = programData;
-
-      // Validate program data structure before creating program
-      debugPrint('=== Validating program data before creation ===');
-      debugPrint('Program data keys: ${updatedProgramData.keys.toList()}');
-      final weeklyPlans =
-          updatedProgramData['weeklyPlans'] as List<dynamic>? ?? [];
-      debugPrint('Number of weekly plans: ${weeklyPlans.length}');
-
-      for (int i = 0; i < weeklyPlans.length; i++) {
-        final weekPlan = weeklyPlans[i];
-        debugPrint('Week ${i + 1} type: ${weekPlan.runtimeType}');
-        if (weekPlan is! Map) {
-          debugPrint(
-              'ERROR: Week ${i + 1} is not a Map, it is ${weekPlan.runtimeType}');
-          throw Exception(
-              'Invalid weekly plan structure: week ${i + 1} is not a Map');
-        }
-        final weekPlanMap = weekPlan as Map<String, dynamic>;
-        debugPrint('Week ${i + 1} keys: ${weekPlanMap.keys.toList()}');
-
-        final mealPlan = weekPlanMap['mealPlan'];
-        debugPrint('Week ${i + 1} mealPlan type: ${mealPlan.runtimeType}');
-        if (mealPlan is! Map) {
-          debugPrint(
-              'ERROR: Week ${i + 1} mealPlan is not a Map, it is ${mealPlan.runtimeType}');
-          throw Exception(
-              'Invalid meal plan structure: week ${i + 1} mealPlan is not a Map');
-        }
-
-        final mealPlanMap = mealPlan as Map<String, dynamic>;
-        for (var entry in mealPlanMap.entries) {
-          final dayName = entry.key;
-          final meals = entry.value;
-          debugPrint('  $dayName meals type: ${meals.runtimeType}');
-          if (meals is! List) {
-            debugPrint(
-                'ERROR: $dayName meals is not a List, it is ${meals.runtimeType}');
-            throw Exception(
-                'Invalid meal structure: $dayName meals is not a List');
-          }
-          final mealsList = meals;
-          debugPrint('  $dayName meals count: ${mealsList.length}');
-          for (int j = 0; j < mealsList.length; j++) {
-            final meal = mealsList[j];
-            if (meal is! String) {
-              debugPrint(
-                  'ERROR: $dayName meal $j is not a String, it is ${meal.runtimeType}');
-              throw Exception(
-                  'Invalid meal ID: $dayName meal $j is not a String');
-            }
-          }
-        }
-      }
-      debugPrint('=== Program data validation passed ===');
-
-      // Create private program with basic structure
-      final programService = Get.find<ProgramService>();
-      Program program;
-      try {
-        program = await programService.createPrivateProgram(
-          updatedProgramData,
-          planningConversationId: chatId,
-        );
-        debugPrint('Basic program created successfully: ${program.programId}');
-      } catch (e, stackTrace) {
-        debugPrint('ERROR creating program: $e');
-        debugPrint('Stack trace: $stackTrace');
-        debugPrint('Program data that failed: $updatedProgramData');
-        rethrow;
-      }
-
-      if (!context.mounted) return;
-
-      // Enrich program with AI-generated details (routine, benefits, requirements, etc.)
-      try {
-        debugPrint('Starting program enrichment via cloud function...');
-        await geminiService.enrichProgramWithAI(
-          programId: program.programId,
-          basicProgram: {
-            'name': program.name,
-            'description': program.description,
-            'duration': program.duration,
-            'type': program.type,
-            'weeklyPlans': updatedProgramData['weeklyPlans'],
-          },
-          formData: formData,
-          conversationContext:
-              conversationText.isNotEmpty ? conversationText : null,
-        );
-        debugPrint('Program enriched successfully');
-      } catch (e) {
-        debugPrint('Error enriching program (non-critical): $e');
-        // Continue even if enrichment fails - program is still usable
-      }
-
-      // Save meal plans to buddy collection
-      try {
-        await _saveProgramMealPlansToBuddy(program);
-      } catch (e) {
-        debugPrint('Error saving meal plans to buddy: $e');
-        // Continue even if this fails
-      }
-
-      Navigator.pop(context); // Close loading dialog
-
-      // Create success message with action buttons
-      final successMessage = ChatScreenData(
-        messageContent:
-            'Your personalized program "${program.name}" has been created successfully! You can view it in your program progress or check out the meal plans in the buddy tab.',
-        senderId: 'buddy',
+      // Add user message indicating remix request
+      final userMessage = ChatScreenData(
+        messageContent: 'Remix: ${selectedMeal.title}',
+        senderId: currentUserId,
         timestamp: Timestamp.now(),
         imageUrls: [],
-        messageId: '',
-        actionButtons: {
-          'viewPlan': program.programId,
-          'viewMealPlan': true,
-        },
+        messageId: const Uuid().v4(),
       );
-
-      messages.add(successMessage);
-      addPlanningMessage(successMessage);
-
+      messages.add(userMessage);
       await saveMessageToMode(
-        mode: 'buddy',
-        content: successMessage.messageContent,
-        senderId: 'buddy',
-        actionButtons: successMessage.actionButtons,
+        mode: currentMode.value,
+        content: userMessage.messageContent,
+        senderId: currentUserId,
+        messageId: userMessage.messageId,
       );
 
-      // Show success snackbar
-      Get.snackbar(
-        'Success!',
-        'Your custom program "${program.name}" has been created!',
-        backgroundColor: kAccentLight,
-        colorText: kWhite,
-        duration: const Duration(seconds: 3),
+      // Get user context and family member info
+      final userContext = getUserContext();
+      final ingredients = selectedMeal.ingredients.isNotEmpty
+          ? selectedMeal.ingredients.entries
+              .map((e) => '${e.key}: ${e.value}')
+              .join(', ')
+          : 'ingredients not specified';
+
+      // Create comprehensive remix meal generation prompt
+      final remixMealPrompt = """
+Create a remixed version of the following meal with ingredient substitutions and cooking method improvements:
+
+Original Meal: ${selectedMeal.title}
+Original Ingredients: $ingredients
+Original Cooking Method: ${selectedMeal.cookingMethod ?? 'not specified'}
+
+User Context:
+- Diet Preference: ${userContext['dietPreference']}
+- Fitness Goal: ${userContext['fitnessGoal']}
+
+Instructions:
+- Make 3-4 specific ingredient substitutions or cooking method improvements
+- Create a complete meal with full instructions, ingredients with quantities, cooking steps, and nutritional information
+- The remixed meal should align with the user's diet and fitness goals
+- Ensure the meal is practical, encouraging, and maintains the essence of the original while improving it
+""";
+
+      // Generate meal directly using single meal method
+      final mealPlanningService = MealPlanningService.instance;
+      final result = await mealPlanningService.generateMealPlanFromPrompt(
+        remixMealPrompt,
+        mealCount: 1, // Single meal
+        familyMemberName: familyMemberName.value,
+        familyMemberKcal: familyMemberKcal.value,
+        familyMemberGoal: familyMemberGoal.value,
+        familyMemberType: familyMemberType.value,
+        pantryIngredients:
+            pantryIngredients.isNotEmpty ? pantryIngredients.toList() : null,
       );
 
-      // Exit planning mode
-      exitPlanningMode();
-    } catch (e) {
-      debugPrint('Error generating plan: $e');
-      if (!context.mounted) return;
+      if (result['success'] == true) {
+        final meals = result['meals'] as List<dynamic>? ?? [];
+        var mealIds = result['mealIds'] as List<dynamic>? ?? [];
+        final resultFamilyMemberName = result['familyMemberName'] as String?;
 
-      Navigator.pop(context); // Close loading dialog
+        // If mealIds is empty but meals exist, extract IDs from meals array
+        if (mealIds.isEmpty && meals.isNotEmpty) {
+          mealIds = meals
+              .map((meal) {
+                if (meal is Map<String, dynamic>) {
+                  // Try different possible ID fields
+                  return meal['id'] ?? meal['mealId'];
+                }
+                return null;
+              })
+              .whereType<String>()
+              .where((id) => id.isNotEmpty)
+              .toList();
+        }
 
-      Get.snackbar(
-        'Error',
-        'Failed to generate program. Please try again.',
-        backgroundColor: Colors.red,
-        colorText: kWhite,
-      );
-    }
-  }
+        // Also check existingMealIds if available
+        if (mealIds.isEmpty) {
+          final existingMealIds =
+              result['existingMealIds'] as List<dynamic>? ?? [];
+          if (existingMealIds.isNotEmpty) {
+            mealIds = existingMealIds.map((id) => id.toString()).toList();
+          }
+        }
 
-  /// Create meals from meal plan with minimal data (title, calories) for cloud functions to process
-  Future<Map<String, dynamic>> _createMealsFromPlan(
-      Map<String, dynamic> programData, String programDescription) async {
-    debugPrint('=== _createMealsFromPlan: Starting ===');
-    final updatedData = Map<String, dynamic>.from(programData);
-    final weeklyPlans = updatedData['weeklyPlans'] as List<dynamic>? ?? [];
-    debugPrint('Number of weekly plans: ${weeklyPlans.length}');
+        if (meals.isNotEmpty && mealIds.isNotEmpty) {
+          // Create message about the remix with View Recipe button
+          final messageId = const Uuid().v4();
+          final remixMessageContent =
+              'I\'ve remixed ${selectedMeal.title} for you, Chef! Click "View Recipe" to see the full instructions. Enjoy Cooking!';
+          final actionButtons = <String, dynamic>{
+            'viewMeals': true,
+            'mealIds': mealIds,
+            if (resultFamilyMemberName != null)
+              'familyMemberName': resultFamilyMemberName,
+          };
 
-    if (weeklyPlans.isEmpty) {
-      debugPrint('WARNING: No weekly plans found in program data!');
-      return updatedData;
-    }
+          final remixMessage = ChatScreenData(
+            messageContent: remixMessageContent,
+            senderId: 'buddy',
+            timestamp: Timestamp.now(),
+            imageUrls: [],
+            messageId: messageId,
+            actionButtons: actionButtons,
+          );
+          messages.add(remixMessage);
 
-    final mealNameToId = <String, String>{};
-    final batch = FirebaseFirestore.instance.batch();
-    int totalMealsFound = 0;
-
-    // Collect all unique meal names from all weekly plans
-    for (int weekIndex = 0; weekIndex < weeklyPlans.length; weekIndex++) {
-      final weekPlan = weeklyPlans[weekIndex];
-      debugPrint('Processing week ${weekIndex + 1}');
-      if (weekPlan is Map<String, dynamic>) {
-        debugPrint('Week plan keys: ${weekPlan.keys.toList()}');
-      } else {
-        debugPrint('Week plan is not a map, type: ${weekPlan.runtimeType}');
-      }
-
-      final mealPlan = weekPlan['mealPlan'] as Map<String, dynamic>? ?? {};
-      debugPrint('Meal plan keys: ${mealPlan.keys.toList()}');
-      debugPrint('Meal plan entries: ${mealPlan.length}');
-
-      if (mealPlan.isEmpty) {
-        debugPrint('WARNING: Empty meal plan for week ${weekIndex + 1}');
-        continue;
-      }
-
-      for (var entry in mealPlan.entries) {
-        final dayName = entry.key;
-        final dayMeals = entry.value;
-        debugPrint('Day: $dayName');
-        debugPrint('Day meals type: ${dayMeals.runtimeType}');
-        debugPrint('Day meals value: $dayMeals');
-
-        if (dayMeals is! List) {
+          // Save remix message to Firestore so it persists when user returns
+          await saveMessageToMode(
+            mode: currentMode.value,
+            content: remixMessageContent,
+            senderId: 'buddy',
+            messageId: messageId,
+            actionButtons: actionButtons,
+          );
           debugPrint(
-              'WARNING: Day meals for $dayName is not a List, it is ${dayMeals.runtimeType}');
-          continue;
+              'Remix meal generated successfully and saved to Firestore');
+        } else {
+          // No meals generated or no mealIds
+          final errorMessage = ChatScreenData(
+            messageContent:
+                'Chef, I had trouble generating the remixed meal. Please try again.',
+            senderId: 'buddy',
+            timestamp: Timestamp.now(),
+            imageUrls: [],
+            messageId: '',
+          );
+          messages.add(errorMessage);
+          await saveMessageToMode(
+            mode: currentMode.value,
+            content: errorMessage.messageContent,
+            senderId: 'buddy',
+          );
         }
-
-        final meals = dayMeals as List<dynamic>? ?? [];
-        debugPrint('Number of meals for $dayName: ${meals.length}');
-        totalMealsFound += meals.length;
-
-        for (int mealIndex = 0; mealIndex < meals.length; mealIndex++) {
-          final mealName = meals[mealIndex];
-          final mealNameStr = mealName.toString().trim();
-          debugPrint('  Meal $mealIndex: "$mealNameStr"');
-
-          if (mealNameStr.isEmpty) {
-            debugPrint(
-                '  WARNING: Empty meal name at index $mealIndex for $dayName');
-            continue;
-          }
-
-          if (!mealNameToId.containsKey(mealNameStr)) {
-            // Create meal document with minimal data
-            final mealRef =
-                FirebaseFirestore.instance.collection('meals').doc();
-            final mealId = mealRef.id;
-            debugPrint('  Creating meal document with ID: $mealId');
-
-            final basicMealData = {
-              'title': mealNameStr,
-              'mealType': 'main',
-              'calories': 0, // Will be filled by cloud functions
-              'categories': [programData['type'] ?? 'custom'],
-              'nutritionalInfo': {},
-              'ingredients': {},
-              'instructions': [],
-              'status': 'pending',
-              'createdAt': FieldValue.serverTimestamp(),
-              'type': 'main',
-              'userId': 'tasty_ai', // Use a placeholder ID or similar
-              'source': 'ai_generated',
-              'version': 'basic',
-              'processingAttempts': 0,
-              'lastProcessingAttempt': null,
-              'processingPriority': DateTime.now().millisecondsSinceEpoch,
-              'needsProcessing': true,
-              'partOfWeeklyMeal': true,
-              'weeklyPlanContext': programDescription,
-            };
-
-            batch.set(mealRef, basicMealData);
-            mealNameToId[mealNameStr] = mealId;
-            debugPrint('  Added to mealNameToId: "$mealNameStr" -> $mealId');
-          } else {
-            debugPrint('  Skipping duplicate meal: "$mealNameStr"');
-          }
-        }
+      } else {
+        // Generation failed
+        final errorMessage = ChatScreenData(
+          messageContent:
+              'Chef, I had trouble generating the remixed meal. Please try again.',
+          senderId: 'buddy',
+          timestamp: Timestamp.now(),
+          imageUrls: [],
+          messageId: '',
+        );
+        messages.add(errorMessage);
+        await saveMessageToMode(
+          mode: currentMode.value,
+          content: errorMessage.messageContent,
+          senderId: 'buddy',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error processing remix request: $e');
+      final errorMessage = ChatScreenData(
+        messageContent:
+            'Chef, I had trouble processing your remix request. Please try again.',
+        senderId: 'buddy',
+        timestamp: Timestamp.now(),
+        imageUrls: [],
+        messageId: '',
+      );
+      messages.add(errorMessage);
+      await saveMessageToMode(
+        mode: currentMode.value,
+        content: errorMessage.messageContent,
+        senderId: 'buddy',
+      );
+      if (context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Chef, I had trouble processing your remix request. Please try again.',
+          context,
+        );
       }
     }
-
-    debugPrint('Total meals found across all days: $totalMealsFound');
-    debugPrint('Unique meals to create: ${mealNameToId.length}');
-    debugPrint('Meal name to ID mapping: $mealNameToId');
-
-    // Commit all meals
-    if (mealNameToId.isNotEmpty) {
-      debugPrint('Committing batch with ${mealNameToId.length} meals...');
-      await batch.commit();
-      debugPrint(
-          'Successfully created ${mealNameToId.length} meals with minimal data');
-    } else {
-      debugPrint('WARNING: No meals to create! mealNameToId is empty.');
-    }
-
-    // Replace meal names with meal IDs in program data
-    debugPrint('Replacing meal names with IDs in program data...');
-    for (int weekIndex = 0; weekIndex < weeklyPlans.length; weekIndex++) {
-      final weekPlan = weeklyPlans[weekIndex];
-      final mealPlan = weekPlan['mealPlan'] as Map<String, dynamic>? ?? {};
-      final updatedMealPlan = <String, List<String>>{};
-
-      debugPrint('Week ${weekIndex + 1}: Processing ${mealPlan.length} days');
-
-      for (var entry in mealPlan.entries) {
-        final dayName = entry.key;
-        final meals = entry.value as List<dynamic>? ?? [];
-        final mealIds = <String>[
-          for (final mealName in meals)
-            mealNameToId[mealName.toString().trim()] ??
-                mealName.toString().trim()
-        ];
-        updatedMealPlan[dayName] = mealIds;
-        debugPrint(
-            '  $dayName: ${meals.length} meals -> ${mealIds.length} meal IDs');
-      }
-      weekPlan['mealPlan'] = updatedMealPlan;
-    }
-
-    updatedData['weeklyPlans'] = weeklyPlans;
-    debugPrint('=== _createMealsFromPlan: Completed ===');
-    return updatedData;
   }
 
-  /// Save program meal plans to buddy collection for display in buddy tab
-  /// All meals from all weeks are saved as a single generation under today's date
-  Future<void> _saveProgramMealPlansToBuddy(Program program) async {
-    final userId = userService.userId ?? '';
-    if (userId.isEmpty) return;
+  // Filter out system instructions from AI responses
+  String _filterSystemInstructions(String response) {
+    String cleaned = response;
 
-    // Get diet preference from form data instead of user settings
-    final formData = planningFormData.value;
-    final diet = formData?['dietType']?.toString() ?? 'general';
+    // Remove common system instruction patterns using simple string replacement first
+    final instructionPhrases = [
+      'Greet the user as "Chef" and offer guidance',
+      "Greet the user as 'Chef' and offer guidance",
+      'Greet the user as Chef and offer guidance',
+      'Remember: You are Sous Chef Turner',
+      'Be professional, solution-oriented',
+      'Address the user as "Chef" throughout',
+      'offer guidance based on',
+    ];
 
-    debugPrint('=== _saveProgramMealPlansToBuddy: Starting ===');
-    debugPrint('Form data: $formData');
-    debugPrint('Using diet: $diet');
-    debugPrint('Number of weekly plans: ${program.weeklyPlans.length}');
-
-    try {
-      // Collect all meals from all weeks into a single list
-      final allFormattedMealIds = <String>[];
-      final allTips = <String>[];
-
-      // Process each week's meal plan
-      for (var weeklyPlan in program.weeklyPlans) {
-        debugPrint('Processing week ${weeklyPlan.week}');
-        final mealPlan = weeklyPlan.mealPlan;
-        debugPrint('Meal plan structure: ${mealPlan.keys.toList()}');
-        debugPrint('Meal plan entries count: ${mealPlan.length}');
-
-        // Collect tips from this week
-        if (weeklyPlan.tips.isNotEmpty) {
-          allTips.addAll(weeklyPlan.tips);
-        }
-
-        // Process each day in this week
-        for (var entry in mealPlan.entries) {
-          final dayName = entry.key; // e.g., "Monday", "Tuesday"
-          final mealIds = List<String>.from(entry.value);
-
-          debugPrint('Day: $dayName, Meal IDs count: ${mealIds.length}');
-
-          // Validate mealIds
-          if (mealIds.isEmpty) {
-            debugPrint(
-                'Warning: No meal IDs for $dayName in week ${weeklyPlan.week}');
-            continue;
-          }
-
-          // Format mealIds with meal type suffixes using the same method as meal plan chat
-          // Try to get meal type from meal document, otherwise use default order
-          final defaultMealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
-          for (int i = 0; i < mealIds.length; i++) {
-            final mealId = mealIds[i];
-            if (mealId.isEmpty) {
-              debugPrint('Warning: Empty meal ID at index $i for $dayName');
-              continue;
-            }
-
-            // Try to get meal type from the meal document
-            String mealType = 'general';
-            try {
-              final mealDoc = await FirebaseFirestore.instance
-                  .collection('meals')
-                  .doc(mealId)
-                  .get();
-              if (mealDoc.exists) {
-                final mealData = mealDoc.data();
-                mealType = (mealData?['mealType'] as String?)?.toLowerCase() ??
-                    'general';
-              } else {
-                // Fallback to default order if meal doesn't exist yet
-                final defaultIndex = i < defaultMealTypes.length
-                    ? i
-                    : i % defaultMealTypes.length;
-                mealType = defaultMealTypes[defaultIndex];
-              }
-            } catch (e) {
-              // Fallback to default order on error
-              final defaultIndex =
-                  i < defaultMealTypes.length ? i : i % defaultMealTypes.length;
-              mealType = defaultMealTypes[defaultIndex];
-            }
-
-            final suffix = _getMealTypeSuffix(mealType);
-            // Programs are main user only - no family member name in format
-            allFormattedMealIds.add('$mealId/$suffix');
-          }
-        }
-      }
-
-      debugPrint(
-          'Total formatted meal IDs collected: ${allFormattedMealIds.length}');
-      debugPrint('Total tips collected: ${allTips.length}');
-
-      if (allFormattedMealIds.isEmpty) {
-        debugPrint('Warning: No meals to save');
-        return;
-      }
-
-      // Save all meals as a single generation under today's date (like meal plan chat)
-      final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final mealPlanRef = FirebaseFirestore.instance
-          .collection('mealPlans')
-          .doc(userId)
-          .collection('buddy')
-          .doc(dateStr);
-
-      // Create new generation - programs are main user only
-      // Use Timestamp.now() for consistency with meal plan chat
-      final newGeneration = <String, dynamic>{
-        'mealIds': allFormattedMealIds,
-        'timestamp': Timestamp.now(),
-        'diet': diet,
-        'source': 'program',
-        'familyMemberName':
-            null, // Programs are main user only - explicitly set to null for filtering
-      };
-
-      // Only add tips if not empty
-      if (allTips.isNotEmpty) {
-        final tipsText = allTips.join('\n');
-        if (tipsText.trim().isNotEmpty) {
-          newGeneration['tips'] = tipsText;
-        }
-      }
-
-      debugPrint('New generation structure: ${newGeneration.keys.toList()}');
-      debugPrint('New generation mealIds count: ${allFormattedMealIds.length}');
-      debugPrint('Saving to date: $dateStr');
-
-      // Use update with arrayUnion to append the new generation (same as meal plan chat)
-      // This avoids mixing FieldValue sentinels with already-parsed Timestamp objects
-      await mealPlanRef.set({
-        'date': dateStr,
-      }, SetOptions(merge: true));
-
-      await mealPlanRef.update({
-        'generations': FieldValue.arrayUnion([newGeneration]),
-      });
-
-      debugPrint(
-          'Successfully saved ${allFormattedMealIds.length} meals to buddy collection under date: $dateStr');
-      debugPrint('=== _saveProgramMealPlansToBuddy: Completed ===');
-    } catch (e, stackTrace) {
-      debugPrint('CRITICAL ERROR in _saveProgramMealPlansToBuddy: $e');
-      debugPrint('Stack trace: $stackTrace');
-      // Don't rethrow - allow program creation to complete even if meal plan save fails
+    // Remove instruction phrases (case-insensitive)
+    for (final phrase in instructionPhrases) {
+      final escaped = phrase.replaceAllMapped(
+          RegExp(r'[.*+?^${}()|[\]\\]'), (m) => '\\${m[0]}');
+      final regex = RegExp(escaped, caseSensitive: false);
+      cleaned = cleaned.replaceAll(regex, '');
     }
+
+    // Remove patterns that might appear in multi-line instruction blocks
+    final patterns = [
+      // Pattern for instruction-like text at the start with context info
+      RegExp(r'^.*?(?:address them as|based on:|Username:|Goal:).*?\n',
+          caseSensitive: false, dotAll: true),
+      // Pattern for "Greet the user" followed by context
+      RegExp(r'Greet\s+the\s+user.*?Address\s+the\s+user.*?throughout',
+          caseSensitive: false, dotAll: true),
+    ];
+
+    for (final pattern in patterns) {
+      cleaned = cleaned.replaceAll(pattern, '');
+    }
+
+    // Clean up multiple consecutive newlines
+    cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    // Trim whitespace
+    cleaned = cleaned.trim();
+
+    return cleaned.isEmpty ? response : cleaned;
   }
 
   /// Save meals to buddy collection for display in buddy tab
@@ -2794,8 +1884,7 @@ IMPORTANT:
   void onClose() {
     _messagesSubscription?.cancel();
     _messagesSubscription = null;
-    _modeMessagesSubscription?.cancel();
-    _modeMessagesSubscription = null;
+    _cancelAllModeSubscriptions();
     super.onClose();
   }
 }

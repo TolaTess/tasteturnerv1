@@ -176,7 +176,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       case 'Instant Plate QC':
         return 'AI-powered food analysis - take a photo and get instant nutrition info';
       case 'Direct Line to Turner':
-        return 'Chat with Turner the Sous Chef for personalized kitchen advice and meal suggestions';
+        return 'Chat with Sous Chef Turner for personalized kitchen advice and meal suggestions';
       case 'Intelligent Menu Sourcing':
         return 'Get AI-powered menu recommendations tailored to your preferences';
       case 'Unlimited Spontaneous Cooking':

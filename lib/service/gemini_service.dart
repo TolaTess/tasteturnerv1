@@ -5678,7 +5678,7 @@ Generate completely new and different meal ideas using the same ingredients.
                               }
                             },
                       child: Text(
-                        isGeneratingAI ? 'Generating...' : 'Turner the Sous Chef',
+                        isGeneratingAI ? 'Generating...' : 'Sous Chef Turner',
                         style: textTheme.bodyLarge?.copyWith(
                           color: (isProcessing || isGeneratingAI)
                               ? kLightGrey
@@ -5875,7 +5875,7 @@ Generate completely new and different meal ideas using the same ingredients.
                                 }
                               },
                         child: Text(
-                          isGeneratingAI ? 'Generating...' : 'Turner the Sous Chef',
+                          isGeneratingAI ? 'Generating...' : 'Sous Chef Turner',  
                           style: textTheme.bodyLarge?.copyWith(
                             color: (isProcessing || isGeneratingAI)
                                 ? kLightGrey

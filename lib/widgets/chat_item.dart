@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:tasteturner/data_models/meal_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 import '../constants.dart';
 import '../detail_screen/challenge_detail_screen.dart';
 import '../detail_screen/recipe_detail.dart';
@@ -10,6 +12,7 @@ import '../pages/program_progress_screen.dart';
 import '../service/chat_controller.dart';
 import '../service/meal_manager.dart';
 import '../service/program_service.dart';
+import '../service/meal_planning_service.dart';
 import '../widgets/bottom_nav.dart';
 
 class ChatItem extends StatelessWidget {
@@ -17,7 +20,6 @@ class ChatItem extends StatelessWidget {
   final bool isMe;
   final ChatController chatController;
   final String chatId;
-  final VoidCallback? onPlanSubmit;
 
   const ChatItem({
     super.key,
@@ -25,7 +27,6 @@ class ChatItem extends StatelessWidget {
     required this.isMe,
     required this.chatController,
     required this.chatId,
-    this.onPlanSubmit,
   });
 
   @override
@@ -143,10 +144,12 @@ class ChatItem extends StatelessWidget {
                           ? getPercentageHeight(0.5, context)
                           : 0),
                   child: Text(
+                    // Show full content for buddy messages (AI responses) to prevent truncation
                     // Only use getTextBeforeSlash for special formatted messages (with navigation)
-                    // For regular messages with action buttons, show full content
-                    dataSrc.actionButtons != null &&
-                            dataSrc.actionButtons!.isNotEmpty
+                    // For regular messages with action buttons or buddy messages, show full content
+                    (dataSrc.actionButtons != null &&
+                                dataSrc.actionButtons!.isNotEmpty) ||
+                            dataSrc.senderId == 'buddy'
                         ? dataSrc.messageContent.replaceAll('00:00:00.000 ', '')
                         : getTextBeforeSlash(dataSrc.messageContent
                             .replaceAll('00:00:00.000 ', '')),
@@ -398,22 +401,19 @@ class ChatItem extends StatelessWidget {
             _buildViewPlanButton(context, actionButtons, isDarkMode),
           if (actionButtons['viewMealPlan'] != null)
             _buildViewMealPlanButton(context, isDarkMode),
-          if (actionButtons['openForm'] != null)
-            _buildOpenFormButton(context, actionButtons, isDarkMode),
-          if (actionButtons['amendForm'] != null)
-            _buildAmendFormButton(context, actionButtons, isDarkMode),
-          if (actionButtons['submitPlan'] != null)
-            _buildSubmitPlanButton(context, actionButtons, isDarkMode),
           if (actionButtons['viewMeals'] == true ||
               actionButtons['viewMeals'] == 'true')
             _buildViewMealsButton(context, actionButtons, isDarkMode),
+          if (actionButtons['saveToCalendar'] == true ||
+              actionButtons['saveToCalendar'] == 'true')
+            _buildSaveToCalendarButton(context, actionButtons, isDarkMode),
         ],
       ),
     );
   }
 
-  Widget _buildViewPlanButton(
-      BuildContext context, Map<String, dynamic> actionButtons, bool isDarkMode) {
+  Widget _buildViewPlanButton(BuildContext context,
+      Map<String, dynamic> actionButtons, bool isDarkMode) {
     return ElevatedButton.icon(
       onPressed: () {
         // Ensure ProgramService is initialized before navigating
@@ -449,8 +449,8 @@ class ChatItem extends StatelessWidget {
       onPressed: () {
         try {
           // Navigate to MealDesignScreen (index 4) and switch to buddy tab (tab index 1)
-          Get.offAll(() => const BottomNavSec(
-              selectedIndex: 4, foodScreenTabIndex: 1));
+          Get.offAll(() =>
+              const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 1));
         } catch (e) {
           debugPrint('Error navigating to meal plan: $e');
           // Fallback: navigate to meal design screen without specifying tab
@@ -483,129 +483,10 @@ class ChatItem extends StatelessWidget {
     );
   }
 
-  Widget _buildOpenFormButton(BuildContext context,
-      Map<String, dynamic> actionButtons, bool isDarkMode) {
-    return Obx(() {
-      final controller = Get.find<ChatController>();
-      final currentMode = controller.currentMode.value;
-      final isFormOpen = controller.showForm.value;
-
-      // Only show form button in planner mode
-      if (currentMode != 'planner') {
-        return const SizedBox.shrink();
-      }
-
-      return ElevatedButton.icon(
-        onPressed: () {
-          // Toggle the planning form
-          try {
-            final currentShowForm = controller.showForm.value;
-            controller.showForm.value = !currentShowForm;
-
-            // If opening form for amending, reset form submission state
-            if (!currentShowForm && controller.isFormSubmitted.value) {
-              controller.isFormSubmitted.value = false;
-              controller.planningFormData.value = null;
-            }
-
-            debugPrint(
-                'Form button clicked - showForm toggled to: ${controller.showForm.value}');
-          } catch (e) {
-            debugPrint('Error accessing ChatController: $e');
-          }
-        },
-        icon: Icon(isFormOpen ? Icons.close : Icons.edit_note, size: 16),
-        label: Text(isFormOpen
-            ? 'Close Form'
-            : (actionButtons['openForm'] as String)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: kAccent,
-          foregroundColor: kWhite,
-          padding: EdgeInsets.symmetric(
-            horizontal: getPercentageWidth(3, context),
-            vertical: getPercentageHeight(0.8, context),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-      );
-    });
-  }
-
-  Widget _buildAmendFormButton(BuildContext context,
-      Map<String, dynamic> actionButtons, bool isDarkMode) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        // Open form for amending - keep existing form data for editing
-        try {
-          final controller = Get.find<ChatController>();
-          controller.isFormSubmitted.value = false;
-          // Keep planningFormData.value so form can be pre-filled
-          controller.showForm.value = true;
-          debugPrint(
-              'Amend form button clicked - form opened for editing');
-        } catch (e) {
-          debugPrint('Error accessing ChatController: $e');
-        }
-      },
-      icon: const Icon(Icons.edit, size: 16),
-      label: Text(actionButtons['amendForm'] as String),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: kAccentLight,
-        foregroundColor: kWhite,
-        padding: EdgeInsets.symmetric(
-          horizontal: getPercentageWidth(3, context),
-          vertical: getPercentageHeight(0.8, context),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubmitPlanButton(BuildContext context,
-      Map<String, dynamic> actionButtons, bool isDarkMode) {
-    return ElevatedButton.icon(
-      onPressed: () async {
-        // Trigger plan generation directly without sending "yes" message
-        try {
-          debugPrint('Submit plan button clicked - generating plan');
-
-          // Call the callback to trigger plan generation if provided
-          if (onPlanSubmit != null) {
-            onPlanSubmit!();
-          }
-        } catch (e) {
-          debugPrint('Error submitting plan: $e');
-        }
-      },
-      icon: const Icon(Icons.check_circle, size: 16),
-      label: Text(actionButtons['submitPlan'] as String),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: kAccent,
-        foregroundColor: kWhite,
-        padding: EdgeInsets.symmetric(
-          horizontal: getPercentageWidth(3, context),
-          vertical: getPercentageHeight(0.8, context),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-      ),
-    );
-  }
-
   Widget _buildViewMealsButton(BuildContext context,
       Map<String, dynamic> actionButtons, bool isDarkMode) {
     return Builder(
       builder: (context) {
-        debugPrint(
-            'View Meals button should show. actionButtons: $actionButtons');
-        debugPrint(
-            'viewMeals value: ${actionButtons['viewMeals']}, type: ${actionButtons['viewMeals'].runtimeType}');
-
         // Check if we have mealIds and if it's a single meal
         final mealIds = actionButtons['mealIds'] as List<dynamic>?;
         final isSingleMeal = mealIds != null && mealIds.length == 1;
@@ -620,8 +501,8 @@ class ChatItem extends StatelessWidget {
                 final cleanMealId = mealId.split('/').first;
 
                 // Get meal data
-                final meal = await MealManager.instance
-                    .getMealbyMealID(cleanMealId);
+                final meal =
+                    await MealManager.instance.getMealbyMealID(cleanMealId);
                 if (meal != null) {
                   Navigator.push(
                     context,
@@ -662,8 +543,7 @@ class ChatItem extends StatelessWidget {
               }
             }
           },
-          icon: Icon(
-              isSingleMeal ? Icons.restaurant : Icons.restaurant_menu,
+          icon: Icon(isSingleMeal ? Icons.restaurant : Icons.restaurant_menu,
               size: 16),
           label: Text(isSingleMeal ? 'View Recipe' : 'View Meals'),
           style: ElevatedButton.styleFrom(
@@ -681,5 +561,196 @@ class ChatItem extends StatelessWidget {
       },
     );
   }
-}
 
+  Widget _buildSaveToCalendarButton(BuildContext context,
+      Map<String, dynamic> actionButtons, bool isDarkMode) {
+    return Builder(
+      builder: (context) {
+        return ElevatedButton.icon(
+          onPressed: () async {
+            try {
+              final remixedMealId = actionButtons['remixedMealId'] as String?;
+              final remixResponse = actionButtons['remixResponse'] as String?;
+              final originalMealTitle =
+                  actionButtons['originalMealTitle'] as String? ?? 'Meal';
+
+              if (remixedMealId == null || remixResponse == null) {
+                showTastySnackbar(
+                  'Error',
+                  'Missing meal information. Please try again.',
+                  context,
+                  backgroundColor: Colors.red,
+                );
+                return;
+              }
+
+              // Get original meal data
+              final originalMeal =
+                  await MealManager.instance.getMealbyMealID(remixedMealId);
+              if (originalMeal == null) {
+                showTastySnackbar(
+                  'Error',
+                  'Original meal not found. Please try again.',
+                  context,
+                  backgroundColor: Colors.red,
+                );
+                return;
+              }
+
+              // Use today's date automatically
+              final today = DateTime.now();
+
+              // Show meal type selection dialog
+              final textTheme = Theme.of(context).textTheme;
+              final mealType = await showDialog<String>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                  title: Text(
+                    'Select Meal Type',
+                    style: textTheme.titleLarge?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        title: Text(
+                          'Breakfast',
+                          style: TextStyle(
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                        onTap: () => Navigator.pop(context, 'breakfast'),
+                      ),
+                      ListTile(
+                        title: Text(
+                          'Lunch',
+                          style: TextStyle(
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                        onTap: () => Navigator.pop(context, 'lunch'),
+                      ),
+                      ListTile(
+                        title: Text(
+                          'Dinner',
+                          style: TextStyle(
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                        onTap: () => Navigator.pop(context, 'dinner'),
+                      ),
+                      ListTile(
+                        title: Text(
+                          'Snack',
+                          style: TextStyle(
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                        onTap: () => Navigator.pop(context, 'snack'),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: isDarkMode ? kLightGrey : kDarkGrey,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (mealType == null || !context.mounted) return;
+
+              // Create new remixed meal
+              final newMealId = const Uuid().v4();
+              final remixedMealData = {
+                'mealId': newMealId,
+                'userId': userService.userId ?? '',
+                'title': 'Remixed: $originalMealTitle',
+                'description': remixResponse,
+                'createdAt': FieldValue.serverTimestamp(),
+                'mediaPaths': originalMeal.mediaPaths.isNotEmpty
+                    ? originalMeal.mediaPaths
+                    : [],
+                'serveQty': originalMeal.serveQty,
+                'calories': originalMeal.calories,
+                'ingredients': originalMeal.ingredients,
+                'nutritionalInfo': originalMeal.nutritionalInfo,
+                'instructions': [remixResponse],
+                'categories': ['remix', ...originalMeal.categories],
+                'mealType': mealType,
+                'source': 'remix',
+                'originalMealId': remixedMealId,
+                'type': mealType,
+              };
+
+              // Save remixed meal to Firestore
+              await firestore
+                  .collection('meals')
+                  .doc(newMealId)
+                  .set(remixedMealData);
+
+              // Save to calendar (using today's date)
+              final mealPlanningService = MealPlanningService.instance;
+              final success = await mealPlanningService.addMealToCalendar(
+                [newMealId],
+                today,
+                mealType: mealType,
+              );
+
+              if (success && context.mounted) {
+                showTastySnackbar(
+                  'Success',
+                  'Remixed meal saved to today\'s calendar!',
+                  context,
+                  backgroundColor: Colors.green,
+                );
+              } else if (context.mounted) {
+                showTastySnackbar(
+                  'Error',
+                  'Failed to save to calendar. Please try again.',
+                  context,
+                  backgroundColor: Colors.red,
+                );
+              }
+            } catch (e) {
+              debugPrint('Error saving remixed meal to calendar: $e');
+              if (context.mounted) {
+                showTastySnackbar(
+                  'Error',
+                  'Failed to save meal. Please try again.',
+                  context,
+                  backgroundColor: Colors.red,
+                );
+              }
+            }
+          },
+          icon: const Icon(Icons.calendar_today, size: 16),
+          label: const Text('Save to Calendar'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kAccent,
+            foregroundColor: kWhite,
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(3, context),
+              vertical: getPercentageHeight(0.8, context),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
