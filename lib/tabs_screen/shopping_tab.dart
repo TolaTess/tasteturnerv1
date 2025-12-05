@@ -3,7 +3,6 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:tasteturner/tabs_screen/spin_screen.dart';
 import 'package:tasteturner/widgets/bottom_nav.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
@@ -307,14 +306,14 @@ class _ShoppingTabState extends State<ShoppingTab> {
             borderRadius: BorderRadius.circular(15),
           ),
           title: Text(
-            'Remove All Items',
+            'Clear All Items',
             style: TextStyle(
               color: isDarkMode ? kWhite : kBlack,
               fontWeight: FontWeight.w600,
             ),
           ),
           content: Text(
-            'Are you sure you want to remove all items from "$sectionTitle"?\n\nThis action cannot be undone.',
+            'Are you sure you want to clear all items from "$sectionTitle", Chef?\n\nThis action cannot be undone.',
             style: TextStyle(
               color: isDarkMode ? kWhite : kBlack,
             ),
@@ -333,7 +332,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 _removeAllItems(isManual, isGenerated);
               },
               child: Text(
-                'Remove All',
+                'Clear All',
                 style: TextStyle(color: kRed, fontWeight: FontWeight.w600),
               ),
             ),
@@ -370,7 +369,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
       // Show success message
       if (mounted && context.mounted) {
         _showSuccessMessage(
-            'All items removed from ${isManual ? 'manual' : 'generated'} list');
+            'All items cleared from ${isManual ? 'Chef\'s Selection' : 'Menu'} list');
       }
     } catch (e) {
       debugPrint('Error removing all items: $e');
@@ -500,15 +499,15 @@ class _ShoppingTabState extends State<ShoppingTab> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Shopping List',
+              'Market List',
               style: textTheme.displaySmall?.copyWith(
                 fontSize: getTextScale(7, context),
               ),
             ),
             SizedBox(width: getPercentageWidth(2, context)),
             const InfoIconWidget(
-              title: 'Shopping List',
-              description: 'Create and manage your grocery lists',
+              title: 'Market List',
+              description: 'Create and manage your market inventory',
               details: [
                 {
                   'icon': Icons.shopping_cart,
@@ -520,13 +519,13 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 {
                   'icon': Icons.add_shopping_cart,
                   'title': 'Add Items',
-                  'description': 'Manually add items to your shopping list',
+                  'description': 'Manually add items to your market list',
                   'color': kAccentLight,
                 },
                 {
                   'icon': Icons.add_shopping_cart,
-                  'title': 'Shopping Day',
-                  'description': 'Set your shopping day and get reminders',
+                  'title': 'Market Day',
+                  'description': 'Set your market day and get reminders',
                   'color': kAccentLight,
                 },
                 {
@@ -538,12 +537,12 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 {
                   'icon': Icons.grid_view,
                   'title': '54321 Method',
-                  'description': 'Balanced shopping lists',
+                  'description': 'Balanced market lists',
                   'color': kAccentLight,
                 },
               ],
               iconColor: kAccentLight,
-              tooltip: 'Shopping List Information',
+              tooltip: 'Market List Information',
             ),
           ],
         ),
@@ -559,7 +558,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                 size: getPercentageWidth(6, context),
               ),
               tooltip: _is54321View
-                  ? 'Switch to Regular View'
+                  ? 'Switch to Standard View'
                   : 'Switch to 54321 View',
             ),
           ),
@@ -610,14 +609,14 @@ class _ShoppingTabState extends State<ShoppingTab> {
                         children: [
                           _buildInfoColumn(
                             context,
-                            title: 'Shopping Day',
+                            title: 'Market Day',
                             icon: Icons.edit_calendar,
                             text: _selectedDay ?? 'Select Day',
                             textTheme: textTheme,
                           ),
                           Obx(() => _buildInfoColumn(
                                 context,
-                                title: _is54321View ? 'View' : 'Items',
+                                title: _is54321View ? 'View' : 'Stock',
                                 icon: _is54321View
                                     ? Icons.grid_view
                                     : Icons.shopping_basket,
@@ -638,7 +637,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                                 items: macroManager.ingredient,
                               )),
                           child: Text(
-                            'SEE MORE INGREDIENTS',
+                            'View Walk-In Pantry',
                             style: textTheme.displayMedium?.copyWith(
                               fontSize: getTextScale(4, context),
                               fontWeight: FontWeight.normal,
@@ -705,7 +704,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
                   if (manualItems.isNotEmpty) {
                     listWidgets.add(_buildSectionHeader(
-                        'Added Manually', textTheme, context,
+                        'Chef\'s Selection', textTheme, context,
                         isManual: true));
                     listWidgets.addAll(_buildConsolidatedList(
                         manualItems.toList(),
@@ -714,7 +713,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
 
                   if (generatedItems.isNotEmpty) {
                     listWidgets.add(_buildSectionHeader(
-                        'From This Week\'s Meal Plan', textTheme, context,
+                        'From This Week\'s Menu', textTheme, context,
                         isGenerated: true));
                     listWidgets.addAll(_buildConsolidatedList(
                         generatedItems.toList(),
@@ -739,7 +738,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                             ),
                             SizedBox(height: getPercentageHeight(2, context)),
                             Text(
-                              'Your shopping list is empty!',
+                              'Your market list is empty, Chef!',
                               style: textTheme.titleMedium,
                             ),
                             SizedBox(height: getPercentageHeight(1, context)),
@@ -962,7 +961,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
           ),
           SizedBox(height: getPercentageHeight(2, context)),
           Text(
-            '54321 Shopping List',
+            '54321 Market List',
             style: textTheme.headlineMedium?.copyWith(
               color: hasPremiumAccess ? kAccent : Colors.grey,
               fontWeight: FontWeight.w600,
@@ -975,8 +974,8 @@ class _ShoppingTabState extends State<ShoppingTab> {
             ),
             child: Text(
               hasPremiumAccess
-                  ? 'Generate a balanced shopping list with:\n• 5 Vegetables\n• 4 Fruits\n• 3 Proteins\n• 2 Sauces/Spreads\n• 1 Grain\n• 1 Fun Treat'
-                  : 'Upgrade to Premium to unlock AI-powered 54321 shopping lists!\n\nGet personalized, balanced shopping lists tailored to your dietary preferences and family needs.',
+                  ? 'Generate a balanced market list with:\n• 5 Vegetables\n• 4 Fruits\n• 3 Proteins\n• 2 Sauces/Spreads\n• 1 Grain\n• 1 Fun Treat'
+                  : 'Upgrade to Premium to unlock AI-powered 54321 market lists!\n\nGet personalized, balanced market lists tailored to your dietary preferences and family needs.',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(
                 color: isDarkMode ? kLightGrey : kDarkGrey,
@@ -1111,7 +1110,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
         // Tips section
         if (tips.isNotEmpty) ...[
           SizedBox(height: getPercentageHeight(2, context)),
-          _buildSectionHeader('Shopping Tips', textTheme, context),
+          _buildSectionHeader('Market Tips', textTheme, context),
           ...tips.map((tip) =>
               _buildTipCard(context, isDarkMode, textTheme, tip.toString())),
         ],
@@ -1119,7 +1118,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
         // Meal ideas section
         if (mealIdeas.isNotEmpty) ...[
           SizedBox(height: getPercentageHeight(2, context)),
-          _buildSectionHeader('Meal Ideas', textTheme, context),
+          _buildSectionHeader('Menu Ideas', textTheme, context),
           ...mealIdeas.map((idea) => _buildMealIdeaCard(
               context, isDarkMode, textTheme, idea.toString())),
         ],
@@ -1535,7 +1534,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
                         ),
                       ),
                       content: Text(
-                        'Are you sure you want to remove "${displayItem.title}" from your shopping list?',
+                        'Are you sure you want to remove "${displayItem.title}" from your market list, Chef?',
                         style: TextStyle(
                           color: isDarkMode ? kWhite : kBlack,
                         ),
@@ -1566,7 +1565,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content:
-                    Text('Removed "${displayItem.title}" from shopping list'),
+                    Text('Removed "${displayItem.title}" from market list'),
                 backgroundColor: kRed,
                 duration: const Duration(seconds: 2),
               ),

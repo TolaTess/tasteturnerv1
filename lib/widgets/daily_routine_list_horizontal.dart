@@ -87,8 +87,14 @@ class RoutineController extends GetxController {
           title: '🏆 Daily Routine Champion!',
           body:
               'Amazing! You completed ${yesterdayCompletionPercentage.round()}% of your routine yesterday. Keep up the great work! 10 points awarded!',
+          payload: {
+            'type': 'daily_routine_champion',
+            'completionPercentage': yesterdayCompletionPercentage,
+            'date': yesterday,
+          },
         );
-        await BadgeService.instance.awardPoints(userId, 10, reason: 'Daily Routine Champion');
+        await BadgeService.instance
+            .awardPoints(userId, 10, reason: 'Daily Routine Champion');
       }
       await prefs.setBool('routine_notification_shown_$today', true);
     } catch (e) {
@@ -167,12 +173,14 @@ class RoutineController extends GetxController {
     // Allow updates for any date - the update methods now handle date parameter correctly
     // Only restrict future dates (more than 1 day in the future)
     final now = DateTime.now();
-    final daysDifference = date.difference(DateTime(now.year, now.month, now.day)).inDays;
+    final daysDifference =
+        date.difference(DateTime(now.year, now.month, now.day)).inDays;
     if (daysDifference > 1) {
-      debugPrint('⚠️ Cannot update routine for dates more than 1 day in the future');
+      debugPrint(
+          '⚠️ Cannot update routine for dates more than 1 day in the future');
       return;
     }
-    
+
     try {
       final docRef = firestore
           .collection('userMeals')
@@ -188,11 +196,12 @@ class RoutineController extends GetxController {
       if (title.contains('Water') && !currentStatus == true) {
         // Toggling ON: Set water to waterTotal from user settings
         final settings = userService.currentUser.value?.settings;
-        final double waterTotal = double.tryParse(
-                settings?['waterIntake']?.toString() ?? '0') ?? 0.0;
-        debugPrint('🔄 Routine Water Toggle ON - waterTotal: $waterTotal, setting to: $waterTotal');
-        await dailyDataController.updateCurrentWater(
-            userId, waterTotal, date: date);
+        final double waterTotal =
+            double.tryParse(settings?['waterIntake']?.toString() ?? '0') ?? 0.0;
+        debugPrint(
+            '🔄 Routine Water Toggle ON - waterTotal: $waterTotal, setting to: $waterTotal');
+        await dailyDataController.updateCurrentWater(userId, waterTotal,
+            date: date);
       } else if (title.contains('Water') && currentStatus == true) {
         // Toggling OFF: Reset water to 0 (undo the action)
         debugPrint('🔄 Routine Water Toggle OFF - resetting to 0.0');
@@ -202,11 +211,12 @@ class RoutineController extends GetxController {
       if (title.contains('Steps') && !currentStatus == true) {
         // Toggling ON: Set steps to stepsTotal from user settings
         final settings = userService.currentUser.value?.settings;
-        final double stepsTotal = double.tryParse(
-                settings?['targetSteps']?.toString() ?? '0') ?? 0.0;
-        debugPrint('🔄 Routine Steps Toggle ON - stepsTotal: $stepsTotal, setting to: $stepsTotal');
-        await dailyDataController.updateCurrentSteps(
-            userId, stepsTotal, date: date);
+        final double stepsTotal =
+            double.tryParse(settings?['targetSteps']?.toString() ?? '0') ?? 0.0;
+        debugPrint(
+            '🔄 Routine Steps Toggle ON - stepsTotal: $stepsTotal, setting to: $stepsTotal');
+        await dailyDataController.updateCurrentSteps(userId, stepsTotal,
+            date: date);
       } else if (title.contains('Steps') && currentStatus == true) {
         // Toggling OFF: Reset steps to 0 (undo the action)
         debugPrint('🔄 Routine Steps Toggle OFF - resetting to 0.0');

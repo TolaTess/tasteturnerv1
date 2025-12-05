@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
+import '../service/program_service.dart';
+import 'menu_detail_widget.dart';
 
 class ProgramDetailWidget extends StatefulWidget {
   final Map<String, dynamic> program;
@@ -19,7 +22,84 @@ class ProgramDetailWidget extends StatefulWidget {
 }
 
 class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
-  bool _showFullDescription = false;
+  late final ProgramService _programService;
+  bool _isJoining = false;
+  bool _isEnrolled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isEnrolled = widget.isEnrolled;
+    // Initialize ProgramService using Get.find() with try-catch fallback
+    try {
+      _programService = Get.find<ProgramService>();
+    } catch (e) {
+      // If not found, put it
+      _programService = Get.put(ProgramService());
+    }
+  }
+
+  void _showErrorSnackbar(String message) {
+    if (!mounted) return;
+    Get.snackbar(
+      'Error',
+      message,
+      backgroundColor: Colors.red,
+      colorText: kWhite,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  void _showSuccessSnackbar(String message) {
+    if (!mounted) return;
+    Get.snackbar(
+      'Success',
+      message,
+      backgroundColor: kAccentLight,
+      colorText: kWhite,
+      duration: const Duration(seconds: 2),
+    );
+  }
+
+  Future<void> _handleJoinProgram() async {
+    final programId = widget.program['programId'] as String?;
+    if (programId == null || programId.isEmpty) {
+      _showErrorSnackbar('Invalid menu data, Chef. Please try again.');
+      return;
+    }
+
+    setState(() {
+      _isJoining = true;
+    });
+
+    try {
+      // Join the program with default option since no options are available
+      await _programService.joinProgram(programId, 'default');
+
+      if (mounted) {
+        setState(() {
+          _isJoining = false;
+          _isEnrolled = true;
+        });
+        _showSuccessSnackbar(
+            'You\'ve joined the ${widget.program['name'] ?? 'program'} menu, Chef!');
+        // Reload user programs to update the list
+        await _programService.loadUserPrograms();
+        // Navigate back
+        Get.back();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isJoining = false;
+        });
+        final errorMessage = e.toString().contains('already enrolled')
+            ? 'You are already enrolled in this menu, Chef'
+            : 'Couldn\'t join menu, Chef. Please try again.';
+        _showErrorSnackbar(errorMessage);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +131,7 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
             _buildHeader(context, textTheme, isDarkMode),
 
             // Enrollment status indicator
-            if (widget.isEnrolled)
+            if (_isEnrolled)
               Container(
                 width: double.infinity,
                 margin: EdgeInsets.symmetric(
@@ -78,7 +158,7 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
                     ),
                     SizedBox(width: getPercentageWidth(2, context)),
                     Text(
-                      'You are enrolled in this program',
+                      'You are enrolled in this menu, Chef',
                       style: textTheme.bodyMedium?.copyWith(
                         color: Colors.green[700],
                         fontWeight: FontWeight.w500,
@@ -88,43 +168,13 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
                 ),
               ),
 
-            // Scrollable content
+            // Scrollable content with new Menu Detail Widget
             Flexible(
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(getPercentageWidth(5, context)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Description
-                    if (widget.program['description'] != null)
-                      _buildDescriptionSection(context, textTheme, isDarkMode),
-
-                    SizedBox(height: getPercentageHeight(2, context)),
-
-                    // Duration Section
-                    if (widget.program['duration'] != null)
-                      _buildDurationSection(context, textTheme, isDarkMode),
-
-                    SizedBox(height: getPercentageHeight(2, context)),
-
-                    // Goals Section
-                    if (widget.program['goals'] != null)
-                      _buildGoalsSection(context, textTheme, isDarkMode),
-
-                    SizedBox(height: getPercentageHeight(2, context)),
-
-                    // Guidelines Section
-                    if (widget.program['guidelines'] != null)
-                      _buildGuidelinesSection(context, textTheme, isDarkMode),
-
-                    SizedBox(height: getPercentageHeight(2, context)),
-
-                    // Tips Section
-                    if (widget.program['tips'] != null)
-                      _buildTipsSection(context, textTheme, isDarkMode),
-
-                    SizedBox(height: getPercentageHeight(1.5, context)),
-                  ],
+                child: MenuDetailWidget(
+                  program: widget.program,
+                  isEnrolled: _isEnrolled,
                 ),
               ),
             ),
@@ -153,7 +203,7 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
         children: [
           Expanded(
             child: Text(
-              widget.program['name'] ?? 'Program',
+              widget.program['name'] ?? 'Menu',
               style: textTheme.displayMedium?.copyWith(
                 fontSize: getTextScale(5, context),
                 color: kAccent,
@@ -162,7 +212,7 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
             ),
           ),
           GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: () => Get.back(),
             child: Container(
               padding: EdgeInsets.all(getPercentageWidth(2, context)),
               decoration: BoxDecoration(
@@ -181,293 +231,6 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
     );
   }
 
-  Widget _buildDescriptionSection(
-      BuildContext context, TextTheme textTheme, bool isDarkMode) {
-    final description =
-        widget.program['description'] ?? 'No description available';
-    final firstSentenceEnd = description.indexOf('.');
-    final displayText = _showFullDescription
-        ? description
-        : (firstSentenceEnd > 0
-            ? description.substring(0, firstSentenceEnd + 1)
-            : description);
-    final hasMoreText =
-        firstSentenceEnd > 0 && firstSentenceEnd < description.length - 1;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Description',
-          style: textTheme.titleMedium?.copyWith(
-            color: kAccent,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        SizedBox(height: getPercentageHeight(1, context)),
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(getPercentageWidth(4, context)),
-          decoration: BoxDecoration(
-            color: isDarkMode
-                ? kLightGrey.withValues(alpha: 0.1)
-                : kLightGrey.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                displayText,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: isDarkMode ? kWhite : kDarkGrey,
-                  height: 1.5,
-                ),
-              ),
-              if (hasMoreText)
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _showFullDescription = !_showFullDescription;
-                    });
-                  },
-                  child: Padding(
-                    padding:
-                        EdgeInsets.only(top: getPercentageHeight(1, context)),
-                    child: Text(
-                      _showFullDescription ? 'See less' : 'See more',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: kAccent,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDurationSection(
-      BuildContext context, TextTheme textTheme, bool isDarkMode) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.schedule,
-              color: kAccent,
-              size: getIconScale(4.5, context),
-            ),
-            SizedBox(width: getPercentageWidth(2, context)),
-            Text(
-              'Duration',
-              style: textTheme.titleMedium?.copyWith(
-                color: kAccent,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: getPercentageHeight(1, context)),
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(getPercentageWidth(4, context)),
-          decoration: BoxDecoration(
-            color: isDarkMode
-                ? kLightGrey.withValues(alpha: 0.1)
-                : kLightGrey.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            widget.program['duration'] ?? 'Not specified',
-            style: textTheme.bodyMedium?.copyWith(
-              color: isDarkMode ? kWhite : kDarkGrey,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGoalsSection(
-      BuildContext context, TextTheme textTheme, bool isDarkMode) {
-    final goals = List<String>.from(widget.program['goals'] ?? []);
-    if (goals.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.flag,
-              color: kAccent,
-              size: getIconScale(4.5, context),
-            ),
-            SizedBox(width: getPercentageWidth(2, context)),
-            Text(
-              'Goals',
-              style: textTheme.titleMedium?.copyWith(
-                color: kAccent,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: getPercentageHeight(1, context)),
-        Wrap(
-          spacing: getPercentageWidth(2, context),
-          runSpacing: getPercentageHeight(1, context),
-          children: goals.map((goal) {
-            return Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(3, context),
-                vertical: getPercentageHeight(0.8, context),
-              ),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
-              ),
-              child: Text(
-                goal,
-                style: textTheme.bodySmall?.copyWith(
-                  color: Colors.green[700],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGuidelinesSection(
-      BuildContext context, TextTheme textTheme, bool isDarkMode) {
-    final guidelines = List<String>.from(widget.program['guidelines'] ?? []);
-    if (guidelines.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.checklist,
-              color: kAccent,
-              size: getIconScale(4.5, context),
-            ),
-            SizedBox(width: getPercentageWidth(2, context)),
-            Text(
-              'Guidelines',
-              style: textTheme.titleMedium?.copyWith(
-                color: kAccent,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: getPercentageHeight(1, context)),
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(getPercentageWidth(4, context)),
-          decoration: BoxDecoration(
-            color: isDarkMode
-                ? kLightGrey.withValues(alpha: 0.1)
-                : kLightGrey.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: guidelines.map((guideline) {
-              return Padding(
-                padding:
-                    EdgeInsets.only(bottom: getPercentageHeight(0.8, context)),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.circle,
-                      size: getIconScale(2, context),
-                      color: kAccent,
-                    ),
-                    SizedBox(width: getPercentageWidth(2, context)),
-                    Expanded(
-                      child: Text(
-                        guideline,
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: isDarkMode ? kWhite : kDarkGrey,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTipsSection(
-      BuildContext context, TextTheme textTheme, bool isDarkMode) {
-    final tips = List<String>.from(widget.program['tips'] ?? []);
-    if (tips.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.lightbulb,
-              color: kAccent,
-              size: getIconScale(4.5, context),
-            ),
-            SizedBox(width: getPercentageWidth(2, context)),
-            Text(
-              'Tips',
-              style: textTheme.titleMedium?.copyWith(
-                color: kAccent,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: getPercentageHeight(1, context)),
-        Wrap(
-          spacing: getPercentageWidth(2, context),
-          runSpacing: getPercentageHeight(1, context),
-          children: tips.map((tip) {
-            return Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(3, context),
-                vertical: getPercentageHeight(0.8, context),
-              ),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
-              ),
-              child: Text(
-                tip,
-                style: textTheme.bodySmall?.copyWith(
-                  color: Colors.orange[700],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
 
   Widget _buildActionButtons(BuildContext context, TextTheme textTheme) {
     return Container(
@@ -477,7 +240,7 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
         children: [
           Expanded(
             child: TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: _isJoining ? null : () => Get.back(),
               style: TextButton.styleFrom(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -487,7 +250,7 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
                 ),
               ),
               child: Text(
-                widget.isEnrolled ? 'Close' : 'Cancel',
+                _isEnrolled ? 'Close' : 'Cancel',
                 style: textTheme.bodyMedium?.copyWith(
                   color: Colors.grey,
                   fontWeight: FontWeight.w600,
@@ -495,14 +258,12 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
               ),
             ),
           ),
-          if (!widget.isEnrolled) ...[
+          if (!_isEnrolled) ...[
             SizedBox(width: getPercentageWidth(3, context)),
             Expanded(
               flex: 2,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context, 'joined');
-                },
+                onPressed: _isJoining ? null : _handleJoinProgram,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kAccent,
                   foregroundColor: kWhite,
@@ -513,13 +274,22 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
                     vertical: getPercentageHeight(1.5, context),
                   ),
                 ),
-                child: Text(
-                  'Join Program',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: kWhite,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: _isJoining
+                    ? SizedBox(
+                        height: getIconScale(4, context),
+                        width: getIconScale(4, context),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(kWhite),
+                        ),
+                      )
+                    : Text(
+                        'Join Menu',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: kWhite,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
           ],

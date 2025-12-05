@@ -62,7 +62,6 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
       'icon': 'protein',
       'color': getMealTypeColor('protein'), // Brown
       'defaultPalmSize': '1 palm',
-      'defaultSpatulaSize': '1/2 spatula',
       'defaultExamples': ['Chicken', 'Fish', 'Tofu', 'Eggs'],
       'defaultCalories': '150 kcal',
       'defaultPalmPercentage': 0.25, // 25% of meal calories
@@ -72,7 +71,6 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
       'icon': 'grain',
       'color': getMealTypeColor('grain'), // Goldenrod
       'defaultPalmSize': '1 cupped palm',
-      'defaultSpatulaSize': '1 spatula',
       'defaultExamples': ['Rice', 'Pasta', 'Bread', 'Quinoa'],
       'defaultCalories': '120 kcal',
       'defaultPalmPercentage': 0.20, // 30% of meal calories
@@ -82,7 +80,6 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
       'icon': 'vegetable',
       'color': getMealTypeColor('vegetable'), // Forest Green
       'defaultPalmSize': '2 palms',
-      'defaultSpatulaSize': '2 spatulas',
       'defaultExamples': ['Broccoli', 'Spinach', 'Carrots', 'Bell Peppers'],
       'defaultCalories': '30 kcal',
       'defaultPalmPercentage': 0.35, // 20% of meal calories
@@ -92,7 +89,6 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
       'icon': 'fruit',
       'color': getMealTypeColor('fruit'), // Tomato Red
       'defaultPalmSize': '1 palm',
-      'defaultSpatulaSize': '1 spatula',
       'defaultExamples': ['Apple', 'Banana', 'Berries', 'Orange'],
       'defaultCalories': '80 kcal',
       'defaultPalmPercentage': 0.20, // 15% of meal calories
@@ -102,7 +98,6 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
       'icon': 'snack',
       'color': getMealTypeColor('snack'), // Dark Orchid
       'defaultPalmSize': '1 palm',
-      'defaultSpatulaSize': '1 spatula',
       'defaultExamples': ['Nuts', 'Yogurt', 'Crackers', 'Smoothie'],
       'defaultCalories': '150 kcal',
       'defaultPalmPercentage': 0.10, // 10% of meal calories
@@ -153,8 +148,6 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
         'palmPercentage': (parseToNumber(programConfig?['palmPercentage']) ??
                 defaultConfig['defaultPalmPercentage'])
             .toDouble(),
-        'spatulaSize': programConfig?['spatulaSize'] ??
-            defaultConfig['defaultSpatulaSize'],
         'examples': programConfig?['examples'] != null
             ? List<String>.from(programConfig!['examples'])
             : List<String>.from(defaultConfig['defaultExamples']),
@@ -400,7 +393,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Daily Portion Guide',
+                      'Daily Plating Specs',
                       style: textTheme.displayMedium?.copyWith(
                         fontWeight: FontWeight.w200,
                         color: isDarkMode ? kWhite : kBlack,
@@ -425,7 +418,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                     ),
                     if (widget.userProgram != null)
                       Text(
-                        'Based on your program',
+                        'Per your current Menu, Chef',
                         style: textTheme.labelSmall?.copyWith(
                           color: kLightGrey,
                           fontSize: getPercentageWidth(3, context),
@@ -441,7 +434,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                     size: getIconScale(6, context),
                     color: kAccent,
                   ),
-                  tooltip: 'Portion Guide Tools',
+                  tooltip: 'Measurement Kit',
                 ),
               ],
             ),
@@ -599,18 +592,18 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            ...((){
+            ...(() {
               final examples = (food['examples'] as List<String>).toList();
               examples.shuffle();
               return examples.take(2).map(
-                (example) => Text(
-                  '• $example',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: isDarkMode ? kLightGrey : kDarkGrey,
-                    fontSize: getPercentageWidth(2.3, context),
-                  ),
-                ),
-              );
+                    (example) => Text(
+                      '• $example',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                        fontSize: getPercentageWidth(2.3, context),
+                      ),
+                    ),
+                  );
             }()),
           ],
         ),
@@ -632,14 +625,14 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
             ),
             SizedBox(height: getPercentageHeight(1, context)),
             Text(
-              'No food types allowed',
+              'No ingredients available in this category.',
               style: textTheme.bodyMedium?.copyWith(
                 color: isDarkMode ? kLightGrey : kDarkGrey,
                 fontWeight: FontWeight.w500,
               ),
             ),
             Text(
-              'Check your program restrictions',
+              'Check the Menu parameters, Chef.',
               style: textTheme.bodySmall?.copyWith(
                 color: isDarkMode ? kLightGrey : kDarkGrey,
               ),
@@ -680,7 +673,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                 Column(
                   children: [
                     Text(
-                      'Portion Guide Tools',
+                      'Measurement Kit',
                       style: textTheme.displaySmall?.copyWith(
                         color: kAccent,
                         fontSize: getPercentageWidth(7, context),
@@ -688,7 +681,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                       ),
                     ),
                     Text(
-                      'Portion guide for current program: \n${widget.programName}',
+                      'Plating specs for this Menu: \n${widget.programName}',
                       style: textTheme.bodySmall?.copyWith(
                         fontSize: getPercentageWidth(2.5, context),
                         color: kLightGrey,
@@ -708,33 +701,17 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
             // Palm reference
             _buildPortionReference(
               icon: Icons.pan_tool,
-              title: 'Palm Reference',
-              description: 'Use your palm to measure portions',
+              title: 'The Palm Method',
+              description: 'Use your palm to measure portions, Chef',
               details: [
                 '1 palm = 3-4 oz protein',
-                '1 cupped palm = 1/2 cup carbs',
-                '2 palms = 2 cups vegetables',
+                '1 fist = 1 cup carbs',
+                '2 cupped hands = 2 cups vegetables',
               ],
               color: Color(0xFF8B4513),
               isDarkMode: isDarkMode,
               textTheme: textTheme,
-            ),
-
-            SizedBox(height: getPercentageHeight(2, context)),
-
-            // Spatula reference
-            _buildPortionReference(
-              icon: Icons.soup_kitchen,
-              title: 'Spatula Reference',
-              description: 'Alternative measuring tool',
-              details: [
-                '1/2 spatula = 3-4 oz protein',
-                '1 spatula = 1/2 cup carbs',
-                '2 spatulas = 2 cups vegetables',
-              ],
-              color: Color(0xFF4682B4),
-              isDarkMode: isDarkMode,
-              textTheme: textTheme,
+              imagePath: 'assets/images/background/palm4.png',
             ),
 
             SizedBox(height: getPercentageHeight(2, context)),
@@ -751,7 +728,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                   Column(
                     children: [
                       Text(
-                        'Your Daily Target',
+                        'Your Daily Target, Chef',
                         textAlign: TextAlign.center,
                         style: textTheme.titleMedium?.copyWith(
                           color: kAccent,
@@ -818,7 +795,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
                   Text(
-                    'Snacks can be included as part of lunch or dinner',
+                    'Snacks can be included as part of lunch or dinner, Chef',
                     textAlign: TextAlign.center,
                     style: textTheme.bodySmall?.copyWith(
                       color: isDarkMode ? kLightGrey : kDarkGrey,
@@ -843,6 +820,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
     required Color color,
     required bool isDarkMode,
     required TextTheme textTheme,
+    String? imagePath,
   }) {
     return Container(
       padding: EdgeInsets.all(getPercentageWidth(3, context)),
@@ -858,26 +836,38 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
             children: [
               Icon(icon, color: color, size: getIconScale(6, context)),
               SizedBox(width: getPercentageWidth(2, context)),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: textTheme.titleMedium?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  Text(
-                    description,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: isDarkMode ? kLightGrey : kDarkGrey,
+                    Text(
+                      description,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
+          if (imagePath != null) ...[
+            SizedBox(height: getPercentageHeight(2, context)),
+            Center(
+              child: Image.asset(
+                imagePath,
+                width: getPercentageWidth(60, context),
+                fit: BoxFit.contain,
+              ),
+            ),
+          ],
           SizedBox(height: getPercentageHeight(1, context)),
           ...details.map(
             (detail) => Padding(

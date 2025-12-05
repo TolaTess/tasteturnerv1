@@ -167,7 +167,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
         Row(
           children: [
             Text(
-              'Description',
+              'Chef\'s Notes',
               style: textTheme.titleMedium?.copyWith(
                 color: kAccent,
                 fontWeight: FontWeight.w600,
@@ -198,7 +198,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '(see meals)',
+                  '(view recipes)',
                   style: textTheme.bodySmall?.copyWith(
                     color: kAccent,
                     fontWeight: FontWeight.w400,
@@ -273,7 +273,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
             Icon(Icons.kitchen, color: kAccent, size: getIconScale(5, context)),
             SizedBox(width: getPercentageWidth(2, context)),
             Text(
-              'Equipment Needed',
+              'Station Setup',
               style: textTheme.titleMedium?.copyWith(
                 color: kAccent,
                 fontWeight: FontWeight.w600,
@@ -317,7 +317,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
             Row(
               children: [
                 Text(
-                  'Best For',
+                  'Ideal For',
                   style: textTheme.titleMedium?.copyWith(
                     color: kAccent,
                     fontWeight: FontWeight.w600,
@@ -347,7 +347,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '(see ingredients)',
+                      '(check walk-in)',
                       style: textTheme.bodySmall?.copyWith(
                         color: kAccent,
                         fontWeight: FontWeight.w400,
@@ -397,7 +397,7 @@ class _TechniqueDetailWidgetState extends State<TechniqueDetailWidget> {
             Icon(heatIcon, color: heatColor, size: getIconScale(5, context)),
             SizedBox(width: getPercentageWidth(2, context)),
             Text(
-              '${capitalizeFirstLetter(heatTypeList[0])} Type',
+              'Heat Method',
               style: textTheme.titleMedium?.copyWith(
                 color: heatColor,
                 fontWeight: FontWeight.w600,

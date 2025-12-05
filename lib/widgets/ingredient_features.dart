@@ -5,6 +5,7 @@ import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../detail_screen/ingredientdetails_screen.dart';
 import '../helper/utils.dart';
+import '../helper/helper_functions.dart';
 
 class IngredientFeatures extends StatefulWidget {
   final List<MacroData> items;
@@ -35,6 +36,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
   Map<String, String> _activeFilters = {};
   Map<String, List<String>> _availableFeatureValues = {};
   bool _showFeatureFilters = false;
+  bool _isGridView = true; // Grid view by default
 
   // Helper method to get base filtered items based on searchIngredient
   List<MacroData> get _baseFilteredItems {
@@ -193,7 +195,31 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                 key == 'season' ||
                 key == 'g_i')) {
           featureValues.putIfAbsent(key, () => <String>{});
+          // For rainbow colors, consolidate and normalize color names
+          if (key == 'rainbow') {
+            final lowerValue = value.toLowerCase().trim();
+            // Check if it's a known color
+            final knownColors = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'violet', 'white', 'brown', 'pink', 'grey'];
+            
+            // Normalize color name (capitalize first letter for display)
+            String normalizedColor;
+            if (knownColors.contains(lowerValue)) {
+              // Use the normalized version (capitalize first letter)
+              normalizedColor = lowerValue.isEmpty 
+                  ? '' 
+                  : lowerValue[0].toUpperCase() + (lowerValue.length > 1 ? lowerValue.substring(1) : '');
+            } else {
+              // Unknown color - use 'Grey'
+              normalizedColor = 'Grey';
+            }
+            
+            // Add normalized color (Set will automatically handle duplicates)
+            if (normalizedColor.isNotEmpty) {
+              featureValues[key]!.add(normalizedColor);
+            }
+          } else {
           featureValues[key]!.add(value);
+          }
         }
       }
     }
@@ -208,6 +234,16 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
       } else if (key == 'g_i') {
         // Consolidate g_i values into Low, Medium, High categories
         consolidatedValues = _consolidateGiValues(values.toList());
+      } else if (key == 'rainbow') {
+        // For rainbow colors, values are already normalized and consolidated
+        // Just sort them (but keep 'Grey' at the end if present)
+        consolidatedValues = values.toList();
+        consolidatedValues.sort((a, b) {
+          // Put 'Grey' at the end
+          if (a.toLowerCase() == 'grey') return 1;
+          if (b.toLowerCase() == 'grey') return -1;
+          return a.toLowerCase().compareTo(b.toLowerCase());
+        });
       } else {
         // For other features, use original values
         consolidatedValues = values.toList()..sort();
@@ -519,8 +555,9 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
         toolbarHeight: getPercentageHeight(10, context),
         centerTitle: true,
         title: Text(
-          capitalizeFirstLetter(
-              widget.searchIngredient ?? 'Ingredient Features'),
+          widget.searchIngredient != null && widget.searchIngredient!.isNotEmpty
+              ? capitalizeFirstLetter(widget.searchIngredient!)
+              : 'The Walk-In',
           style: textTheme.displaySmall?.copyWith(
             fontSize: getTextScale(7, context),
             color: isDarkMode ? kWhite : kDarkGrey,
@@ -539,7 +576,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
               onChanged: _filterItems,
               kText: widget.screen == 'technique'
                   ? 'Search ${capitalizeFirstLetter(widget.searchIngredient ?? '')} ingredients..'
-                  : 'Search ingredients...',
+                  : 'Check inventory...',
             ),
           ),
 
@@ -609,7 +646,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
             ),
           ),
 
-          // Feature Filters Panel
+          // Feature Filters Panel - Chef Terminology
           if (_showFeatureFilters)
             Container(
               margin: EdgeInsets.symmetric(
@@ -627,34 +664,37 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                       : Colors.grey[300]!,
                 ),
               ),
+              child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Filter by Features',
+                      'Chef\'s Selection Criteria',
                     style: textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isDarkMode ? kWhite : kBlack,
                     ),
                   ),
+                    SizedBox(height: getPercentageHeight(1.5, context)),
+                    // Plating Aesthetics (Rainbow Colors)
+                    if (_availableFeatureValues.containsKey('rainbow'))
+                      _buildPlatingAestheticsFilter(
+                          context, isDarkMode, textTheme),
                   SizedBox(height: getPercentageHeight(1, context)),
-                  Wrap(
-                    spacing: getPercentageWidth(2, context),
-                    runSpacing: getPercentageHeight(1, context),
-                    children: _availableFeatureValues.entries.map((entry) {
-                      String featureKey = entry.key;
-                      List<String> values = entry.value;
-                      String? selectedValue = _activeFilters[featureKey];
-
-                      return _buildFeatureFilterChip(
-                        featureKey,
-                        values,
-                        selectedValue,
-                        isDarkMode,
-                      );
-                    }).toList(),
-                  ),
-                ],
+                    // Market Status (Season)
+                    if (_availableFeatureValues.containsKey('season'))
+                      _buildMarketStatusFilter(context, isDarkMode, textTheme),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    // Texture / Satiety (Fiber)
+                    if (_availableFeatureValues.containsKey('fiber'))
+                      _buildTextureSatietyFilter(context, isDarkMode, textTheme),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    // Burn Rate (GI)
+                    if (_availableFeatureValues.containsKey('g_i'))
+                      _buildBurnRateFilter(context, isDarkMode, textTheme),
+                  ],
+                ),
               ),
             ),
 
@@ -666,19 +706,34 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Ingredients',
+                  'Inventory',
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     fontSize: getTextScale(5, context),
                     color: isDarkMode ? kWhite : kBlack,
                   ),
                 ),
-                SizedBox(width: getPercentageWidth(2, context)),
+                Row(
+                  children: [
+                    // Grid/List Toggle
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _isGridView = !_isGridView;
+                        });
+                      },
+                      icon: Icon(
+                        _isGridView ? Icons.view_list : Icons.grid_view,
+                        color: isDarkMode ? kWhite : kBlack,
+                        size: getPercentageWidth(5, context),
+                      ),
+                      tooltip: _isGridView
+                          ? 'Switch to List View'
+                          : 'Switch to Grid View',
+                    ),
+                    SizedBox(width: getPercentageWidth(1, context)),
                 if (hasMoreItems)
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(2, context)),
-                    child: ElevatedButton(
+                      ElevatedButton(
                       onPressed: _isLoading ? null : _loadMore,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kAccent,
@@ -711,15 +766,33 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
                               ),
                             ),
                     ),
+                  ],
                   ),
               ],
             ),
           ),
 
-          // New List View
+          // Inventory View (Grid or List)
           Expanded(
-            child: ListView.builder(
+            child: _isGridView
+                ? GridView.builder(
               padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(2, context),
+                        vertical: getPercentageHeight(1, context)),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: getPercentageWidth(2, context),
+                      mainAxisSpacing: getPercentageHeight(1, context),
+                      childAspectRatio: 0.75,
+                    ),
+                    itemCount: sortedItems.length,
+                    itemBuilder: (context, index) {
+                      final item = sortedItems[index];
+                      return _buildInventoryCard(item, isDarkMode);
+                    },
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.symmetric(
                   vertical: getPercentageHeight(1, context)),
               itemCount: sortedItems.length,
               itemBuilder: (context, index) {
@@ -729,6 +802,451 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Plating Aesthetics Filter - Color Swatches
+  Widget _buildPlatingAestheticsFilter(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
+    final selectedColor = _activeFilters['rainbow'];
+    final availableColors = _availableFeatureValues['rainbow'] ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.palette,
+                size: getPercentageWidth(4, context),
+                color: isDarkMode ? kWhite : kBlack),
+            SizedBox(width: getPercentageWidth(1, context)),
+            Text(
+              'Plating Aesthetics',
+              style: textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDarkMode ? kWhite : kBlack,
+                fontSize: getTextScale(4, context),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: getPercentageHeight(1, context)),
+        Wrap(
+          spacing: getPercentageWidth(2, context),
+          runSpacing: getPercentageHeight(1, context),
+          children: [
+            // "Any" option
+            GestureDetector(
+              onTap: () => _applyFeatureFilter('rainbow', null),
+              child: Container(
+                width: getPercentageWidth(8, context),
+                height: getPercentageWidth(8, context),
+                decoration: BoxDecoration(
+                  color: selectedColor == null
+                      ? kAccent.withValues(alpha: 0.3)
+                      : isDarkMode
+                          ? kWhite.withValues(alpha: 0.1)
+                          : Colors.grey[200],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selectedColor == null
+                        ? kAccent
+                        : (isDarkMode
+                            ? kWhite.withValues(alpha: 0.3)
+                            : Colors.grey[400]!),
+                    width: selectedColor == null ? 2 : 1,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    'Any',
+                    style: TextStyle(
+                      fontSize: getTextScale(2.5, context),
+                      color: selectedColor == null
+                          ? kAccent
+                          : (isDarkMode ? kWhite : kBlack),
+                      fontWeight: selectedColor == null
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Color swatches
+            ...availableColors.map((colorName) {
+              final isSelected = selectedColor == colorName;
+              // Get color, defaulting to grey for unknown/empty/null values
+              final color = getRainbowColor(colorName);
+              return GestureDetector(
+                onTap: () => _applyFeatureFilter('rainbow', colorName),
+                child: Container(
+                  width: getPercentageWidth(8, context),
+                  height: getPercentageWidth(8, context),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected
+                          ? kAccent
+                          : (isDarkMode
+                              ? kWhite.withValues(alpha: 0.3)
+                              : Colors.grey[400]!),
+                      width: isSelected ? 3 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: kAccent.withValues(alpha: 0.5),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            )
+                          ]
+                        : null,
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Market Status Filter - Season Toggle
+  Widget _buildMarketStatusFilter(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
+    final selectedSeason = _activeFilters['season'];
+    final availableSeasons = _availableFeatureValues['season'] ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.local_grocery_store,
+                size: getPercentageWidth(4, context),
+                color: isDarkMode ? kWhite : kBlack),
+            SizedBox(width: getPercentageWidth(1, context)),
+            Text(
+              'Market Status',
+              style: textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDarkMode ? kWhite : kBlack,
+                fontSize: getTextScale(4, context),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: getPercentageHeight(1, context)),
+        Wrap(
+          spacing: getPercentageWidth(2, context),
+          runSpacing: getPercentageHeight(1, context),
+          children: [
+            // "Any" option
+            _buildSeasonChip(context, isDarkMode, 'Any', null, selectedSeason,
+                () {
+              _applyFeatureFilter('season', null);
+            }),
+            // "Peak Season" option
+            if (availableSeasons.any((s) =>
+                s.toLowerCase().contains('spring') ||
+                s.toLowerCase().contains('summer') ||
+                s.toLowerCase().contains('fall') ||
+                s.toLowerCase().contains('winter')))
+              _buildSeasonChip(
+                  context, isDarkMode, 'Peak Season', 'peak', selectedSeason,
+                  () {
+                // Find a season that's currently in season
+                final inSeason = availableSeasons.firstWhere(
+                    (s) => isCurrentlyInSeason(s),
+                    orElse: () => availableSeasons.first);
+                _applyFeatureFilter('season', inSeason);
+              }),
+            // "Year-Round" option
+            if (availableSeasons.any((s) =>
+                s.toLowerCase().contains('all-year') ||
+                s.toLowerCase().contains('year-round')))
+              _buildSeasonChip(context, isDarkMode, 'Year-Round', 'year-round',
+                  selectedSeason, () {
+                final yearRound = availableSeasons.firstWhere(
+                    (s) =>
+                        s.toLowerCase().contains('all-year') ||
+                        s.toLowerCase().contains('year-round'),
+                    orElse: () => availableSeasons.first);
+                _applyFeatureFilter('season', yearRound);
+              }),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSeasonChip(BuildContext context, bool isDarkMode, String label,
+      String? value, String? selectedValue, VoidCallback onTap) {
+    bool isSelected;
+    if (value == null) {
+      // "Any" option - selected when no filter is active
+      isSelected = selectedValue == null;
+    } else if (value == 'peak') {
+      // "Peak Season" option - selected when the selected season is currently in season
+      isSelected = selectedValue != null && isCurrentlyInSeason(selectedValue);
+    } else if (value == 'year-round') {
+      // "Year-Round" option - selected when selected season contains all-year or year-round
+      isSelected = selectedValue != null &&
+          (selectedValue.toLowerCase().contains('all-year') ||
+              selectedValue.toLowerCase().contains('year-round'));
+    } else {
+      isSelected = false;
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+            horizontal: getPercentageWidth(2.5, context),
+            vertical: getPercentageHeight(0.8, context)),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? kAccent.withValues(alpha: 0.8)
+              : isDarkMode
+                  ? kWhite.withValues(alpha: 0.1)
+                  : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? kAccent
+                : (isDarkMode
+                    ? kWhite.withValues(alpha: 0.3)
+                    : Colors.grey[400]!),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (label == 'Peak Season')
+              Icon(Icons.eco, size: 16, color: isSelected ? kWhite : null),
+            if (label == 'Peak Season')
+              SizedBox(width: getPercentageWidth(0.5, context)),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? kWhite : (isDarkMode ? kWhite : kBlack),
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: getTextScale(3.5, context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Texture / Satiety Filter - Fiber Selector
+  Widget _buildTextureSatietyFilter(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
+    final selectedFiber = _activeFilters['fiber'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.scale,
+                size: getPercentageWidth(4, context),
+                color: isDarkMode ? kWhite : kBlack),
+            SizedBox(width: getPercentageWidth(1, context)),
+            Text(
+              'Texture / Satiety',
+              style: textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDarkMode ? kWhite : kBlack,
+                fontSize: getTextScale(4, context),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: getPercentageHeight(1, context)),
+        Row(
+          children: [
+            _buildSatietyChip(context, isDarkMode, 'Any', null, selectedFiber,
+                () {
+              _applyFeatureFilter('fiber', null);
+            }),
+            SizedBox(width: getPercentageWidth(2, context)),
+            _buildSatietyChip(
+                context, isDarkMode, 'Light', 'Low', selectedFiber, () {
+              _applyFeatureFilter('fiber', 'Low');
+            }),
+            SizedBox(width: getPercentageWidth(2, context)),
+            _buildSatietyChip(
+                context, isDarkMode, 'Medium Body', 'Medium', selectedFiber,
+                () {
+              _applyFeatureFilter('fiber', 'Medium');
+            }),
+            SizedBox(width: getPercentageWidth(2, context)),
+            _buildSatietyChip(
+                context, isDarkMode, 'Dense', 'High', selectedFiber, () {
+              _applyFeatureFilter('fiber', 'High');
+            }),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSatietyChip(BuildContext context, bool isDarkMode, String label,
+      String? value, String? selectedValue, VoidCallback onTap) {
+    final isSelected =
+        value == null ? selectedValue == null : selectedValue == value;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding:
+              EdgeInsets.symmetric(vertical: getPercentageHeight(0.8, context)),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? kAccent.withValues(alpha: 0.8)
+                : isDarkMode
+                    ? kWhite.withValues(alpha: 0.1)
+                    : Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected
+                  ? kAccent
+                  : (isDarkMode
+                      ? kWhite.withValues(alpha: 0.3)
+                      : Colors.grey[400]!),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? kWhite : (isDarkMode ? kWhite : kBlack),
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: getTextScale(3, context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Burn Rate Filter - GI Selector
+  Widget _buildBurnRateFilter(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) {
+    final selectedGi = _activeFilters['g_i'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.speed,
+                size: getPercentageWidth(4, context),
+                color: isDarkMode ? kWhite : kBlack),
+            SizedBox(width: getPercentageWidth(1, context)),
+            Text(
+              'Burn Rate',
+              style: textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDarkMode ? kWhite : kBlack,
+                fontSize: getTextScale(4, context),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: getPercentageHeight(1, context)),
+        Row(
+          children: [
+            Expanded(
+              child: _buildBurnRateChip(
+                  context, isDarkMode, 'Any', null, selectedGi, () {
+                _applyFeatureFilter('g_i', null);
+              }, null),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+            Expanded(
+              child: _buildBurnRateChip(
+                  context, isDarkMode, 'Slow Burn', 'Low', selectedGi, () {
+                _applyFeatureFilter('g_i', 'Low');
+              }, Icons.trending_down),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+            Expanded(
+              child: _buildBurnRateChip(
+                  context, isDarkMode, 'Fast Burn', 'High', selectedGi, () {
+                _applyFeatureFilter('g_i', 'High');
+              }, Icons.local_fire_department),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBurnRateChip(
+      BuildContext context,
+      bool isDarkMode,
+      String label,
+      String? value,
+      String? selectedValue,
+      VoidCallback onTap,
+      IconData? icon) {
+    final isSelected =
+        value == null ? selectedValue == null : selectedValue == value;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding:
+            EdgeInsets.symmetric(vertical: getPercentageHeight(0.8, context)),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? kAccent.withValues(alpha: 0.8)
+              : isDarkMode
+                  ? kWhite.withValues(alpha: 0.1)
+                  : Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected
+                ? kAccent
+                : (isDarkMode
+                    ? kWhite.withValues(alpha: 0.3)
+                    : Colors.grey[400]!),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null)
+              Icon(
+                icon,
+                size: getPercentageWidth(5, context),
+                color: isSelected ? kWhite : (isDarkMode ? kWhite : kBlack),
+              ),
+            if (icon != null)
+              SizedBox(height: getPercentageHeight(0.3, context)),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? kWhite : (isDarkMode ? kWhite : kBlack),
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: getTextScale(3, context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -875,6 +1393,136 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     }
 
     return parts.join(', ');
+  }
+
+  // Inventory Card for Grid View
+  Widget _buildInventoryCard(MacroData item, bool isDarkMode) {
+    final bool isSelected = _selectedIngredients.contains(item.title);
+    final imagePath = item.mediaPaths.isNotEmpty
+        ? item.mediaPaths.first
+        : item.type.isNotEmpty
+            ? item.type.toLowerCase()
+            : 'placeholder';
+
+    // Check if item is in season
+    final season = item.features['season']?.toString() ?? '';
+    final isInSeason = season.isNotEmpty && isCurrentlyInSeason(season);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 2,
+      color: isDarkMode ? kDarkGrey : kWhite,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => IngredientDetailsScreen(
+                item: item,
+                ingredientItems: widget.items,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Image with seasonality badge
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(15),
+                    topRight: Radius.circular(15),
+                  ),
+                  child: Image.asset(
+                    getAssetImageForItem(imagePath),
+                    height: getPercentageHeight(20, context),
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                // Seasonality badge
+                if (isInSeason)
+                  Positioned(
+                    top: getPercentageHeight(0.5, context),
+                    right: getPercentageWidth(1, context),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(1.5, context),
+                          vertical: getPercentageHeight(0.3, context)),
+                      decoration: BoxDecoration(
+                        color: kGreen.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.eco,
+                              size: getPercentageWidth(3, context),
+                              color: kWhite),
+                          SizedBox(width: getPercentageWidth(0.5, context)),
+                          Text(
+                            'Peak',
+                            style: TextStyle(
+                              color: kWhite,
+                              fontSize: getTextScale(2.5, context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                // Shopping list toggle
+                Positioned(
+                  top: getPercentageHeight(0.5, context),
+                  left: getPercentageWidth(1, context),
+                  child: GestureDetector(
+                    onTap: () => _toggleSelection(item.title),
+                    child: Container(
+                      padding: EdgeInsets.all(getPercentageWidth(1, context)),
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? kDarkGrey.withValues(alpha: 0.8)
+                            : kWhite.withValues(alpha: 0.8),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isSelected
+                            ? Icons.check_circle
+                            : Icons.add_circle_outline,
+                        color: isSelected
+                            ? kAccent
+                            : (isDarkMode ? kWhite : kDarkGrey),
+                        size: getPercentageWidth(5, context),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Ingredient name
+            Padding(
+              padding: EdgeInsets.all(getPercentageWidth(2, context)),
+              child: Text(
+                capitalizeFirstLetter(item.title),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: getTextScale(3.5, context),
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildIngredientListItem(MacroData item, bool isDarkMode) {

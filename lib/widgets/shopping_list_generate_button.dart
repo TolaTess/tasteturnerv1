@@ -123,8 +123,8 @@ class ShoppingListGenerateButton extends StatelessWidget {
                           ? 'Generating...'
                           : (newItemsCount.value > 0
                               ? 'Update with new ' +
-                                  (newItemsCount.value == 1 ? 'meal' : 'meals')
-                              : 'Generate from Meal Plan'),
+                                  (newItemsCount.value == 1 ? 'menu' : 'menus')
+                              : 'Generate from Menu Plan'),
                       style: const TextStyle(color: kWhite),
                       overflow: TextOverflow.ellipsis,
                     ),

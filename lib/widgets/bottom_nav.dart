@@ -95,7 +95,7 @@ class _BottomNavSecState extends State<BottomNavSec> {
                 width: getPercentageWidth(3, context),
                 height: getPercentageHeight(3, context),
                 colorFilter: const ColorFilter.mode(kAccent, BlendMode.srcIn)),
-            label: 'Programs',
+            label: 'Menus',
           ),
           BottomNavigationBarItem(
             icon: SvgPicture.asset(

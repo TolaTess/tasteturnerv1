@@ -60,7 +60,7 @@ class CustomDrawer extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        userService.currentUser.value!.displayName ?? '',
+                        'Chef ${capitalizeFirstLetter(userService.currentUser.value!.displayName ?? '')}',
                         style: textTheme.displaySmall?.copyWith(
                           fontSize: getPercentageWidth(7, context),
                         ),
@@ -188,8 +188,8 @@ class CustomDrawer extends StatelessWidget {
                   ? Icons.dark_mode
                   : Icons.light_mode, // Update icon dynamically
               title: Provider.of<ThemeProvider>(context).isDarkMode
-                  ? 'Light Mode'
-                  : 'Dark Mode', // Update title dynamically
+                  ? 'Day Shift'
+                  : 'Night Shift', // Update title dynamically
               press: () {
                 // Close the drawer
                 Navigator.pop(context);

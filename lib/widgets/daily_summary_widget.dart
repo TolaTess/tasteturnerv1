@@ -8,23 +8,30 @@ import '../service/nutrition_controller.dart';
 import '../service/routine_service.dart';
 import '../screens/tomorrow_action_items_screen.dart';
 import '../service/notification_handler_service.dart';
-import '../service/health_journal_service.dart';
-import '../data_models/health_journal_model.dart';
 import '../service/nutrient_breakdown_service.dart';
-import '../data_models/user_meal.dart';
+import '../service/symptom_service.dart';
+import '../data_models/symptom_entry.dart';
 import '../screens/rainbow_tracker_detail_screen.dart';
 import '../screens/add_food_screen.dart';
-import 'health_journal_widget.dart';
 import 'rainbow_tracker_widget.dart';
 
 class DailySummaryWidget extends StatefulWidget {
   final DateTime date;
   final bool showPreviousDay;
+  // Optional meal context for symptom logging (from notification)
+  final String? mealId;
+  final String? instanceId;
+  final String? mealName;
+  final String? mealType;
 
   const DailySummaryWidget({
     super.key,
     required this.date,
     this.showPreviousDay = false,
+    this.mealId,
+    this.instanceId,
+    this.mealName,
+    this.mealType,
   });
 
   @override
@@ -33,36 +40,34 @@ class DailySummaryWidget extends StatefulWidget {
 
 class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   final dailyDataController = Get.find<NutritionController>();
-  final healthJournalService = HealthJournalService.instance;
   final nutrientBreakdownService = NutrientBreakdownService.instance;
+  final symptomService = SymptomService.instance;
   bool isLoading = true;
   Map<String, dynamic> summaryData = {};
   Map<String, dynamic> goals = {};
-  HealthJournalEntry? journalEntry;
-  String? currentWeekId;
-  String journalStatus = 'pending';
   Map<String, List<Map<String, dynamic>>> nutrientBreakdowns = {};
-  Map<String, List<UserMeal>> mealsWithContext =
-      {}; // mealType -> List<UserMeal>
-  Map<String, int> contextCounts = {}; // context -> count
   List<SymptomEntry> currentSymptoms = []; // Symptoms for today
-
-  /// Get week ID in ISO format (YYYY-Www)
-  String _getWeekId(DateTime date) {
-    final weekStart = getWeekStart(date);
-    final year = weekStart.year;
-
-    // Calculate week number: days from Jan 1 to week start / 7, rounded up
-    final jan1 = DateTime(year, 1, 1);
-    final daysFromJan1 = weekStart.difference(jan1).inDays;
-    final weekNumber = ((daysFromJan1 + 1) / 7).ceil();
-
-    return '${year}-W${weekNumber.toString().padLeft(2, '0')}';
-  }
+  // Meal context for symptom logging (set from notification)
+  String? _currentMealId;
+  String? _currentInstanceId;
+  String? _currentMealName;
+  String? _currentMealType;
 
   @override
   void initState() {
     super.initState();
+    // Set meal context from widget parameters if provided
+    _currentMealId = widget.mealId;
+    _currentInstanceId = widget.instanceId;
+    _currentMealName = widget.mealName;
+    _currentMealType = widget.mealType;
+
+    // Debug logging
+    if (_currentMealName != null) {
+      debugPrint(
+          '🍽️ DailySummaryWidget initialized with meal context: ${_currentMealName} (ID: ${_currentMealId})');
+    }
+
     _loadSummaryData();
   }
 
@@ -90,20 +95,6 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       // Load routine completion data
       await _loadRoutineCompletionData(userId, dateString);
 
-      // Load weekly health journal entry
-      final weekId = _getWeekId(widget.date);
-      currentWeekId = weekId;
-      final status =
-          await healthJournalService.getJournalStatus(userId, weekId);
-      journalStatus = status;
-
-      final journal =
-          await healthJournalService.fetchWeeklyJournalEntry(userId, weekId);
-      if (journal != null) {
-        journalEntry = journal;
-        journalStatus = journal.status;
-      }
-
       // Load nutrient breakdowns
       final breakdowns =
           await nutrientBreakdownService.analyzeDailyNutrientBreakdowns(
@@ -112,13 +103,9 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       );
       nutrientBreakdowns = breakdowns;
 
-      // Load meals with eating context
-      await _loadMealsWithContext(userId, dateString);
-
-      // Load existing symptoms from journal entry
-      if (journalEntry != null) {
-        currentSymptoms = journalEntry!.data.symptoms;
-      }
+      // Load existing symptoms for this date
+      currentSymptoms =
+          await symptomService.getSymptomsForDate(userId, widget.date);
 
       // Load user goals
       final user = userService.currentUser.value;
@@ -176,57 +163,6 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     }
   }
 
-  Future<void> _loadMealsWithContext(String userId, String dateString) async {
-    try {
-      final mealsDoc = await firestore
-          .collection('userMeals')
-          .doc(userId)
-          .collection('meals')
-          .doc(dateString)
-          .get();
-
-      if (!mealsDoc.exists) {
-        mealsWithContext = {};
-        contextCounts = {};
-        return;
-      }
-
-      final data = mealsDoc.data()!;
-      final mealsMap = Map<String, dynamic>.from(data['meals'] ?? {});
-
-      final Map<String, List<UserMeal>> loadedMeals = {};
-      final Map<String, int> counts = {};
-
-      mealsMap.forEach((mealType, mealList) {
-        if (mealList is List) {
-          final meals = mealList
-              .map((mealData) =>
-                  UserMeal.fromMap(Map<String, dynamic>.from(mealData)))
-              .where((meal) =>
-                  meal.eatingContext != null && meal.eatingContext!.isNotEmpty)
-              .toList();
-
-          if (meals.isNotEmpty) {
-            loadedMeals[mealType] = meals;
-
-            // Count contexts
-            for (var meal in meals) {
-              final context = meal.eatingContext!;
-              counts[context] = (counts[context] ?? 0) + 1;
-            }
-          }
-        }
-      });
-
-      mealsWithContext = loadedMeals;
-      contextCounts = counts;
-    } catch (e) {
-      debugPrint('Error loading meals with context: $e');
-      mealsWithContext = {};
-      contextCounts = {};
-    }
-  }
-
   Future<double> _calculateRoutineCompletionPercentage(
       String userId, String dateString) async {
     try {
@@ -278,26 +214,32 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     final calories = summaryData['calories'] as int? ?? 0;
 
     // Handle macro data that might be stored as int or double, or might not exist
-    final proteinRaw = summaryData['protein'];
+    // Cloud function saves macros directly as protein, carbs, fat at root level
+    // Also check nutritionalInfo as fallback for backward compatibility
+    final nutritionalInfo =
+        summaryData['nutritionalInfo'] as Map<String, dynamic>?;
+
+    // Check direct fields first (standard path from cloud function), then fall back to nutritionalInfo
+    final proteinRaw = summaryData['protein'] ?? nutritionalInfo?['protein'];
     final protein = proteinRaw is int
         ? proteinRaw.toDouble()
         : proteinRaw is double
             ? proteinRaw
-            : 0.0;
+            : (proteinRaw is String ? double.tryParse(proteinRaw) ?? 0.0 : 0.0);
 
-    final carbsRaw = summaryData['carbs'];
+    final carbsRaw = summaryData['carbs'] ?? nutritionalInfo?['carbs'];
     final carbs = carbsRaw is int
         ? carbsRaw.toDouble()
         : carbsRaw is double
             ? carbsRaw
-            : 0.0;
+            : (carbsRaw is String ? double.tryParse(carbsRaw) ?? 0.0 : 0.0);
 
-    final fatRaw = summaryData['fat'];
+    final fatRaw = summaryData['fat'] ?? nutritionalInfo?['fat'];
     final fat = fatRaw is int
         ? fatRaw.toDouble()
         : fatRaw is double
             ? fatRaw
-            : 0.0;
+            : (fatRaw is String ? double.tryParse(fatRaw) ?? 0.0 : 0.0);
 
     final calorieGoal = goals['calories'] ?? 0.0;
     final proteinGoal = goals['protein'] ?? 0.0;
@@ -319,7 +261,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     final routineProgress = routineCompletionPercentage / 100.0;
 
     final dateText =
-        '${getRelativeDayString(widget.date) == 'Today' ? 'Today\'s' : getRelativeDayString(widget.date) == 'Yesterday' ? 'Yesterday\'s' : '${shortMonthName(widget.date.month)} ${widget.date.day}\'s'} Summary';
+        '${getRelativeDayString(widget.date) == 'Today' ? 'Today\'s' : getRelativeDayString(widget.date) == 'Yesterday' ? 'Yesterday\'s' : '${shortMonthName(widget.date.month)} ${widget.date.day}\'s'} Service';
 
     return Container(
       margin: EdgeInsets.all(getPercentageWidth(2, context)),
@@ -446,12 +388,6 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             _buildNutrientBreakdown(context),
           ],
 
-          // Eating Context Summary
-          if (contextCounts.isNotEmpty) ...[
-            SizedBox(height: getPercentageHeight(2, context)),
-            _buildEatingContextSummary(context, isDarkMode, textTheme),
-          ],
-
           // Symptom Input Section
           SizedBox(height: getPercentageHeight(2, context)),
           _buildSymptomInputSection(context, isDarkMode, textTheme),
@@ -470,164 +406,9 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
               );
             },
           ),
-
-          // Health Journal Entry
-          SizedBox(height: getPercentageHeight(2, context)),
-          HealthJournalWidget(
-            journalEntry: journalEntry,
-            weekId: currentWeekId,
-            status: journalStatus,
-            onPreviousWeek: (weekId) async {
-              // Load previous week's journal
-              final userId = userService.userId ?? '';
-              if (userId.isEmpty) return;
-
-              final status =
-                  await healthJournalService.getJournalStatus(userId, weekId);
-              final journal = await healthJournalService
-                  .fetchWeeklyJournalEntry(userId, weekId);
-
-              if (mounted) {
-                setState(() {
-                  currentWeekId = weekId;
-                  journalStatus = status;
-                  journalEntry = journal;
-                });
-
-                // Show feedback if no journal exists for previous week
-                if (journal == null && status == 'pending') {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'No journal available for this week yet. It will be generated at your scheduled time.',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: kWhite,
-                        ),
-                      ),
-                      backgroundColor: kLightGrey,
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                }
-              }
-            },
-            onNextWeek: null, // Next week not available for future weeks
-          ),
         ],
       ),
     );
-  }
-
-  Widget _buildEatingContextSummary(
-    BuildContext context,
-    bool isDarkMode,
-    TextTheme textTheme,
-  ) {
-    return Container(
-      padding: EdgeInsets.all(getPercentageWidth(3, context)),
-      decoration: BoxDecoration(
-        color: isDarkMode ? kDarkGrey.withValues(alpha: 0.5) : kWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: kAccent.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.psychology,
-                color: kAccent,
-                size: getIconScale(4, context),
-              ),
-              SizedBox(width: getPercentageWidth(2, context)),
-              Text(
-                'Why You Ate Today',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDarkMode ? kWhite : kBlack,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: getPercentageHeight(1.5, context)),
-          Wrap(
-            spacing: getPercentageWidth(2, context),
-            runSpacing: getPercentageHeight(1, context),
-            children: contextCounts.entries.map((entry) {
-              final eatingContext = entry.key;
-              final count = entry.value;
-              return _buildContextChip(
-                  context, eatingContext, count, isDarkMode, textTheme);
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContextChip(
-    BuildContext buildContext,
-    String eatingContext,
-    int count,
-    bool isDarkMode,
-    TextTheme textTheme,
-  ) {
-    final (emoji, label) = _getContextEmojiAndLabel(eatingContext);
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: getPercentageWidth(3, buildContext),
-        vertical: getPercentageHeight(0.8, buildContext),
-      ),
-      decoration: BoxDecoration(
-        color: kAccent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: kAccent.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            emoji,
-            style: TextStyle(fontSize: getTextScale(3.5, buildContext)),
-          ),
-          SizedBox(width: getPercentageWidth(1.5, buildContext)),
-          Text(
-            '$label ($count)',
-            style: textTheme.bodySmall?.copyWith(
-              color: isDarkMode ? kWhite : kBlack,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  (String, String) _getContextEmojiAndLabel(String context) {
-    switch (context.toLowerCase()) {
-      case 'hunger':
-        return ('🍽️', 'Hunger');
-      case 'boredom':
-        return ('😴', 'Boredom');
-      case 'stress':
-        return ('😰', 'Stress');
-      case 'social':
-        return ('👥', 'Social');
-      case 'planned':
-        return ('✅', 'Planned');
-      case 'meal':
-        return ('🍴', 'Meal');
-      default:
-        return ('📝', context);
-    }
   }
 
   Widget _buildProgressCharts(
@@ -747,23 +528,29 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Icon and Title
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, color: color, size: getIconScale(4, context)),
               SizedBox(width: getPercentageWidth(1, context)),
-              Text(
-                title,
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDarkMode ? kWhite : kDarkGrey,
+              Flexible(
+                child: Text(
+                  title,
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDarkMode ? kWhite : kDarkGrey,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          SizedBox(height: getPercentageHeight(1, context)),
+          SizedBox(height: getPercentageHeight(0.8, context)),
 
           // Circular Progress Indicator
           Stack(
@@ -794,24 +581,31 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             ],
           ),
 
-          SizedBox(height: getPercentageHeight(1, context)),
+          SizedBox(height: getPercentageHeight(0.8, context)),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '${current.toStringAsFixed(current % 1 == 0 ? 0 : 1)}',
-                style: textTheme.bodySmall?.copyWith(
-                  color: isDarkMode ? kWhite : kDarkGrey,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  '${current.toStringAsFixed(current % 1 == 0 ? 0 : 1)}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: isDarkMode ? kWhite : kDarkGrey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                '/ ${goal.toStringAsFixed(goal % 1 == 0 ? 0 : 1)} $unit',
-                style: textTheme.bodySmall?.copyWith(
-                  color: isDarkMode
-                      ? kWhite.withValues(alpha: 0.7)
-                      : kDarkGrey.withValues(alpha: 0.7),
+              Flexible(
+                child: Text(
+                  '/ ${goal.toStringAsFixed(goal % 1 == 0 ? 0 : 1)} $unit',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: isDarkMode
+                        ? kWhite.withValues(alpha: 0.7)
+                        : kDarkGrey.withValues(alpha: 0.7),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -1148,7 +942,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Recommendations',
+          'Turner\'s Notes',
           style: textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
             color: kAccent,
@@ -1405,11 +1199,36 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     return mealType[0].toUpperCase() + mealType.substring(1);
   }
 
+  /// Filter symptoms by specific date
+  List<SymptomEntry> _filterSymptomsByDate(
+    List<SymptomEntry> symptoms,
+    DateTime targetDate,
+  ) {
+    final targetDateOnly =
+        DateTime(targetDate.year, targetDate.month, targetDate.day);
+    return symptoms.where((symptom) {
+      final symptomDate = DateTime(
+        symptom.timestamp.year,
+        symptom.timestamp.month,
+        symptom.timestamp.day,
+      );
+      return symptomDate.isAtSameMomentAs(targetDateOnly);
+    }).toList();
+  }
+
   Widget _buildSymptomInputSection(
     BuildContext context,
     bool isDarkMode,
     TextTheme textTheme,
   ) {
+    // Check if viewing today - only allow symptom logging for today
+    final isToday = DateFormat('yyyy-MM-dd').format(widget.date) ==
+        DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    // Allow symptom logging if it's today OR if meal context is provided (from notification)
+    final canLogSymptoms =
+        isToday || (_currentMealId != null && _currentMealName != null);
+
     return Container(
       padding: EdgeInsets.all(getPercentageWidth(3, context)),
       decoration: BoxDecoration(
@@ -1431,79 +1250,90 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
                 size: getIconScale(4, context),
               ),
               SizedBox(width: getPercentageWidth(2, context)),
-              Text(
-                'How are you feeling?',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDarkMode ? kWhite : kBlack,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'How are you feeling?',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode ? kWhite : kBlack,
+                      ),
+                    ),
+                    if (_currentMealName != null) ...[
+                      SizedBox(height: getPercentageHeight(0.5, context)),
+                      Text(
+                        'After ${_currentMealName}',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: kAccent,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
           ),
           SizedBox(height: getPercentageHeight(1.5, context)),
-          Wrap(
-            spacing: getPercentageWidth(2, context),
-            runSpacing: getPercentageHeight(1, context),
-            children: [
-              _buildSymptomButton(
-                  context, 'bloating', '💨', 'Bloating', isDarkMode, textTheme),
-              _buildSymptomButton(
-                  context, 'headache', '🤕', 'Headache', isDarkMode, textTheme),
-              _buildSymptomButton(
-                  context, 'fatigue', '😴', 'Fatigue', isDarkMode, textTheme),
-              _buildSymptomButton(
-                  context, 'nausea', '🤢', 'Nausea', isDarkMode, textTheme),
-              _buildSymptomButton(
-                  context, 'energy', '⚡', 'Energy', isDarkMode, textTheme),
-              _buildSymptomButton(
-                  context, 'good', '✅', 'Good', isDarkMode, textTheme),
-            ],
-          ),
-          // Display logged symptoms
+          if (canLogSymptoms) ...[
+            Wrap(
+              spacing: getPercentageWidth(2, context),
+              runSpacing: getPercentageHeight(1, context),
+              children: [
+                _buildSymptomButton(context, 'bloating', '💨', 'Bloating',
+                    isDarkMode, textTheme),
+                _buildSymptomButton(context, 'headache', '🤕', 'Headache',
+                    isDarkMode, textTheme),
+                _buildSymptomButton(
+                    context, 'fatigue', '😴', 'Fatigue', isDarkMode, textTheme),
+                _buildSymptomButton(
+                    context, 'nausea', '🤢', 'Nausea', isDarkMode, textTheme),
+                _buildSymptomButton(
+                    context, 'energy', '⚡', 'Energy', isDarkMode, textTheme),
+                _buildSymptomButton(
+                    context, 'good', '✅', 'Good', isDarkMode, textTheme),
+              ],
+            ),
+          ] else ...[
+            Container(
+              padding: EdgeInsets.all(getPercentageWidth(3, context)),
+              decoration: BoxDecoration(
+                color: isDarkMode
+                    ? kDarkGrey.withValues(alpha: 0.5)
+                    : kLightGrey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: isDarkMode ? Colors.white70 : Colors.black87,
+                    size: getIconScale(4, context),
+                  ),
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  Expanded(
+                    child: Text(
+                      _currentMealName != null
+                          ? 'You can log symptoms for this meal, Chef.'
+                          : 'You can only log symptoms for today, Chef.',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: isDarkMode ? Colors.white70 : Colors.black87,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          // Display logged symptoms grouped by meal
           if (currentSymptoms.isNotEmpty) ...[
             SizedBox(height: getPercentageHeight(1.5, context)),
             Divider(color: kAccent.withValues(alpha: 0.3)),
             SizedBox(height: getPercentageHeight(1, context)),
-            Text(
-              'Logged Symptoms:',
-              style: textTheme.bodySmall?.copyWith(
-                color: isDarkMode ? Colors.white70 : Colors.black87,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: getPercentageHeight(0.5, context)),
-            Wrap(
-              spacing: getPercentageWidth(2, context),
-              runSpacing: getPercentageHeight(0.5, context),
-              children: currentSymptoms.map((symptom) {
-                final (emoji, label) = _getSymptomEmojiAndLabel(symptom.type);
-                return Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: getPercentageWidth(2.5, context),
-                    vertical: getPercentageHeight(0.6, context),
-                  ),
-                  decoration: BoxDecoration(
-                    color: kAccent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(emoji,
-                          style: TextStyle(fontSize: getTextScale(3, context))),
-                      SizedBox(width: getPercentageWidth(1, context)),
-                      Text(
-                        '$label (${symptom.severity}/5)',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: isDarkMode ? kWhite : kBlack,
-                          fontSize: getTextScale(2.8, context),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
+            _buildMealSymptomsList(context, isDarkMode, textTheme),
           ],
         ],
       ),
@@ -1667,24 +1497,68 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       final userId = userService.userId ?? '';
       if (userId.isEmpty) return;
 
-      // Get meals eaten 2-4 hours before now
+      // Check if viewing today or a past date
+      final isToday = DateFormat('yyyy-MM-dd').format(widget.date) ==
+          DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      // Allow logging symptoms for today or if meal context is provided (from notification)
+      if (!isToday && _currentMealId == null) {
+        if (mounted) {
+          showTastySnackbar(
+            'Cannot Log Symptoms',
+            'You can only log symptoms for today, Chef.',
+            context,
+            backgroundColor: kRed,
+          );
+        }
+        return;
+      }
+
+      // If meal context is provided but date is not today, check if meal was logged within 24 hours
+      if (!isToday && _currentMealId != null) {
+        final mealDate = widget.date;
+        final now = DateTime.now();
+        final hoursSinceMeal = now.difference(mealDate).inHours;
+
+        if (hoursSinceMeal > 24) {
+          if (mounted) {
+            showTastySnackbar(
+              'Cannot Log Symptoms',
+              'You can only log symptoms for meals eaten within the last 24 hours, Chef.',
+              context,
+              backgroundColor: kRed,
+            );
+          }
+          return;
+        }
+      }
+
       final now = DateTime.now();
-      final fourHoursAgo = now.subtract(const Duration(hours: 4));
-      final twoHoursAgo = now.subtract(const Duration(hours: 2));
+      List<String> ingredients = [];
 
-      final ingredients = await _getIngredientsFromRecentMeals(
-          userId, twoHoursAgo, fourHoursAgo);
-
-      // Determine meal context (which meal was most recent)
-      String? mealContext;
-      if (now.hour >= 6 && now.hour < 11) {
-        mealContext = 'breakfast';
-      } else if (now.hour >= 11 && now.hour < 15) {
-        mealContext = 'lunch';
-      } else if (now.hour >= 15 && now.hour < 20) {
-        mealContext = 'dinner';
+      // If meal context is provided, get ingredients from that specific meal
+      if (_currentMealId != null && _currentMealId!.isNotEmpty) {
+        ingredients = await _getIngredientsFromMeal(_currentMealId!);
       } else {
-        mealContext = 'snacks';
+        // Fallback: Get meals eaten 2-4 hours before now
+        final fourHoursAgo = now.subtract(const Duration(hours: 4));
+        final twoHoursAgo = now.subtract(const Duration(hours: 2));
+        ingredients = await _getIngredientsFromRecentMeals(
+            userId, twoHoursAgo, fourHoursAgo);
+      }
+
+      // Use meal context if provided, otherwise determine from time
+      String? mealContext = _currentMealType;
+      if (mealContext == null) {
+        if (now.hour >= 6 && now.hour < 11) {
+          mealContext = 'breakfast';
+        } else if (now.hour >= 11 && now.hour < 15) {
+          mealContext = 'lunch';
+        } else if (now.hour >= 15 && now.hour < 20) {
+          mealContext = 'dinner';
+        } else {
+          mealContext = 'snacks';
+        }
       }
 
       final symptom = SymptomEntry(
@@ -1693,19 +1567,28 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         timestamp: now,
         mealContext: mealContext,
         ingredients: ingredients,
+        mealId: _currentMealId,
+        instanceId: _currentInstanceId,
+        mealName: _currentMealName,
+        mealType: _currentMealType ?? mealContext,
       );
 
-      await healthJournalService.addSymptomEntry(userId, widget.date, symptom);
+      await symptomService.addSymptomEntry(userId, widget.date, symptom);
 
-      // Reload journal entry to update UI
-      final updatedJournal =
-          await healthJournalService.fetchJournalEntry(userId, widget.date);
+      // Clear meal context after saving
+      setState(() {
+        _currentMealId = null;
+        _currentInstanceId = null;
+        _currentMealName = null;
+        _currentMealType = null;
+      });
+
+      // Reload symptoms to update UI
+      final updatedSymptoms =
+          await symptomService.getSymptomsForDate(userId, widget.date);
       if (mounted) {
         setState(() {
-          if (updatedJournal != null) {
-            journalEntry = updatedJournal;
-            currentSymptoms = updatedJournal.data.symptoms;
-          }
+          currentSymptoms = _filterSymptomsByDate(updatedSymptoms, widget.date);
         });
       }
 
@@ -1794,6 +1677,134 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     } catch (e) {
       debugPrint('Error fetching meal ingredients: $e');
     }
+  }
+
+  /// Get ingredients from a specific meal
+  Future<List<String>> _getIngredientsFromMeal(String mealId) async {
+    try {
+      final mealDoc = await firestore.collection('meals').doc(mealId).get();
+      if (mealDoc.exists) {
+        final mealData = mealDoc.data()!;
+        final mealIngredients =
+            mealData['ingredients'] as Map<String, dynamic>? ?? {};
+        return mealIngredients.keys.toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error getting ingredients from meal: $e');
+      return [];
+    }
+  }
+
+  /// Build symptoms list grouped by meal
+  Widget _buildMealSymptomsList(
+    BuildContext context,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    // Group symptoms by meal (instanceId or mealId)
+    final Map<String, List<SymptomEntry>> symptomsByMeal = {};
+    final List<SymptomEntry> generalSymptoms = [];
+
+    for (var symptom in currentSymptoms) {
+      final key = symptom.instanceId ?? symptom.mealId;
+      if (key != null && key.isNotEmpty) {
+        symptomsByMeal.putIfAbsent(key, () => []).add(symptom);
+      } else {
+        generalSymptoms.add(symptom);
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // General symptoms (no meal association)
+        if (generalSymptoms.isNotEmpty) ...[
+          Text(
+            'General Symptoms:',
+            style: textTheme.bodySmall?.copyWith(
+              color: isDarkMode ? Colors.white70 : Colors.black87,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: getPercentageHeight(0.5, context)),
+          Wrap(
+            spacing: getPercentageWidth(2, context),
+            runSpacing: getPercentageHeight(0.5, context),
+            children: generalSymptoms.map((symptom) {
+              return _buildSymptomChip(context, symptom, isDarkMode, textTheme);
+            }).toList(),
+          ),
+          if (symptomsByMeal.isNotEmpty)
+            SizedBox(height: getPercentageHeight(1.5, context)),
+        ],
+        // Symptoms grouped by meal
+        ...symptomsByMeal.entries.map((entry) {
+          final mealSymptoms = entry.value;
+          final firstSymptom = mealSymptoms.first;
+          final mealName = firstSymptom.mealName ?? 'Meal';
+          final mealType =
+              firstSymptom.mealType ?? firstSymptom.mealContext ?? '';
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$mealName${mealType.isNotEmpty ? ' ($mealType)' : ''}:',
+                style: textTheme.bodySmall?.copyWith(
+                  color: isDarkMode ? Colors.white70 : Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: getPercentageHeight(0.5, context)),
+              Wrap(
+                spacing: getPercentageWidth(2, context),
+                runSpacing: getPercentageHeight(0.5, context),
+                children: mealSymptoms.map((symptom) {
+                  return _buildSymptomChip(
+                      context, symptom, isDarkMode, textTheme);
+                }).toList(),
+              ),
+              if (entry != symptomsByMeal.entries.last)
+                SizedBox(height: getPercentageHeight(1.5, context)),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildSymptomChip(
+    BuildContext context,
+    SymptomEntry symptom,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    final (emoji, label) = _getSymptomEmojiAndLabel(symptom.type);
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: getPercentageWidth(2.5, context),
+        vertical: getPercentageHeight(0.6, context),
+      ),
+      decoration: BoxDecoration(
+        color: kAccent.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emoji, style: TextStyle(fontSize: getTextScale(3, context))),
+          SizedBox(width: getPercentageWidth(1, context)),
+          Text(
+            '$label (${symptom.severity}/5)',
+            style: textTheme.bodySmall?.copyWith(
+              color: isDarkMode ? kWhite : kBlack,
+              fontSize: getTextScale(2.8, context),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   (String, String) _getSymptomEmojiAndLabel(String symptomType) {

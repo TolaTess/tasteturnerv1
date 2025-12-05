@@ -224,6 +224,9 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
                                 type: child.type,
                                 isProgram: widget.isProgram,
                                 isEnrolled: child.isEnrolled,
+                                portionDetails: child.portionDetails,
+                                duration: child.duration,
+                                userCount: child.userCount,
                               ),
                             ),
                           ),
@@ -262,6 +265,9 @@ class OverlappingCard extends StatefulWidget {
   final bool isTechnique;
   final bool isProgram;
   final bool isEnrolled;
+  final Map<String, dynamic>? portionDetails;
+  final String? duration;
+  final int? userCount;
 
   const OverlappingCard({
     Key? key,
@@ -279,6 +285,9 @@ class OverlappingCard extends StatefulWidget {
     this.isTechnique = false,
     this.isProgram = false,
     this.isEnrolled = false,
+    this.portionDetails,
+    this.duration,
+    this.userCount,
   }) : super(key: key);
 
   @override
@@ -505,7 +514,7 @@ class _OverlappingCardState extends State<OverlappingCard>
                                           ? 'View'
                                           : widget.isEnrolled
                                               ? 'View Progress'
-                                              : 'Join Program',
+                                              : 'Join Menu',
                                   style: textTheme.labelLarge?.copyWith(
                                     color: isDarkMode ? kDarkGrey : kWhite,
                                     overflow: TextOverflow.ellipsis,
