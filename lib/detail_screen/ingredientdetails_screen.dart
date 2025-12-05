@@ -143,7 +143,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                     ),
                     child: Text(
                       // Convert the map into a formatted string and add calories
-                      '${widget.item.macros.entries.map((entry) => '${entry.key.toUpperCase()}: ${entry.value}g').join(', ')}${widget.item.calories != null ? ', KCAL: ${widget.item.calories}' : ''}',
+                      '${widget.item.macros.entries.map((entry) => '${entry.key.toUpperCase()}: ${entry.value}g').join(', ')}${widget.item.calories > 0 ? ', KCAL: ${widget.item.calories}' : ''}',
                       style: TextStyle(
                         fontSize: getTextScale(2.5, context),
                       ),
@@ -160,7 +160,38 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                 ),
 
                 SizedBox(
+                  height: getPercentageHeight(0.5, context),
+                ),
+
+                // Key characteristics subtitle
+                if (_hasKeyCharacteristics())
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(5, context)),
+                    child: Text(
+                      _buildKeyCharacteristicsSubtitle(),
+                      style: TextStyle(
+                        fontSize: getTextScale(3, context),
+                        fontStyle: FontStyle.italic,
+                        color: isDarkMode ? kWhite.withValues(alpha: 0.8) : kDarkGrey,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+
+                SizedBox(
                   height: getPercentageHeight(1.5, context),
+                ),
+
+                // Turner's Notes Section
+                if (_hasKeyCharacteristics())
+                  _buildTurnersNotes(context, isDarkMode),
+
+                if (_hasKeyCharacteristics())
+                  SizedBox(
+                    height: getPercentageHeight(1, context),
                 ),
                 //Techniques
                 if (widget.item.techniques.isNotEmpty)
@@ -244,7 +275,7 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
                   Column(
                     children: [
                       TitleSection(
-                        title: "Main Components",
+                        title: "Specs",
                         press: () {
                           setState(() {
                             isHideList = !isHideList;
@@ -493,6 +524,167 @@ class _IngredientDetailsScreenState extends State<IngredientDetailsScreen> {
       ),
     );
   }
+
+  // Check if item has key characteristics to display
+  bool _hasKeyCharacteristics() {
+    return widget.item.features.containsKey('g_i') ||
+        widget.item.features.containsKey('fiber') ||
+        widget.item.features.containsKey('season') ||
+        widget.item.features.containsKey('rainbow');
+  }
+
+  // Build key characteristics subtitle
+  String _buildKeyCharacteristicsSubtitle() {
+    List<String> parts = [];
+    
+    // Burn Rate
+    if (widget.item.features.containsKey('g_i')) {
+      final giValue = widget.item.features['g_i']?.toString() ?? '';
+      final chefTerm = getChefTermForFeature('g_i', giValue);
+      parts.add(chefTerm);
+    }
+    
+    // Satiety
+    if (widget.item.features.containsKey('fiber')) {
+      final fiberValue = widget.item.features['fiber']?.toString() ?? '';
+      final chefTerm = getChefTermForFeature('fiber', fiberValue);
+      if (chefTerm == 'Light') {
+        parts.add('Light Texture');
+      } else if (chefTerm == 'Medium Body') {
+        parts.add('Medium Satiety');
+      } else if (chefTerm == 'Dense') {
+        parts.add('High Satiety');
+      } else {
+        parts.add(chefTerm);
+      }
+    }
+    
+    // Seasonality
+    if (widget.item.features.containsKey('season')) {
+      final season = widget.item.features['season']?.toString() ?? '';
+      if (isCurrentlyInSeason(season)) {
+        parts.add('Peak Season');
+      }
+    }
+    
+    return parts.isEmpty ? '' : parts.join(' • ');
+  }
+
+  // Build Turner's Notes section
+  Widget _buildTurnersNotes(BuildContext context, bool isDarkMode) {
+    List<String> notes = [];
+    
+    // Seasonality note
+    if (widget.item.features.containsKey('season')) {
+      final season = widget.item.features['season']?.toString() ?? '';
+      if (isCurrentlyInSeason(season)) {
+        notes.add('It\'s currently **In Season**.');
+      } else if (season.toLowerCase().contains('all-year') ||
+          season.toLowerCase().contains('year-round')) {
+        notes.add('Year-round staple.');
+      }
+    }
+    
+    // Burn Rate note
+    if (widget.item.features.containsKey('g_i')) {
+      final giValue = widget.item.features['g_i']?.toString() ?? '';
+      final chefTerm = getChefTermForFeature('g_i', giValue);
+      if (chefTerm == 'Slow Burn') {
+        notes.add('This offers a **Slow Burn** energy release, perfect for sustained work shifts.');
+      } else if (chefTerm == 'Fast Burn') {
+        notes.add('**Fast Burn** energy release for quick fuel.');
+      }
+    }
+    
+    // Satiety note
+    if (widget.item.features.containsKey('fiber')) {
+      final fiberValue = widget.item.features['fiber']?.toString() ?? '';
+      final chefTerm = getChefTermForFeature('fiber', fiberValue);
+      if (chefTerm == 'Dense') {
+        notes.add('High **Satiety** score keeps hunger down.');
+      } else if (chefTerm == 'Light') {
+        notes.add('Light texture, easy to digest.');
+      }
+    }
+    
+    // Rainbow/Plating note
+    if (widget.item.features.containsKey('rainbow')) {
+      final rainbowValue = widget.item.features['rainbow']?.toString() ?? '';
+      notes.add('Perfect for **${capitalizeFirstLetter(rainbowValue)}** plating aesthetics.');
+    }
+    
+    if (notes.isEmpty) return const SizedBox.shrink();
+    
+    return Container(
+      margin: EdgeInsets.symmetric(
+          horizontal: getPercentageWidth(5, context)),
+      padding: EdgeInsets.all(getPercentageWidth(3, context)),
+      decoration: BoxDecoration(
+        color: kAccent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: kAccent.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Turner\'s Notes',
+                style: TextStyle(
+                  fontSize: getTextScale(4.5, context),
+                  fontWeight: FontWeight.w700,
+                  color: kAccent,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+          ...notes.map((note) => Padding(
+                padding: EdgeInsets.only(bottom: getPercentageHeight(0.5, context)),
+                child: RichText(
+                  text: TextSpan(
+                    style: TextStyle(
+                      fontSize: getTextScale(3.5, context),
+                      fontStyle: FontStyle.italic,
+                      color: isDarkMode ? kWhite : kBlack,
+                      height: 1.5,
+                    ),
+                    children: _parseTurnerNote(note),
+                  ),
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  // Parse Turner's note to highlight key terms
+  List<TextSpan> _parseTurnerNote(String note) {
+    final parts = note.split('**');
+    List<TextSpan> spans = [];
+    
+    for (int i = 0; i < parts.length; i++) {
+      if (i % 2 == 0) {
+        // Regular text
+        spans.add(TextSpan(text: parts[i]));
+      } else {
+        // Bold text (key term)
+        spans.add(TextSpan(
+          text: parts[i],
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: kAccent,
+          ),
+        ));
+      }
+    }
+    
+    return spans;
+  }
 }
 
 //Recomendation Item widget
@@ -601,7 +793,7 @@ class TopFeatures extends StatelessWidget {
                   ),
                   SizedBox(width: getPercentageWidth(0.4, context)),
                   Text(
-                    '${capitalizeFirstLetter(entry.key)}: ${capitalizeFirstLetter(entry.value)}',
+                    _getChefDisplayText(entry.key, entry.value),
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: isDarkMode ? kWhite : kBlack,
@@ -612,5 +804,92 @@ class TopFeatures extends StatelessWidget {
               ),
             ),
     );
+  }
+
+  // Get chef terminology display text for features
+  String _getChefDisplayText(String key, dynamic value) {
+    final valueStr = value?.toString() ?? '';
+    
+    // Map feature keys to chef terminology labels
+    String label;
+    switch (key.toLowerCase()) {
+      case 'rainbow':
+        label = 'Spectrum';
+        break;
+      case 'g_i':
+      case 'gi':
+        label = 'Burn Rate';
+        break;
+      case 'season':
+        label = 'Market Status';
+        break;
+      case 'fiber':
+        label = 'Texture / Satiety';
+        break;
+      default:
+        label = capitalizeFirstLetter(key);
+    }
+    
+    // Get chef term for value
+    final chefValue = getChefTermForFeature(key, valueStr);
+    
+    // Add visual indicator emoji
+    String emoji = '';
+    if (key.toLowerCase() == 'g_i' || key.toLowerCase() == 'gi') {
+      final numericValue = _extractNumericValueFromString(valueStr);
+      if (numericValue != null) {
+        if (numericValue < 55) {
+          emoji = ' 📉';
+        } else if (numericValue < 70) {
+          emoji = ' ⚡';
+        } else {
+          emoji = ' 🔥';
+        }
+      } else if (chefValue.toLowerCase().contains('slow')) {
+        emoji = ' 📉';
+      } else if (chefValue.toLowerCase().contains('fast')) {
+        emoji = ' 🔥';
+      }
+    } else if (key.toLowerCase() == 'fiber') {
+      if (chefValue == 'Dense') {
+        emoji = ' ⚖️';
+      } else if (chefValue == 'Light') {
+        emoji = ' ⚡';
+      }
+    } else if (key.toLowerCase() == 'season') {
+      if (isCurrentlyInSeason(valueStr)) {
+        emoji = ' 🌱';
+      } else {
+        emoji = ' 📅';
+      }
+    } else if (key.toLowerCase() == 'rainbow') {
+      // Add colored dot emoji based on color
+      final color = getRainbowColor(valueStr);
+      if (color == Colors.red) emoji = ' 🔴';
+      else if (color == Colors.orange) emoji = ' 🟠';
+      else if (color == Colors.yellow) emoji = ' 🟡';
+      else if (color == Colors.green) emoji = ' 🟢';
+      else if (color == Colors.blue) emoji = ' 🔵';
+      else if (color == Colors.purple) emoji = ' 🟣';
+      else if (color == Colors.white) emoji = ' ⚪';
+    }
+    
+    return '$label: $chefValue$emoji';
+  }
+
+  // Helper to extract numeric value from string
+  double? _extractNumericValueFromString(String value) {
+    final cleaned = value
+        .toLowerCase()
+        .replaceAll('g', '')
+        .replaceAll('%', '')
+        .replaceAll(' ', '')
+        .trim();
+    
+    try {
+      return double.parse(cleaned);
+    } catch (e) {
+      return null;
+    }
   }
 }

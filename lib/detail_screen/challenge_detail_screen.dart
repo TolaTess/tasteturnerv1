@@ -534,26 +534,32 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   }
 
   String getTitle() {
+    String? value;
     if (extractedItems.isNotEmpty &&
         extractedItems.length > 1 &&
         extractedItems[1].isNotEmpty) {
-      return extractedItems[1];
-    }
-
-    if (widget.screen == 'myPost') {
+      value = extractedItems[1];
+    } else if (widget.screen == 'myPost') {
       if (_currentPostData['name']?.toString().isNotEmpty != true) {
-        return _currentPostData['senderId'] == userService.userId
+        value = _currentPostData['senderId'] == userService.userId
             ? 'My Post'
             : 'Post';
+      } else {
+        final postName = _currentPostData['name'].toString();
+        final userName = userService.currentUser.value?.displayName ?? '';
+        value = userName == postName ? 'My Post' : postName;
       }
-      final postName = _currentPostData['name'].toString();
-      final userName = userService.currentUser.value?.displayName ?? '';
-      return userName == postName ? 'My Post' : postName;
     } else {
-      return _currentPostData['name']?.toString().isNotEmpty == true
+      value = _currentPostData['name']?.toString().isNotEmpty == true
           ? _currentPostData['name'].toString()
           : 'Unknown';
     }
+
+    if (value != null && value.trim().toLowerCase() == 'tasty ai') {
+      return 'turner';
+    }
+
+    return value ?? 'Chef';
   }
 
   Widget _buildMediaContent(String url,
@@ -737,9 +743,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'by ${capitalizeFirstLetter(getTitle())}',
+            Text( 
+              'by Chef ${capitalizeFirstLetter(getTitle())}',
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: textTheme.displaySmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: kWhite,

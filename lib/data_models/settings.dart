@@ -18,32 +18,32 @@ class Setting {
 
 List<Setting> demoSetting = [
   Setting(
-    category: "Edit Profile",
+    category: "Edit Station",
     prefixicon: Icons.person,
     suffixicon: Icons.navigate_next,
   ),
   Setting(
-    category: "Edit Goals",
+    category: "Edit Menu Specs",
     prefixicon: Icons.check,
     suffixicon: Icons.navigate_next,
   ),
   // Dark Mode toggle - always visible
   Setting(
-    category: "Dark Mode",
+    category: "Night Shift",
     prefixicon: Icons.visibility,
   ),
   // Notifications toggle - always visible
   Setting(
-    category: "Notifications",
+    category: "Reminders",
     prefixicon: Icons.notifications,
   ),
   Setting(
-    category: "Premium",
+    category: "Executive Chef",
     prefixicon: Icons.payment,
     suffixicon: Icons.navigate_next,
   ),
   Setting(
-    category: "Help & Support",
+    category: "Help Center",
     prefixicon: Icons.headset_mic,
     suffixicon: Icons.navigate_next,
   ),

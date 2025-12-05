@@ -90,12 +90,28 @@ Widget buildFullWidthAddMealButton({
 
   Future<void> addMealToTracking() async {
     try {
+      // Convert meal macros (Map<String, String>) to UserMeal macros (Map<String, double>)
+      Map<String, double> mealMacros = {};
+      if (meal.macros.isNotEmpty) {
+        mealMacros = meal.macros.map((key, value) => MapEntry(
+              key,
+              double.tryParse(value) ?? 0.0,
+            ));
+      } else if (meal.nutritionalInfo.isNotEmpty) {
+        // Fallback to nutritionalInfo if macros is empty
+        mealMacros = meal.nutritionalInfo.map((key, value) => MapEntry(
+              key,
+              double.tryParse(value) ?? 0.0,
+            ));
+      }
+      
       final userMeal = UserMeal(
         name: meal.title,
         quantity: '1',
         calories: meal.calories,
         mealId: meal.mealId,
         servings: 'serving',
+        macros: mealMacros,
       );
 
       await dailyDataController.addUserMeal(
@@ -159,7 +175,7 @@ Widget buildFullWidthAddMealButton({
               SizedBox(width: getPercentageWidth(3, context)),
               Expanded(
                 child: Text(
-                  'Add to Today\'s Meals',
+                  'Add to Today\'s Log',
                   style: textTheme.titleMedium?.copyWith(
                     color: kAccent,
                     fontWeight: FontWeight.w600,
@@ -578,6 +594,169 @@ String getFeatureIcon(String key) {
       return '🍽️';
     default:
       return '📌';
+  }
+}
+
+// Map rainbow string values to actual Color objects
+Color getRainbowColor(String rainbowValue) {
+  // Handle null, empty, or invalid values
+  if (rainbowValue.isEmpty || rainbowValue.trim().isEmpty) {
+    return Colors.grey;
+  }
+  
+  // Normalize the value (handle case variations)
+  final lowerValue = rainbowValue.toLowerCase().trim();
+  switch (lowerValue) {
+    case 'red':
+      return Colors.red;
+    case 'orange':
+      return Colors.orange;
+    case 'yellow':
+      return Colors.yellow;
+    case 'green':
+      return Colors.green;
+    case 'blue':
+      return Colors.blue;
+    case 'purple':
+    case 'violet':
+      return Colors.purple;
+    case 'white':
+      return Colors.white;
+    case 'brown':
+      return Colors.brown;
+    case 'pink':
+      return Colors.pink;
+    case 'grey':
+    case 'gray':
+      return Colors.grey;
+    default:
+      // For any unknown color values, return grey
+      return Colors.grey;
+  }
+}
+
+// Check if current month matches the season string
+bool isCurrentlyInSeason(String season) {
+  if (season.isEmpty) return false;
+  
+  final now = DateTime.now();
+  final currentMonth = now.month;
+  final lowerSeason = season.toLowerCase().trim();
+  
+  // Handle "all-year" or "year-round"
+  if (lowerSeason.contains('all-year') || 
+      lowerSeason.contains('year-round') ||
+      lowerSeason.contains('all year')) {
+    return true;
+  }
+  
+  // Map months to seasons
+  // Spring: March (3), April (4), May (5)
+  // Summer: June (6), July (7), August (8)
+  // Fall/Autumn: September (9), October (10), November (11)
+  // Winter: December (12), January (1), February (2)
+  
+  bool isSpring = currentMonth >= 3 && currentMonth <= 5;
+  bool isSummer = currentMonth >= 6 && currentMonth <= 8;
+  bool isFall = currentMonth >= 9 && currentMonth <= 11;
+  bool isWinter = currentMonth == 12 || currentMonth <= 2;
+  
+  // Check various season formats
+  if (lowerSeason.contains('spring')) {
+    if (lowerSeason.contains('summer')) {
+      return isSpring || isSummer;
+    } else if (lowerSeason.contains('fall') || lowerSeason.contains('autumn')) {
+      return isSpring || isFall;
+    }
+    return isSpring;
+  } else if (lowerSeason.contains('summer')) {
+    if (lowerSeason.contains('fall') || lowerSeason.contains('autumn')) {
+      return isSummer || isFall;
+    }
+    return isSummer;
+  } else if (lowerSeason.contains('fall') || lowerSeason.contains('autumn')) {
+    if (lowerSeason.contains('winter')) {
+      return isFall || isWinter;
+    }
+    return isFall;
+  } else if (lowerSeason.contains('winter')) {
+    return isWinter;
+  }
+  
+  return false;
+}
+
+// Map technical terms to chef terminology
+String getChefTermForFeature(String featureKey, String value) {
+  final lowerKey = featureKey.toLowerCase();
+  final lowerValue = value.toLowerCase().trim();
+  
+  if (lowerKey == 'g_i' || lowerKey == 'gi' || lowerKey == 'glycemic_index') {
+    // Extract numeric value if present
+    final numericValue = _extractNumericValueFromString(value);
+    if (numericValue != null) {
+      if (numericValue < 55) {
+        return 'Slow Burn';
+      } else if (numericValue < 70) {
+        return 'Medium Burn';
+      } else {
+        return 'Fast Burn';
+      }
+    }
+    // Handle text values
+    if (lowerValue.contains('low')) {
+      return 'Slow Burn';
+    } else if (lowerValue.contains('medium')) {
+      return 'Medium Burn';
+    } else if (lowerValue.contains('high')) {
+      return 'Fast Burn';
+    }
+    return capitalizeFirstLetter(value);
+  } else if (lowerKey == 'fiber') {
+    final numericValue = _extractNumericValueFromString(value);
+    if (numericValue != null) {
+      if (numericValue < 3.0) {
+        return 'Light';
+      } else if (numericValue < 6.0) {
+        return 'Medium Body';
+      } else {
+        return 'Dense';
+      }
+    }
+    // Handle text values
+    if (lowerValue.contains('low')) {
+      return 'Light';
+    } else if (lowerValue.contains('medium')) {
+      return 'Medium Body';
+    } else if (lowerValue.contains('high')) {
+      return 'Dense';
+    }
+    return capitalizeFirstLetter(value);
+  } else if (lowerKey == 'season') {
+    if (lowerValue.contains('all-year') || lowerValue.contains('year-round')) {
+      return 'Year-Round';
+    }
+    return capitalizeFirstLetter(value);
+  } else if (lowerKey == 'rainbow') {
+    return capitalizeFirstLetter(value);
+  }
+  
+  return capitalizeFirstLetter(value);
+}
+
+// Helper to extract numeric value from string (e.g., "2g" -> 2.0, "50" -> 50.0)
+double? _extractNumericValueFromString(String value) {
+  final cleaned = value
+      .toLowerCase()
+      .replaceAll('g', '')
+      .replaceAll('%', '')
+      .replaceAll(' ', '')
+      .trim();
+  
+  try {
+    return double.parse(cleaned);
+  } catch (e) {
+    return null;
   }
 }
 
@@ -1413,7 +1592,7 @@ void showPremiumRequiredDialog(BuildContext context, bool isDarkMode) {
       ),
       backgroundColor: isDarkMode ? kDarkGrey : kWhite,
       title: Text(
-        'Premium Feature',
+        'Executive Chef Feature',
         style: TextStyle(
           color: isDarkMode ? kWhite : kBlack,
           fontWeight: FontWeight.w600,
@@ -1421,7 +1600,7 @@ void showPremiumRequiredDialog(BuildContext context, bool isDarkMode) {
         ),
       ),
       content: Text(
-        'AI food analysis is a premium feature. Update to premium to unlock this and many other amazing features! \n\nYour free trial ended on ${userService.currentUser.value?.freeTrialDate.toString().split(' ')[0]}.',
+        'Instant Plate QC is an Executive Chef feature, Chef. Upgrade to Executive Chef to unlock this and many other amazing features! \n\nYour free trial ended on ${userService.currentUser.value?.freeTrialDate.toString().split(' ')[0]}.',
         style: TextStyle(
           color: isDarkMode
               ? kWhite.withValues(alpha: 0.8)
@@ -1450,7 +1629,7 @@ void showPremiumRequiredDialog(BuildContext context, bool isDarkMode) {
             );
           },
           child: Text(
-            'Premium',
+            'Go Executive Chef',
             style: TextStyle(
               color: kAccent,
               fontWeight: FontWeight.w600,

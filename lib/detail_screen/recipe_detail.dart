@@ -165,7 +165,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    if (_meal != null) {
+      debugPrint('meal: ${_meal?.suggestions}');
+    }
     if (_meal == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -229,7 +231,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 meal: _meal!,
               ),
 
-              if (_meal!.suggestions != null && _meal!.suggestions!.isNotEmpty)
+              // Turner's Notes section
+              if (_meal != null) _buildTurnersNotes(context),
+
+              if (_meal!.suggestions != null &&
+                  _meal!.suggestions!.isNotEmpty &&
+                  _meal!.suggestions!['additions'] != null &&
+                  _meal!.suggestions!['additions'].isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.symmetric(
@@ -272,8 +280,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     padding: EdgeInsets.only(
                         bottom: getPercentageHeight(15, context)),
                     child: noItemTastyWidget(
-                      'Meal is processing...',
-                      'Please check back in 1 minute',
+                      'Dish is being prepared, Chef. Please check back in a moment.',
+                      'The recipe is being processed',
                       context,
                       false,
                       '',
@@ -300,6 +308,230 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           ),
         );
       }),
+    );
+  }
+
+  /// Generate Turner's Notes based on meal data
+  List<String> _generateTurnerNotes(Meal meal) {
+    List<String> notes = [];
+
+    // Get nutrition data
+    Map<String, String> nutritionMap = {};
+    if (meal.macros.isNotEmpty) {
+      nutritionMap = {...meal.macros};
+      nutritionMap['calories'] = meal.calories.toString();
+    } else if (meal.nutrition.isNotEmpty) {
+      nutritionMap = meal.nutrition;
+    } else if (meal.nutritionalInfo.isNotEmpty) {
+      nutritionMap = meal.nutritionalInfo;
+      if (nutritionMap['calories'] == null) {
+        nutritionMap['calories'] = meal.calories.toString();
+      }
+    } else {
+      nutritionMap['calories'] = meal.calories.toString();
+    }
+
+    // Macro balance notes
+    if (nutritionMap.isNotEmpty) {
+      final protein = double.tryParse(
+              removeAllTextJustNumbers(nutritionMap['protein'] ?? '0')) ??
+          0.0;
+      final carbs = double.tryParse(
+              removeAllTextJustNumbers(nutritionMap['carbs'] ?? '0')) ??
+          0.0;
+      final fat = double.tryParse(
+              removeAllTextJustNumbers(nutritionMap['fat'] ?? '0')) ??
+          0.0;
+      final calories = double.tryParse(
+              removeAllTextJustNumbers(nutritionMap['calories'] ?? '0')) ??
+          0.0;
+
+      if (calories > 0) {
+        final proteinPercent = (protein * 4 / calories) * 100;
+        final carbsPercent = (carbs * 4 / calories) * 100;
+        final fatPercent = (fat * 9 / calories) * 100;
+
+        // High protein note
+        if (proteinPercent > 30) {
+          notes.add(
+              '**High protein** content makes this a great option for muscle recovery and satiety, Chef.');
+        }
+
+        // Balanced macros note
+        if (proteinPercent >= 20 &&
+            proteinPercent <= 35 &&
+            carbsPercent >= 30 &&
+            carbsPercent <= 50 &&
+            fatPercent >= 20 &&
+            fatPercent <= 35) {
+          notes.add(
+              '**Well-balanced macros** - this dish provides a solid foundation for your daily nutrition goals, Chef.');
+        }
+
+        // High carb note
+        if (carbsPercent > 60) {
+          notes.add(
+              '**High carb** content provides quick energy - perfect for pre-workout or active days, Chef.');
+        }
+      }
+    }
+
+    // Cooking method notes
+    if (meal.cookingMethod != null && meal.cookingMethod!.isNotEmpty) {
+      final method = meal.cookingMethod!.toLowerCase();
+      if (method.contains('grill') || method.contains('grilled')) {
+        notes.add(
+            '**Grilled** preparation enhances flavor while keeping the dish lean, Chef.');
+      } else if (method.contains('slow') || method.contains('braise')) {
+        notes.add(
+            '**Slow-cooked** method ensures maximum tenderness and flavor development, Chef.');
+      } else if (method.contains('steam') || method.contains('steamed')) {
+        notes.add(
+            '**Steamed** preparation preserves nutrients and keeps the dish light, Chef.');
+      } else if (method.contains('roast') || method.contains('roasted')) {
+        notes.add('**Roasted** for optimal flavor and texture, Chef.');
+      }
+    }
+
+    // Portion size notes
+    if (meal.serveQty > 0) {
+      if (meal.serveQty >= 4) {
+        notes.add(
+            '**Large portion** size - perfect for family service or meal prep, Chef.');
+      } else if (meal.serveQty == 1) {
+        notes.add('**Single portion** - ideal for solo service, Chef.');
+      }
+    }
+
+    // Preparation time notes
+    if (meal.cookingTime != null && meal.cookingTime!.isNotEmpty) {
+      final timeStr = meal.cookingTime!.toLowerCase();
+      final timeMatch = RegExp(r'(\d+)').firstMatch(timeStr);
+      if (timeMatch != null) {
+        final minutes = int.tryParse(timeMatch.group(1) ?? '0') ?? 0;
+        if (minutes <= 30) {
+          notes.add(
+              '**Quick prep** - ready in under 30 minutes, perfect for busy service, Chef.');
+        } else if (minutes > 60) {
+          notes.add(
+              '**Longer prep time** - plan ahead for this dish, but the results are worth it, Chef.');
+        }
+      }
+    }
+
+    // Category notes
+    if (meal.categories.isNotEmpty) {
+      final categories = meal.categories.map((c) => c.toLowerCase()).toList();
+      if (categories.any((c) => c.contains('breakfast'))) {
+        notes
+            .add('Perfect **breakfast** option to start your day right, Chef.');
+      } else if (categories.any((c) => c.contains('lunch'))) {
+        notes.add('Great **lunch** choice for midday fuel, Chef.');
+      } else if (categories.any((c) => c.contains('dinner'))) {
+        notes.add('Excellent **dinner** selection for evening service, Chef.');
+      } else if (categories.any((c) => c.contains('snack'))) {
+        notes.add(
+            '**Snack** option to keep energy levels steady between meals, Chef.');
+      }
+    }
+
+    // Ingredient quality notes (if certain high-quality ingredients are present)
+    if (meal.ingredients.isNotEmpty) {
+      final ingredientKeys =
+          meal.ingredients.keys.map((k) => k.toLowerCase()).toList();
+      if (ingredientKeys.any((k) =>
+          k.contains('avocado') ||
+          k.contains('salmon') ||
+          k.contains('quinoa') ||
+          k.contains('kale') ||
+          k.contains('spinach'))) {
+        notes.add(
+            'Features **premium ingredients** that add both flavor and nutritional value, Chef.');
+      }
+    }
+
+    return notes;
+  }
+
+  /// Parse Turner's note to highlight key terms
+  List<TextSpan> _parseTurnerNote(String note) {
+    final parts = note.split('**');
+    List<TextSpan> spans = [];
+
+    for (int i = 0; i < parts.length; i++) {
+      if (i % 2 == 0) {
+        // Regular text
+        spans.add(TextSpan(text: parts[i]));
+      } else {
+        // Bold text (key term)
+        spans.add(TextSpan(
+          text: parts[i],
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: kAccent,
+          ),
+        ));
+      }
+    }
+
+    return spans;
+  }
+
+  /// Build Turner's Notes section widget
+  Widget _buildTurnersNotes(BuildContext context) {
+    if (_meal == null) return const SizedBox.shrink();
+
+    final notes = _generateTurnerNotes(_meal!);
+    if (notes.isEmpty) return const SizedBox.shrink();
+
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: EdgeInsets.only(
+          left: getPercentageWidth(5, context),
+          right: getPercentageWidth(5, context),
+          top: getPercentageHeight(2, context),
+        ),
+        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+        decoration: BoxDecoration(
+          color: kAccent.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: kAccent.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Turner\'s Notes',
+              style: TextStyle(
+                fontSize: getTextScale(4.5, context),
+                fontWeight: FontWeight.w700,
+                color: kAccent,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(1, context)),
+            ...notes.map((note) => Padding(
+                  padding: EdgeInsets.only(
+                      bottom: getPercentageHeight(0.5, context)),
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontSize: getTextScale(3.5, context),
+                        fontStyle: FontStyle.italic,
+                        color: isDarkMode ? kWhite : kBlack,
+                        height: 1.5,
+                      ),
+                      children: _parseTurnerNote(note),
+                    ),
+                  ),
+                )),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -558,7 +790,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                         ),
                       SizedBox(height: getPercentageHeight(0.5, context)),
                       Text(
-                        "$serves: ${widget.meal.serveQty == 0 ? '1' : widget.meal.serveQty.toString()}",
+                        "Portions: ${widget.meal.serveQty == 0 ? '1' : widget.meal.serveQty.toString()}",
                         style: textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w400,
                         ),
@@ -609,7 +841,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                   color: kAccent),
                               SizedBox(width: getPercentageWidth(1, context)),
                               Text(
-                                "Method: ${capitalizeFirstLetter(widget.meal.cookingMethod!)}",
+                                "Heat Method: ${capitalizeFirstLetter(widget.meal.cookingMethod!)}",
                                 maxLines: 1,
                                 style: textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w400,
@@ -633,7 +865,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                               SizedBox(width: getPercentageWidth(1, context)),
                               Flexible(
                                 child: Text(
-                                  "Categories: ${widget.meal.categories.map((e) => capitalizeFirstLetter(e)).join(', ')}",
+                                  "Menu Categories: ${widget.meal.categories.map((e) => capitalizeFirstLetter(e)).join(', ')}",
                                   overflow: TextOverflow.ellipsis,
                                   style: textTheme.bodySmall?.copyWith(
                                     fontWeight: FontWeight.w400,
@@ -722,7 +954,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       IconButton(
                         icon: const Icon(Icons.delete_outline, color: kRed),
                         iconSize: getResponsiveBoxSize(context, 20, 20),
-                        tooltip: 'Delete Meal',
+                        tooltip: 'Remove from Menu',
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
@@ -733,7 +965,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                   getThemeProvider(context).isDarkMode
                                       ? kDarkGrey
                                       : kWhite,
-                              title: Text('Delete Meal',
+                              title: Text('Remove from Menu',
                                   style: textTheme.bodyMedium?.copyWith(
                                     color: getThemeProvider(context).isDarkMode
                                         ? kWhite
@@ -741,7 +973,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                     fontWeight: FontWeight.w400,
                                   )),
                               content: Text(
-                                  'Are you sure you want to delete this meal? This action cannot be undone.',
+                                  'Are you sure you want to remove this dish from your menu, Chef? This action cannot be undone, Chef.',
                                   style: textTheme.bodyMedium?.copyWith(
                                     color: getThemeProvider(context).isDarkMode
                                         ? kWhite
@@ -763,7 +995,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  child: Text('Delete',
+                                  child: Text('Remove',
                                       style: textTheme.bodyMedium?.copyWith(
                                         color: kRed,
                                         fontWeight: FontWeight.w400,
@@ -776,15 +1008,15 @@ class _RecipeTittleState extends State<RecipeTittle> {
                             try {
                               await mealManager.removeMeal(widget.meal.mealId);
                               if (context.mounted) {
-                                showTastySnackbar('Deleted',
-                                    'Meal deleted successfully.', context);
+                                showTastySnackbar('Service Approved',
+                                    'Dish removed from menu, Chef!', context);
                                 Navigator.pop(context);
                               }
                             } catch (e) {
                               if (context.mounted) {
                                 showTastySnackbar(
-                                    'Error',
-                                    'Failed to delete meal: Please try again later',
+                                    'Service Error',
+                                    'Failed to remove dish, Chef. Please try again.',
                                     context,
                                     backgroundColor: kRed);
                               }
@@ -964,21 +1196,17 @@ class NutritionFacts extends StatelessWidget {
     if (meal.macros.isNotEmpty) {
       nutritionMap = {...meal.macros};
       // Always add calories to macros since it's not included in macros but needed
-      if (meal.calories != null) {
-        nutritionMap['calories'] = meal.calories.toString();
-      }
+      nutritionMap['calories'] = meal.calories.toString();
     } else if (meal.nutrition.isNotEmpty) {
       nutritionMap = meal.nutrition;
     } else if (meal.nutritionalInfo.isNotEmpty) {
       nutritionMap = meal.nutritionalInfo;
-      if (meal.calories != null && nutritionMap['calories'] == null) {
+      if (nutritionMap['calories'] == null) {
         nutritionMap['calories'] = meal.calories.toString();
       }
     } else {
       nutritionMap = {};
-      if (meal.calories != null) {
-        nutritionMap['calories'] = meal.calories.toString();
-      }
+      nutritionMap['calories'] = meal.calories.toString();
     }
 
     List<Color> colors = [
@@ -1078,12 +1306,13 @@ class IngredientsTittle extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             if (meal.ingredients.isNotEmpty) ...[
-              Text(ingredients,
+              Text('Stock',
                   style: textTheme.bodyLarge?.copyWith(
                     color: isDarkMode ? kWhite : kBlack,
                     fontWeight: FontWeight.bold,
                   )),
-              Text("${meal.ingredients.length} $items",
+              Text(
+                  "${meal.ingredients.length} ${meal.ingredients.length == 1 ? 'item' : 'items'}",
                   style: textTheme.bodySmall?.copyWith())
             ]
           ],
@@ -1208,13 +1437,13 @@ class DirectionsTittle extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(directions,
+            Text('Service Steps',
                 style: textTheme.bodyLarge?.copyWith(
                   color: isDarkMode ? kWhite : kBlack,
                   fontWeight: FontWeight.bold,
                 )),
             Text(
-                "${meal.instructions.length} ${meal.instructions.length == 1 ? 'step' : 'steps'}",
+                "${meal.instructions.length} ${meal.instructions.length == 1 ? 'service step' : 'service steps'}",
                 style: textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w400,
                 ))
@@ -1292,7 +1521,7 @@ class DirectionsCard extends StatelessWidget {
           children: [
             //step number
             Text(
-              'Step ${index + 1}',
+              'Service Step ${index + 1}',
               style: textTheme.displaySmall?.copyWith(
                 fontSize: getTextScale(5, context),
                 fontWeight: FontWeight.w500,

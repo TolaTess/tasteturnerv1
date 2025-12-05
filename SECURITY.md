@@ -26,7 +26,6 @@ This document describes the Firestore security rules for the TasteTurner applica
 
 **Subcollections:**
 - `daily_summary/{date}` - Users can only access their own daily summaries
-- `health_journal/{date}` - Users can only access their own health journal entries
 - `token_usage/{usageId}` - Users can only access their own token usage data
 - `token_usage_daily/{date}` - Users can only access their own daily token aggregates
 - `ai_cache/{cacheKey}` - Users can only access their own AI cache entries
@@ -139,7 +138,7 @@ This document describes the Firestore security rules for the TasteTurner applica
 - Cloud functions should validate user permissions server-side
 
 ### 3. Data Privacy
-- Personal data (health journal, daily summaries) is strictly private
+- Personal data (daily summaries) is strictly private
 - Public content (posts, meals) is readable by all authenticated users
 - Users can only modify their own content
 
@@ -162,8 +161,7 @@ firebase emulators:start --only firestore
 4. User cannot create posts with another user's userId
 5. User can read all posts (public feed)
 6. User can only delete their own posts
-7. User can only access their own health journal
-8. User can only access their own daily summaries
+7. User can only access their own daily summaries
 9. User can only access chats they're part of
 10. User can only create messages with their own senderId
 

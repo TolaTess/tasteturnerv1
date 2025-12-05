@@ -201,7 +201,7 @@ Widget buildSuggestionsSection(BuildContext context,
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        'AI Suggestions',
+        'Sous Chef Suggestions',
         style: isRecipe
             ? Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontSize: getTextScale(4, context),
