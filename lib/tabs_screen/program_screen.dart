@@ -10,7 +10,7 @@ import '../pages/dietary_choose_screen.dart';
 import '../pages/edit_goal.dart';
 import '../pages/program_progress_screen.dart';
 import '../screens/recipes_list_category_screen.dart';
-import '../service/chat_controller.dart';
+import '../service/buddy_chat_controller.dart';
 import '../service/program_service.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/card_overlap.dart';
@@ -470,12 +470,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
       final userId = userService.userId ?? '';
       if (chatId != null && chatId.isNotEmpty && userId.isNotEmpty) {
         try {
-          await ChatController.saveMessageToFirestore(
+          await BuddyChatController.saveMessageToFirestore(
             chatId: chatId,
             content: prompt,
             senderId: userId,
           );
-          await ChatController.saveMessageToFirestore(
+          await BuddyChatController.saveMessageToFirestore(
             chatId: chatId,
             content: response,
             senderId: 'buddy',
@@ -1201,7 +1201,11 @@ class _ProgramScreenState extends State<ProgramScreen> {
                             GestureDetector(
                               onTap: () {
                                 Get.to(
-                                    () => const TastyScreen(screen: 'message'));
+                                  () => const TastyScreen(screen: 'buddy'),
+                                  arguments: {
+                                    'mealPlanMode': false,
+                                  },
+                                );
                               },
                               child: Text(
                                 'Talk More',
@@ -1212,9 +1216,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
                             ),
                             GestureDetector(
                               onTap: () {
-                                Get.to(() => const ChooseDietScreen(
-                                      isDontShowPicker: true,
-                                    ));
+                                Get.to(
+                                  () => const TastyScreen(screen: 'buddy'),
+                                  arguments: {
+                                    'mealPlanMode': true,
+                                  },
+                                );
                               },
                               child: Text(
                                 'Generate a dish',

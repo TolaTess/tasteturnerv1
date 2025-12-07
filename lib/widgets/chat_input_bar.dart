@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:tasteturner/constants.dart';
 import 'package:tasteturner/helper/utils.dart';
+import 'package:tasteturner/service/buddy_chat_controller.dart';
 
 class ChatInputBar extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
   final bool isListening;
   final bool canUseAI;
+  final bool enabled;
   final VoidCallback onSend;
   final VoidCallback onImagePick;
   final VoidCallback onVoiceToggle;
@@ -17,15 +20,49 @@ class ChatInputBar extends StatelessWidget {
     this.focusNode,
     required this.isListening,
     required this.canUseAI,
+    this.enabled = true,
     required this.onSend,
     required this.onImagePick,
     required this.onVoiceToggle,
   });
 
+  String _getLoadingPlaceholder(String mode, bool isResponding) {
+    if (!enabled && mode.toLowerCase() == 'meal') {
+      return 'Select an option above or click "Type my own request"';
+    }
+    if (!isResponding) return 'Ask Turner...';
+
+    final loadingMessages = {
+      'sous chef': [
+        'Tasting...',
+        'Analyzing...',
+        'Thinking...',
+        'Preparing...',
+      ],
+      'meal': [
+        'Cooking...',
+        'Planning...',
+        'Creating...',
+        'Designing...',
+      ],
+    };
+
+    final messages =
+        loadingMessages[mode.toLowerCase()] ?? loadingMessages['sous chef']!;
+    // Rotate through messages based on time to show activity
+    final index =
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000) % messages.length;
+    return messages[index];
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
+
+    // Get chat controller to access loading state and mode
+    // ChatInputBar is only used in buddy_screen.dart, so it uses BuddyChatController
+    final chatController = Get.find<BuddyChatController>();
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -49,7 +86,7 @@ class ChatInputBar extends StatelessWidget {
             _buildIconButton(
               context,
               icon: Icons.camera_alt_outlined,
-              onTap: canUseAI ? onImagePick : null,
+              onTap: enabled && canUseAI ? onImagePick : null,
               tooltip: 'Send Image',
             ),
             SizedBox(width: getPercentageWidth(2, context)),
@@ -71,33 +108,44 @@ class ChatInputBar extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        maxLines: 5,
-                        minLines: 1,
-                        textCapitalization: TextCapitalization.sentences,
-                        style: theme.textTheme.bodyMedium,
-                        decoration: InputDecoration(
-                          hintText:
-                              isListening ? 'Listening...' : 'Ask Turner...',
-                          hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.textTheme.bodyMedium?.color
-                                ?.withOpacity(0.5),
+                      child: Obx(() {
+                        final isResponding = chatController.isResponding.value;
+                        final currentMode = chatController.currentMode.value;
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          maxLines: 5,
+                          minLines: 1,
+                          textCapitalization: TextCapitalization.sentences,
+                          style: theme.textTheme.bodyMedium,
+                          enabled: enabled &&
+                              !isResponding, // Disable input if not enabled or while responding
+                          decoration: InputDecoration(
+                            hintText: isListening
+                                ? 'Listening...'
+                                : _getLoadingPlaceholder(
+                                    currentMode, isResponding),
+                            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.textTheme.bodyMedium?.color
+                                  ?.withOpacity(0.5),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(4, context),
+                              vertical: getPercentageHeight(1.2, context),
+                            ),
+                            isDense: true,
                           ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: getPercentageWidth(4, context),
-                            vertical: getPercentageHeight(1.2, context),
-                          ),
-                          isDense: true,
-                        ),
-                        onSubmitted: (_) => canUseAI ? onSend() : null,
-                      ),
+                          onSubmitted: (_) =>
+                              enabled && canUseAI && !isResponding
+                                  ? onSend()
+                                  : null,
+                        );
+                      }),
                     ),
                     // Voice Button inside the pill
                     GestureDetector(
-                      onTap: canUseAI ? onVoiceToggle : null,
+                      onTap: enabled && canUseAI ? onVoiceToggle : null,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         margin: const EdgeInsets.only(right: 4),
@@ -165,24 +213,29 @@ class ChatInputBar extends StatelessWidget {
 
   Widget _buildSendButton(BuildContext context) {
     final theme = Theme.of(context);
-    final hasText = controller.text.trim().isNotEmpty;
-    final isEnabled = canUseAI && hasText;
+    // ChatInputBar is only used in buddy_screen.dart, so it uses BuddyChatController
+    final chatController = Get.find<BuddyChatController>();
+    return Obx(() {
+      final hasText = controller.text.trim().isNotEmpty;
+      final isResponding = chatController.isResponding.value;
+      final isEnabled = enabled && canUseAI && hasText && !isResponding;
 
-    return Material(
-      color: isEnabled ? kAccent : theme.disabledColor.withOpacity(0.2),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: isEnabled ? onSend : null,
+      return Material(
+        color: isEnabled ? kAccent : theme.disabledColor.withOpacity(0.2),
         borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          child: const Icon(
-            Icons.send_rounded,
-            color: Colors.white,
-            size: 20,
+        child: InkWell(
+          onTap: isEnabled ? onSend : null,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            child: const Icon(
+              Icons.send_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 }

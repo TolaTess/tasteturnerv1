@@ -39,6 +39,7 @@ class MealPlanningService {
         contextInformation,
         cuisine,
         mealCount: mealCount,
+        distribution: distribution,
         partOfWeeklyMeal: partOfWeeklyMeal,
         weeklyPlanContext: weeklyPlanContext,
       );
@@ -254,6 +255,7 @@ class MealPlanningService {
     String userPrompt, {
     String? cuisine,
     int? mealCount,
+    Map<String, int>? distribution,
     String? familyMemberName,
     String? familyMemberKcal,
     String? familyMemberGoal,
@@ -358,6 +360,7 @@ ${familyMemberType != null ? 'Age Group: $familyMemberType' : 'Goal Weight: ${us
         contextInfo,
         cuisine: cuisine ?? 'general',
         mealCount: mealCount ?? 10,
+        distribution: distribution,
         pantryIngredients: pantryIngredients,
       );
 

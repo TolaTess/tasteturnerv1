@@ -691,6 +691,9 @@ class MacroManager extends GetxController {
             if (itemMap == null) return [];
 
             List<MacroData> processedList = [];
+            // Ensure ingredients are loaded before processing
+            await _ensureDataFetched();
+
             for (var entry in itemMap.entries) {
               final key = entry.key;
               final isSelected = entry.value as bool;
@@ -699,12 +702,31 @@ class MacroManager extends GetxController {
               final id = parts[0];
               final amount = parts.length > 1 ? parts.sublist(1).join('/') : '';
 
-              // No need to fetch from Firestore anymore
-              // The key format is "IngredientName/Amount"
-              // We use the IngredientName as the title directly
+              // Look up the ingredient name by ID from the ingredients list
+              String title = id; // Fallback to ID if not found
+              String image = intPlaceholderImage;
+              String type = '';
 
-              final title = id;
-              const image = intPlaceholderImage;
+              // Find the ingredient in the loaded ingredients list
+              final ingredient = _demoIngredientData.firstWhere(
+                (ing) => ing.id == id,
+                orElse: () => MacroData(
+                  id: id,
+                  title: id,
+                  type: '',
+                  macros: {},
+                  categories: [],
+                  features: {},
+                  mediaPaths: [],
+                ),
+              );
+
+              // Use the ingredient's actual title and other properties
+              title = ingredient.title.isNotEmpty ? ingredient.title : id;
+              image = ingredient.image.isNotEmpty
+                  ? ingredient.image
+                  : intPlaceholderImage;
+              type = ingredient.type;
 
               final newItem = MacroData(
                   id: key,
@@ -712,11 +734,13 @@ class MacroManager extends GetxController {
                   isSelected: isSelected,
                   macros: {'amount': amount},
                   image: image,
+                  type: type,
                   // These are dummy values as they aren't needed for the shopping list item view
-                  mediaPaths: [],
-                  type: '',
-                  categories: [],
-                  features: {});
+                  mediaPaths: ingredient.mediaPaths.isNotEmpty
+                      ? ingredient.mediaPaths
+                      : [],
+                  categories: ingredient.categories,
+                  features: ingredient.features);
               processedList.add(newItem);
             }
             return processedList;

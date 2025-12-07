@@ -23,6 +23,7 @@ class MealManager extends GetxController {
       return Get.find<MealManager>();
     }
   }
+
   final RxList<Meal> _meals = <Meal>[].obs;
   List<Meal> get meals => _meals;
 
@@ -715,12 +716,44 @@ class MealManager extends GetxController {
       if (!doc.exists) return;
 
       List<dynamic> meals = List.from(doc['meals'] ?? []);
+
+      // First try exact match
       int index = meals.indexOf(mealToRemove);
+
+      // If exact match not found, try to find by base mealId and family member
+      // This handles cases where the meal type suffix might differ (e.g., "snacks" vs "sk")
+      if (index == -1 && mealToRemove.contains('/')) {
+        final removeParts = mealToRemove.split('/');
+
+        // Extract base mealId and family member from both
+        final baseMealId = removeParts[0];
+        final familyMember =
+            removeParts.length > 2 ? removeParts[2].toLowerCase() : '';
+
+        // Find the meal with matching base mealId and family member
+        for (int i = 0; i < meals.length; i++) {
+          final meal = meals[i].toString();
+          if (meal.contains('/')) {
+            final mealParts = meal.split('/');
+            final mealBaseId = mealParts[0];
+            final mealFamilyMember =
+                mealParts.length > 2 ? mealParts[2].toLowerCase() : '';
+
+            // Match if base mealId and family member are the same
+            if (mealBaseId == baseMealId && mealFamilyMember == familyMember) {
+              index = i;
+              break;
+            }
+          }
+        }
+      }
+
       if (index != -1) {
         meals[index] = mealToAdd;
         await docRef.update({'meals': meals});
       }
     } catch (e) {
+      debugPrint('Error updating meal type: $e');
       return;
     }
   }
@@ -773,7 +806,7 @@ class MealManager extends GetxController {
       final sourceFormattedDate = DateFormat('yyyy-MM-dd').format(sourceDate);
       final targetFormattedDate = DateFormat('yyyy-MM-dd').format(targetDate);
       final userId = userService.userId;
-      
+
       if (userId == null) return false;
 
       // Use Firestore transaction to ensure atomicity
@@ -792,7 +825,8 @@ class MealManager extends GetxController {
         }
 
         // Verify meal exists in source date
-        final sourceMeals = List<String>.from(sourceDateDoc.data()?['meals'] ?? []);
+        final sourceMeals =
+            List<String>.from(sourceDateDoc.data()?['meals'] ?? []);
         if (!sourceMeals.contains(fullMealId)) {
           throw Exception('Meal not found in source date');
         }

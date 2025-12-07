@@ -6,6 +6,7 @@ import 'package:tasteturner/service/post_service.dart';
 import '../helper/utils.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/info_icon_widget.dart';
+import '../screens/upload_image_screen.dart';
 
 class InspirationScreen extends StatefulWidget {
   const InspirationScreen({super.key});
@@ -279,7 +280,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
               tooltip: 'Station Guide, Chef',
             ),
             SizedBox(width: getPercentageWidth(2, context)),
-             _buildRecipeFilterButton(context, textTheme, isDarkMode),
+            _buildRecipeFilterButton(context, textTheme, isDarkMode),
           ],
         ),
       ],
@@ -319,8 +320,23 @@ class _InspirationScreenState extends State<InspirationScreen> {
 
     return Scaffold(
       appBar: _buildAppBar(context, textTheme, isDarkMode, userGoal),
-      // Upload button removed - feature is disabled
       body: _buildBody(context),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const UploadImageScreen(),
+            ),
+          );
+        },
+        backgroundColor: kAccent,
+        child: Icon(
+          Icons.camera_alt,
+          color: kWhite,
+          size: getIconScale(8, context),
+        ),
+      ),
     );
   }
 }

@@ -159,14 +159,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   void _handleError(String message, {String? details}) {
     if (!mounted || !context.mounted) return;
     debugPrint('Error: $message${details != null ? ' - $details' : ''}');
-        showTastySnackbar(
-          'Error',
+    showTastySnackbar(
+      'Error',
       message,
-          context,
-          backgroundColor: Colors.red,
-        );
-      }
-
+      context,
+      backgroundColor: Colors.red,
+    );
+  }
 
   Future<void> _onRefresh() async {
     if (!mounted) return;
@@ -397,22 +396,22 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             child: RefreshIndicator(
               onRefresh: _onRefresh,
               child: TabBarView(
-              controller: _tabController,
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(
-                    top: getPercentageHeight(1, context),
+                controller: _tabController,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: getPercentageHeight(1, context),
+                    ),
+                    child: _buildCalendarTab(),
                   ),
-                  child: _buildCalendarTab(),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(
-                    top: getPercentageHeight(1, context),
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: getPercentageHeight(1, context),
+                    ),
+                    child: const BuddyTab(),
                   ),
-                  child: const BuddyTab(),
-                ),
-              ],
-            ),
+                ],
+              ),
             ),
           ),
         ));
@@ -1908,10 +1907,36 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       final result = await showMealTypePicker(context, isDarkMode);
       if (result != null && mounted) {
         final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
-        final mealToAdd = '${mealId}/${result}/${familyMember.toLowerCase()}';
+        // Convert meal type to suffix format (breakfast->bf, lunch->lh, dinner->dn, snacks->sk)
+        String mealTypeSuffix;
+        switch (result.toLowerCase()) {
+          case 'breakfast':
+            mealTypeSuffix = 'bf';
+            break;
+          case 'lunch':
+            mealTypeSuffix = 'lh';
+            break;
+          case 'dinner':
+            mealTypeSuffix = 'dn';
+            break;
+          case 'snacks':
+            mealTypeSuffix = 'sk';
+            break;
+          default:
+            mealTypeSuffix = result.toLowerCase();
+        }
+        final mealToAdd =
+            '${mealId}/$mealTypeSuffix/${familyMember.toLowerCase()}';
         await mealManager.updateMealType(fullMealId, mealToAdd, formattedDate);
         if (mounted) {
+          // Refresh the meal plans to get updated data from Firestore
           _mealPlanController.refresh();
+          // Small delay to allow Firestore to propagate the change
+          await Future.delayed(const Duration(milliseconds: 300));
+          // Force UI update by calling setState
+          if (mounted) {
+            setState(() {});
+          }
         }
       }
     } catch (e) {
@@ -2405,7 +2430,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   children: [
                     if (isSpecialDay == true) ...[
                       Text(
-                        'Enjoy your ${currentDayType.toLowerCase() == 'regular_day' ? 'meal plan' : capitalizeFirstLetter(currentDayType.replaceAll('_', ' '))}!',
+                        'Enjoy your ${currentDayType.toLowerCase() == 'regular_day' ? 'meal plan' : capitalizeFirstLetter(currentDayType.replaceAll('_', ' '))} day!',
                         style: textTheme.bodyMedium?.copyWith(
                           color: getDayTypeColor(
                               currentDayType.replaceAll('_', ' '), isDarkMode),
@@ -2793,4 +2818,3 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     };
   }
 }
-

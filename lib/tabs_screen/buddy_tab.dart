@@ -113,10 +113,10 @@ class _BuddyTabState extends State<BuddyTab> {
     }
 
     if (mounted) {
-    setState(() {
-      selectedUserIndex = index;
-      currentGenerationIndex = 0; // Reset to most recent when switching users
-    });
+      setState(() {
+        selectedUserIndex = index;
+        currentGenerationIndex = 0; // Reset to most recent when switching users
+      });
     }
 
     // Refresh buddy data for the selected user
@@ -148,10 +148,10 @@ class _BuddyTabState extends State<BuddyTab> {
     final currentUser = userService.currentUser.value;
     if (currentUser != null) {
       if (mounted) {
-      setState(() {
-        familyMode = currentUser.familyMode ?? false;
-        _buildFamilyMemberCategories();
-      });
+        setState(() {
+          familyMode = currentUser.familyMode ?? false;
+          _buildFamilyMemberCategories();
+        });
       }
     }
   }
@@ -181,9 +181,9 @@ class _BuddyTabState extends State<BuddyTab> {
     }
 
     if (mounted) {
-    setState(() {
-      _familyMemberCategories = categories;
-    });
+      setState(() {
+        _familyMemberCategories = categories;
+      });
     }
   }
 
@@ -209,10 +209,10 @@ class _BuddyTabState extends State<BuddyTab> {
 
     // Reset generation index when refreshing data
     if (mounted) {
-    setState(() {
-      currentGenerationIndex = 0;
-      allAvailableGenerations = [];
-    });
+      setState(() {
+        currentGenerationIndex = 0;
+        allAvailableGenerations = [];
+      });
     }
 
     // Fetch multiple documents to collect enough generations
@@ -260,7 +260,9 @@ class _BuddyTabState extends State<BuddyTab> {
 
       // Filter by family member if in family mode
       List<Map<String, dynamic>> filteredGenerations = generations;
-      if (isFamilyMode && familyMemberName != null && familyMemberName.isNotEmpty) {
+      if (isFamilyMode &&
+          familyMemberName != null &&
+          familyMemberName.isNotEmpty) {
         filteredGenerations = generations.where((gen) {
           final genFamilyName = gen['familyMemberName'] as String?;
           return genFamilyName == familyMemberName;
@@ -445,7 +447,6 @@ class _BuddyTabState extends State<BuddyTab> {
       return [];
     }
   }
-
 
   Widget _buildDefaultView(BuildContext context, bool mealEmpty) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
@@ -825,583 +826,597 @@ class _BuddyTabState extends State<BuddyTab> {
           ),
         ),
         child: Column(
-        children: [
-          // Family member selector at the top
-          if (familyMode && _familyMemberCategories.isNotEmpty) ...[
-            SizedBox(height: getPercentageHeight(2, context)),
-            CategorySelector(
-              categories: _familyMemberCategories,
-              selectedCategoryId: _familyMemberCategories.isNotEmpty
-                  ? _familyMemberCategories[selectedUserIndex]['id']
-                  : '',
-              onCategorySelected: _updateSelectedUser,
-              isDarkMode: isDarkMode,
-              accentColor: kAccentLight,
-              darkModeAccentColor: kDarkModeAccent,
-            ),
-          ],
+          children: [
+            // Family member selector at the top
+            if (familyMode && _familyMemberCategories.isNotEmpty) ...[
+              SizedBox(height: getPercentageHeight(2, context)),
+              CategorySelector(
+                categories: _familyMemberCategories,
+                selectedCategoryId: _familyMemberCategories.isNotEmpty
+                    ? _familyMemberCategories[selectedUserIndex]['id']
+                    : '',
+                onCategorySelected: _updateSelectedUser,
+                isDarkMode: isDarkMode,
+                accentColor: kAccentLight,
+                darkModeAccentColor: kDarkModeAccent,
+              ),
+            ],
 
-          Expanded(
-            child: FutureBuilder<QuerySnapshot<Map<String, dynamic>>?>(
-              future: _buddyDataFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                      child: CircularProgressIndicator(color: kAccent));
-                }
-
-                // Handle errors gracefully
-                if (snapshot.hasError) {
-                  debugPrint('Error loading buddy data: ${snapshot.error}');
-                  return _buildDefaultView(context, false);
-                }
-
-                // Handle null data (from catchError) or empty docs
-                if (snapshot.data == null) {
-                  return _buildDefaultView(context, false);
-                }
-
-                final docs = snapshot.data?.docs ?? [];
-                if (docs.isEmpty) {
-                  return _buildDefaultView(context, false);
-                }
-
-                final isDarkMode = getThemeProvider(context).isDarkMode;
-                final currentUser = userService.currentUser.value;
-
-                // Get family member name if in family mode
-                String? familyMemberName;
-                if (familyMode && selectedUserIndex > 0) {
-                  final familyMembers = currentUser?.familyMembers ?? [];
-                  if (selectedUserIndex - 1 < familyMembers.length) {
-                    familyMemberName = familyMembers[selectedUserIndex - 1].name;
+            Expanded(
+              child: FutureBuilder<QuerySnapshot<Map<String, dynamic>>?>(
+                future: _buddyDataFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                        child: CircularProgressIndicator(color: kAccent));
                   }
-                }
 
-                // Collect all generations from all documents and filter
-                allAvailableGenerations = _collectAllGenerations(
-                    docs, familyMode, familyMemberName);
+                  // Handle errors gracefully
+                  if (snapshot.hasError) {
+                    debugPrint('Error loading buddy data: ${snapshot.error}');
+                    return _buildDefaultView(context, false);
+                  }
 
-                if (allAvailableGenerations.isEmpty) {
-                  return _buildDefaultView(context, false);
-                }
+                  // Handle null data (from catchError) or empty docs
+                  if (snapshot.data == null) {
+                    return _buildDefaultView(context, false);
+                  }
 
-                // Ensure currentGenerationIndex is within bounds
-                if (currentGenerationIndex >= allAvailableGenerations.length) {
-                  currentGenerationIndex = 0;
-                }
+                  final docs = snapshot.data?.docs ?? [];
+                  if (docs.isEmpty) {
+                    return _buildDefaultView(context, false);
+                  }
 
-                // Get the selected generation based on current index
-                final selectedGeneration = allAvailableGenerations[currentGenerationIndex];
+                  final isDarkMode = getThemeProvider(context).isDarkMode;
+                  final currentUser = userService.currentUser.value;
 
-                // Fetch meals regardless of nutritional summary (summary can be calculated client-side)
-                final diet =
-                    selectedGeneration['diet']?.toString() ?? 'general';
-                final mealsFuture =
-                    _fetchMealsFromIds(selectedGeneration['mealIds']);
-
-                return FutureBuilder<List<Map<String, dynamic>>>(
-                  future: mealsFuture,
-                  builder: (context, mealsSnapshot) {
-                    if (mealsSnapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const Center(
-                          child: CircularProgressIndicator(color: kAccent));
+                  // Get family member name if in family mode
+                  String? familyMemberName;
+                  if (familyMode && selectedUserIndex > 0) {
+                    final familyMembers = currentUser?.familyMembers ?? [];
+                    if (selectedUserIndex - 1 < familyMembers.length) {
+                      familyMemberName =
+                          familyMembers[selectedUserIndex - 1].name;
                     }
+                  }
 
-                    if (mealsSnapshot.hasError) {
-                      return Center(
-                        child: Text(
-                          'Error loading meals: ${mealsSnapshot.error}',
-                          style:
-                              TextStyle(color: isDarkMode ? kWhite : kDarkGrey),
-                        ),
-                      );
-                    }
+                  // Collect all generations from all documents and filter
+                  allAvailableGenerations = _collectAllGenerations(
+                      docs, familyMode, familyMemberName);
 
-                    final meals = mealsSnapshot.data ?? [];
-                    final nutritionalSummary =
-                        geminiService.calculateNutritionalSummary(meals);
+                  if (allAvailableGenerations.isEmpty) {
+                    return _buildDefaultView(context, false);
+                  }
 
-                    if (meals.isEmpty) {
-                      return _buildDefaultView(context, true);
-                    }
+                  // Ensure currentGenerationIndex is within bounds
+                  if (currentGenerationIndex >=
+                      allAvailableGenerations.length) {
+                    currentGenerationIndex = 0;
+                  }
 
-                    final groupedMeals = meals.first['groupedMeals']
-                        as Map<String, List<MealWithType>>;
+                  // Get the selected generation based on current index
+                  final selectedGeneration =
+                      allAvailableGenerations[currentGenerationIndex];
 
-                    return SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          SizedBox(height: getPercentageHeight(2, context)),
-                          Builder(
-                            builder: (context) {
-                              // final goal = userService.currentUser.value
-                              //         ?.settings['fitnessGoal'] ??
-                              //     'Healthy Eating';
-                              String bio = getRandomMealTypeBio(
-                                  familyMemberGoal ??
-                                      userService.currentUser.value
-                                          ?.settings['fitnessGoal'] ??
-                                      'Healthy Eating',
-                                  diet);
-                              List<String> parts = bio.split(': ');
-                              List<String> parts2 = parts[1].split('/');
-                              return Column(
-                                children: [
-                                  Text(
-                                    parts[0] + ':',
-                                    textAlign: TextAlign.center,
-                                    style: textTheme.displaySmall?.copyWith(
-                                      color: kAccent,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                      height:
-                                          getPercentageHeight(0.5, context)),
-                                  Center(
-                                    child: Text(
-                                      maxLines: 2,
+                  // Fetch meals regardless of nutritional summary (summary can be calculated client-side)
+                  final diet =
+                      selectedGeneration['diet']?.toString() ?? 'general';
+                  final mealsFuture =
+                      _fetchMealsFromIds(selectedGeneration['mealIds']);
+
+                  return FutureBuilder<List<Map<String, dynamic>>>(
+                    future: mealsFuture,
+                    builder: (context, mealsSnapshot) {
+                      if (mealsSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(
+                            child: CircularProgressIndicator(color: kAccent));
+                      }
+
+                      if (mealsSnapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            'Error loading meals: ${mealsSnapshot.error}',
+                            style: TextStyle(
+                                color: isDarkMode ? kWhite : kDarkGrey),
+                          ),
+                        );
+                      }
+
+                      final meals = mealsSnapshot.data ?? [];
+                      final nutritionalSummary =
+                          geminiService.calculateNutritionalSummary(meals);
+
+                      if (meals.isEmpty) {
+                        return _buildDefaultView(context, true);
+                      }
+
+                      final groupedMeals = meals.first['groupedMeals']
+                          as Map<String, List<MealWithType>>;
+
+                      return SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            SizedBox(height: getPercentageHeight(2, context)),
+                            Builder(
+                              builder: (context) {
+                                // final goal = userService.currentUser.value
+                                //         ?.settings['fitnessGoal'] ??
+                                //     'Healthy Eating';
+                                String bio = getRandomMealTypeBio(
+                                    familyMemberGoal ??
+                                        userService.currentUser.value
+                                            ?.settings['fitnessGoal'] ??
+                                        'Healthy Eating',
+                                    diet);
+                                List<String> parts = bio.split(': ');
+                                List<String> parts2 = parts[1].split('/');
+                                return Column(
+                                  children: [
+                                    Text(
+                                      parts[0] + ':',
                                       textAlign: TextAlign.center,
-                                      overflow: TextOverflow.ellipsis,
-                                      parts2.length > 1 ? parts2[0] : '',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        color: kLightGrey,
+                                      style: textTheme.displaySmall?.copyWith(
+                                        color: kAccent,
                                       ),
                                     ),
-                                  ),
-                                  Center(
-                                    child: Text(
-                                      maxLines: 2,
-                                      textAlign: TextAlign.center,
-                                      overflow: TextOverflow.ellipsis,
-                                      parts2.length > 1 ? parts2[1] : '',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        color: kLightGrey,
-                                        fontSize: getTextScale(3, context),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          SizedBox(height: getPercentageHeight(2, context)),
-                          // Generation navigation controls
-                          if (allAvailableGenerations.length > 1)
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: getPercentageWidth(4, context)),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  // Previous button
-                                  IconButton(
-                                    onPressed: currentGenerationIndex <
-                                            allAvailableGenerations.length - 1
-                                        ? () {
-                                            setState(() {
-                                              currentGenerationIndex++;
-                                            });
-                                          }
-                                        : null,
-                                    icon: Icon(
-                                      Icons.arrow_back_ios,
-                                      color: currentGenerationIndex <
-                                              allAvailableGenerations.length - 1
-                                          ? kAccent
-                                          : Colors.grey,
-                                    ),
-                                    tooltip: 'Previous generation',
-                                  ),
-                                  SizedBox(width: getPercentageWidth(2, context)),
-                                  // Generation indicator
-                                  Text(
-                                    'Generation ${currentGenerationIndex + 1} of ${allAvailableGenerations.length}',
-                                    style: textTheme.bodyMedium?.copyWith(
-                                      color: isDarkMode ? kWhite : kDarkGrey,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  SizedBox(width: getPercentageWidth(2, context)),
-                                  // Next button
-                                  IconButton(
-                                    onPressed: currentGenerationIndex > 0
-                                        ? () {
-                                            setState(() {
-                                              currentGenerationIndex--;
-                                            });
-                                          }
-                                        : null,
-                                    icon: Icon(
-                                      Icons.arrow_forward_ios,
-                                      color: currentGenerationIndex > 0
-                                          ? kAccent
-                                          : Colors.grey,
-                                    ),
-                                    tooltip: 'Next generation',
-                                  ),
-                                ],
-                              ),
-                            ),
-                          SizedBox(height: getPercentageHeight(1, context)),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              TextButton(
-                                style: TextButton.styleFrom(
-                                  backgroundColor:
-                                      kAccentLight.withValues(alpha: kOpacity),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                onPressed: () async {
-                                  if (canUseAI()) {
-                                    await _navigateToMealPlanChat(context);
-                                  } else {
-                                    showPremiumRequiredDialog(
-                                        context, isDarkMode);
-                                  }
-                                },
-                                child: Text(
-                                  canUseAI() ? 'Generate New Meals' : goPremium,
-                                  style: textTheme.labelLarge?.copyWith(
-                                    color: isDarkMode ? kWhite : kBlack,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: getPercentageWidth(2, context)),
-                              const InfoIconWidget(
-                                title: 'Meal Generator',
-                                description:
-                                    'Generate personalized 7-day meal plans',
-                                details: [
-                                  {
-                                    'icon': Icons.calendar_month,
-                                    'title': 'Weekly Planning',
-                                    'description':
-                                        'Generate 7 days of balanced meals',
-                                    'color': kAccentLight,
-                                  },
-                                  {
-                                    'icon': Icons.restaurant_menu,
-                                    'title': 'Complete Meals',
-                                    'description':
-                                        'Includes protein, grain, vegetables, fruits and snacks',
-                                    'color': kAccentLight,
-                                  },
-                                  {
-                                    'icon': Icons.family_restroom,
-                                    'title': 'Family Mode',
-                                    'description':
-                                        'Generate personalized meals for each family member',
-                                    'color': kAccentLight,
-                                  },
-                                  {
-                                    'icon': Icons.add_task,
-                                    'title': 'Easy Calendar Add',
-                                    'description':
-                                        'Add generated meals directly to your calendar',
-                                    'color': kAccentLight,
-                                  },
-                                ],
-                                iconColor: kAccentLight,
-                                tooltip: 'Meal Generator Information',
-                              ),
-                              SizedBox(width: getPercentageWidth(2, context)),
-                            ],
-                          ),
-                          userService.currentUser.value?.isPremium ?? false
-                              ? const SizedBox.shrink()
-                              : SizedBox(
-                                  height: getPercentageHeight(1, context)),
-                          userService.currentUser.value?.isPremium ?? false
-                              ? const SizedBox.shrink()
-                              : PremiumSection(
-                                  isPremium: userService
-                                          .currentUser.value?.isPremium ??
-                                      false,
-                                  titleOne: joinChallenges,
-                                  titleTwo: premium,
-                                  isDiv: false,
-                                ),
-                          userService.currentUser.value?.isPremium ?? false
-                              ? const SizedBox.shrink()
-                              : SizedBox(
-                                  height: getPercentageHeight(0.5, context)),
-
-                          // ------------------------------------Premium / Ads-------------------------------------
-                          SizedBox(height: getPercentageHeight(2, context)),
-                          if (nutritionalSummary['totalCalories'] != 0) ...[
-                            Container(
-                              margin: EdgeInsets.symmetric(
-                                  horizontal: getPercentageWidth(4, context)),
-                              padding: EdgeInsets.symmetric(
-                                  vertical: getPercentageHeight(1, context)),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: kAccentLight),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  Column(
-                                    children: [
-                                      Text(
-                                        '${nutritionalSummary['totalCalories']}',
-                                        style: textTheme.bodyLarge?.copyWith(),
-                                      ),
-                                      Text(
-                                        'Calories',
-                                        style: textTheme.bodyMedium?.copyWith(
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Column(
-                                    children: [
-                                      Text(
-                                        '${nutritionalSummary['totalProtein']}g',
-                                        style: textTheme.bodyLarge?.copyWith(),
-                                      ),
-                                      Text(
-                                        'Protein',
-                                        style: textTheme.bodyMedium?.copyWith(
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Column(
-                                    children: [
-                                      Text(
-                                        '${nutritionalSummary['totalCarbs']}g',
-                                        style: textTheme.bodyLarge?.copyWith(),
-                                      ),
-                                      Text(
-                                        'Carbs',
-                                        style: textTheme.bodyMedium?.copyWith(
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Column(
-                                    children: [
-                                      Text(
-                                        '${nutritionalSummary['totalFat']}g',
-                                        style: textTheme.bodyLarge?.copyWith(),
-                                      ),
-                                      Text(
-                                        'Fat',
-                                        style: textTheme.bodyMedium?.copyWith(
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                          SizedBox(height: getPercentageHeight(2, context)),
-                          ValueListenableBuilder<Set<String>>(
-                            valueListenable: selectedMealTypesNotifier,
-                            builder: (context, selectedMealTypes, child) {
-                              return Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () =>
-                                        toggleMealTypeSelection('breakfast'),
-                                    child: buildAddMealTypeLegend(
-                                      context,
-                                      'breakfast',
-                                      isSelected: selectedMealTypes
-                                          .contains('breakfast'),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () =>
-                                        toggleMealTypeSelection('lunch'),
-                                    child: buildAddMealTypeLegend(
-                                      context,
-                                      'lunch',
-                                      isSelected:
-                                          selectedMealTypes.contains('lunch'),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () =>
-                                        toggleMealTypeSelection('dinner'),
-                                    child: buildAddMealTypeLegend(
-                                      context,
-                                      'dinner',
-                                      isSelected:
-                                          selectedMealTypes.contains('dinner'),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () =>
-                                        toggleMealTypeSelection('snacks'),
-                                    child: buildAddMealTypeLegend(
-                                      context,
-                                      'snacks',
-                                      isSelected:
-                                          selectedMealTypes.contains('snacks'),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          // Filterable meal lists section
-                          ValueListenableBuilder<Set<String>>(
-                            valueListenable: selectedMealTypesNotifier,
-                            builder: (context, selectedMealTypes, child) {
-                              final totalMeals =
-                                  (groupedMeals['breakfast']?.length ?? 0) +
-                                      (groupedMeals['lunch']?.length ?? 0) +
-                                      (groupedMeals['dinner']?.length ?? 0) +
-                                      (groupedMeals['snacks']?.length ?? 0) +
-                                      (groupedMeals['general']?.length ?? 0) +
-                                      (groupedMeals['other']?.length ?? 0);
-
-                              final filteredBreakfast = filterMealsByType(
-                                  groupedMeals['breakfast'] ?? [],
-                                  selectedMealTypes);
-                              final filteredLunch = filterMealsByType(
-                                  groupedMeals['lunch'] ?? [],
-                                  selectedMealTypes);
-                              final filteredDinner = filterMealsByType(
-                                  groupedMeals['dinner'] ?? [],
-                                  selectedMealTypes);
-                              final filteredSnacks = filterMealsByType(
-                                  groupedMeals['snacks'] ?? [],
-                                  selectedMealTypes);
-                              final filteredGeneral = filterMealsByType(
-                                  groupedMeals['general'] ?? [],
-                                  selectedMealTypes);
-                              final filteredOther = filterMealsByType(
-                                  groupedMeals['other'] ?? [],
-                                  selectedMealTypes);
-
-                              final filteredMealsCount =
-                                  filteredBreakfast.length +
-                                      filteredLunch.length +
-                                      filteredDinner.length +
-                                      filteredSnacks.length +
-                                      filteredGeneral.length +
-                                      filteredOther.length;
-
-                              final hasAnyFilteredMeals =
-                                  filteredMealsCount > 0;
-
-                              return Column(
-                                children: [
-                                  SizedBox(
-                                      height:
-                                          getPercentageHeight(0.5, context)),
-                                  // Show filter status
-                                  if (selectedMealTypes.isNotEmpty &&
-                                      totalMeals > 0)
-                                    Padding(
-                                      padding: EdgeInsets.symmetric(
-                                          horizontal:
-                                              getPercentageWidth(4, context)),
+                                    SizedBox(
+                                        height:
+                                            getPercentageHeight(0.5, context)),
+                                    Center(
                                       child: Text(
-                                        'Showing $filteredMealsCount of $totalMeals meals',
+                                        maxLines: 2,
                                         textAlign: TextAlign.center,
-                                        style: textTheme.bodySmall?.copyWith(
-                                          color: Colors.grey[600],
-                                          fontStyle: FontStyle.italic,
+                                        overflow: TextOverflow.ellipsis,
+                                        parts2.length > 1 ? parts2[0] : '',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: kLightGrey,
                                         ),
                                       ),
                                     ),
-                                  SizedBox(
-                                      height: getPercentageHeight(1, context)),
-                                  // Meal lists
-                                  if (filteredBreakfast.isNotEmpty)
-                                    _buildMealsList(filteredBreakfast,
-                                        'Breakfast', context),
-                                  if (filteredLunch.isNotEmpty)
-                                    _buildMealsList(
-                                        filteredLunch, 'Lunch', context),
-                                  if (filteredDinner.isNotEmpty)
-                                    _buildMealsList(
-                                        filteredDinner, 'Dinner', context),
-                                  if (filteredSnacks.isNotEmpty)
-                                    _buildMealsList(
-                                        filteredSnacks, 'Snacks', context),
-                                  if (filteredGeneral.isNotEmpty)
-                                    _buildMealsList(filteredGeneral,
-                                        'General Meals', context),
-                                  if (filteredOther.isNotEmpty)
-                                    _buildMealsList(
-                                        filteredOther, 'Other Meals', context),
-                                  // Show message when no meals match the filter
-                                  if (!hasAnyFilteredMeals &&
-                                      selectedMealTypes.isNotEmpty)
-                                    Padding(
-                                      padding: EdgeInsets.all(
-                                          getPercentageWidth(4, context)),
-                                      child: Center(
-                                        child: Column(
-                                          children: [
-                                            SizedBox(
-                                                height: getPercentageHeight(
-                                                    2, context)),
-                                            Icon(
-                                              Icons.restaurant_menu,
-                                              size: getPercentageWidth(
-                                                  12, context),
-                                              color: Colors.grey,
-                                            ),
-                                            SizedBox(
-                                                height: getPercentageHeight(
-                                                    1, context)),
-                                            Text(
-                                              'No meals match the current filter',
-                                              textAlign: TextAlign.center,
-                                              style: textTheme.bodyMedium
-                                                  ?.copyWith(
+                                    Center(
+                                      child: Text(
+                                        maxLines: 2,
+                                        textAlign: TextAlign.center,
+                                        overflow: TextOverflow.ellipsis,
+                                        parts2.length > 1 ? parts2[1] : '',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: kLightGrey,
+                                          fontSize: getTextScale(3, context),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            SizedBox(height: getPercentageHeight(2, context)),
+                            // Generation navigation controls
+                            if (allAvailableGenerations.length > 1)
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(4, context)),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    // Previous button
+                                    IconButton(
+                                      onPressed: currentGenerationIndex <
+                                              allAvailableGenerations.length - 1
+                                          ? () {
+                                              setState(() {
+                                                currentGenerationIndex++;
+                                              });
+                                            }
+                                          : null,
+                                      icon: Icon(
+                                        Icons.arrow_back_ios,
+                                        color: currentGenerationIndex <
+                                                allAvailableGenerations.length -
+                                                    1
+                                            ? kAccent
+                                            : Colors.grey,
+                                      ),
+                                      tooltip: 'Previous generation',
+                                    ),
+                                    SizedBox(
+                                        width: getPercentageWidth(2, context)),
+                                    // Generation indicator
+                                    Text(
+                                      'Generation ${currentGenerationIndex + 1} of ${allAvailableGenerations.length}',
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: isDarkMode ? kWhite : kDarkGrey,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                        width: getPercentageWidth(2, context)),
+                                    // Next button
+                                    IconButton(
+                                      onPressed: currentGenerationIndex > 0
+                                          ? () {
+                                              setState(() {
+                                                currentGenerationIndex--;
+                                              });
+                                            }
+                                          : null,
+                                      icon: Icon(
+                                        Icons.arrow_forward_ios,
+                                        color: currentGenerationIndex > 0
+                                            ? kAccent
+                                            : Colors.grey,
+                                      ),
+                                      tooltip: 'Next generation',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            SizedBox(height: getPercentageHeight(1, context)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: kAccentLight.withValues(
+                                        alpha: kOpacity),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    if (canUseAI()) {
+                                      await _navigateToMealPlanChat(context);
+                                    } else {
+                                      showPremiumRequiredDialog(
+                                          context, isDarkMode);
+                                    }
+                                  },
+                                  child: Text(
+                                    canUseAI()
+                                        ? 'Generate New Meals'
+                                        : goPremium,
+                                    style: textTheme.labelLarge?.copyWith(
+                                      color: isDarkMode ? kWhite : kBlack,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: getPercentageWidth(2, context)),
+                                const InfoIconWidget(
+                                  title: 'Meal Generator',
+                                  description:
+                                      'Generate personalized 7-day meal plans',
+                                  details: [
+                                    {
+                                      'icon': Icons.calendar_month,
+                                      'title': 'Weekly Planning',
+                                      'description':
+                                          'Generate 7 days of balanced meals',
+                                      'color': kAccentLight,
+                                    },
+                                    {
+                                      'icon': Icons.restaurant_menu,
+                                      'title': 'Complete Meals',
+                                      'description':
+                                          'Includes protein, grain, vegetables, fruits and snacks',
+                                      'color': kAccentLight,
+                                    },
+                                    {
+                                      'icon': Icons.family_restroom,
+                                      'title': 'Family Mode',
+                                      'description':
+                                          'Generate personalized meals for each family member',
+                                      'color': kAccentLight,
+                                    },
+                                    {
+                                      'icon': Icons.add_task,
+                                      'title': 'Easy Calendar Add',
+                                      'description':
+                                          'Add generated meals directly to your calendar',
+                                      'color': kAccentLight,
+                                    },
+                                  ],
+                                  iconColor: kAccentLight,
+                                  tooltip: 'Meal Generator Information',
+                                ),
+                                SizedBox(width: getPercentageWidth(2, context)),
+                              ],
+                            ),
+                            SizedBox(height: getPercentageHeight(2, context)),
+                            userService.currentUser.value?.isPremium ?? false
+                                ? const SizedBox.shrink()
+                                : SizedBox(
+                                    height: getPercentageHeight(1, context)),
+                            userService.currentUser.value?.isPremium ?? false
+                                ? const SizedBox.shrink()
+                                : PremiumSection(
+                                    isPremium: userService
+                                            .currentUser.value?.isPremium ??
+                                        false,
+                                    titleOne: joinChallenges,
+                                    titleTwo: premium,
+                                    isDiv: false,
+                                  ),
+                            userService.currentUser.value?.isPremium ?? false
+                                ? const SizedBox.shrink()
+                                : SizedBox(
+                                    height: getPercentageHeight(0.5, context)),
+
+                            // ------------------------------------Premium / Ads-------------------------------------
+                            SizedBox(height: getPercentageHeight(2, context)),
+                            if (nutritionalSummary['totalCalories'] != 0) ...[
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(4, context)),
+                                padding: EdgeInsets.symmetric(
+                                    vertical: getPercentageHeight(1, context)),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: kAccentLight),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    Column(
+                                      children: [
+                                        Text(
+                                          '${nutritionalSummary['totalCalories']}',
+                                          style:
+                                              textTheme.bodyLarge?.copyWith(),
+                                        ),
+                                        Text(
+                                          'Calories',
+                                          style: textTheme.bodyMedium?.copyWith(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          '${nutritionalSummary['totalProtein']}g',
+                                          style:
+                                              textTheme.bodyLarge?.copyWith(),
+                                        ),
+                                        Text(
+                                          'Protein',
+                                          style: textTheme.bodyMedium?.copyWith(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          '${nutritionalSummary['totalCarbs']}g',
+                                          style:
+                                              textTheme.bodyLarge?.copyWith(),
+                                        ),
+                                        Text(
+                                          'Carbs',
+                                          style: textTheme.bodyMedium?.copyWith(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          '${nutritionalSummary['totalFat']}g',
+                                          style:
+                                              textTheme.bodyLarge?.copyWith(),
+                                        ),
+                                        Text(
+                                          'Fat',
+                                          style: textTheme.bodyMedium?.copyWith(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            SizedBox(height: getPercentageHeight(2, context)),
+                            ValueListenableBuilder<Set<String>>(
+                              valueListenable: selectedMealTypesNotifier,
+                              builder: (context, selectedMealTypes, child) {
+                                return Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () =>
+                                          toggleMealTypeSelection('breakfast'),
+                                      child: buildAddMealTypeLegend(
+                                        context,
+                                        'breakfast',
+                                        isSelected: selectedMealTypes
+                                            .contains('breakfast'),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () =>
+                                          toggleMealTypeSelection('lunch'),
+                                      child: buildAddMealTypeLegend(
+                                        context,
+                                        'lunch',
+                                        isSelected:
+                                            selectedMealTypes.contains('lunch'),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () =>
+                                          toggleMealTypeSelection('dinner'),
+                                      child: buildAddMealTypeLegend(
+                                        context,
+                                        'dinner',
+                                        isSelected: selectedMealTypes
+                                            .contains('dinner'),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () =>
+                                          toggleMealTypeSelection('snacks'),
+                                      child: buildAddMealTypeLegend(
+                                        context,
+                                        'snacks',
+                                        isSelected: selectedMealTypes
+                                            .contains('snacks'),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            // Filterable meal lists section
+                            ValueListenableBuilder<Set<String>>(
+                              valueListenable: selectedMealTypesNotifier,
+                              builder: (context, selectedMealTypes, child) {
+                                final totalMeals =
+                                    (groupedMeals['breakfast']?.length ?? 0) +
+                                        (groupedMeals['lunch']?.length ?? 0) +
+                                        (groupedMeals['dinner']?.length ?? 0) +
+                                        (groupedMeals['snacks']?.length ?? 0) +
+                                        (groupedMeals['general']?.length ?? 0) +
+                                        (groupedMeals['other']?.length ?? 0);
+
+                                final filteredBreakfast = filterMealsByType(
+                                    groupedMeals['breakfast'] ?? [],
+                                    selectedMealTypes);
+                                final filteredLunch = filterMealsByType(
+                                    groupedMeals['lunch'] ?? [],
+                                    selectedMealTypes);
+                                final filteredDinner = filterMealsByType(
+                                    groupedMeals['dinner'] ?? [],
+                                    selectedMealTypes);
+                                final filteredSnacks = filterMealsByType(
+                                    groupedMeals['snacks'] ?? [],
+                                    selectedMealTypes);
+                                final filteredGeneral = filterMealsByType(
+                                    groupedMeals['general'] ?? [],
+                                    selectedMealTypes);
+                                final filteredOther = filterMealsByType(
+                                    groupedMeals['other'] ?? [],
+                                    selectedMealTypes);
+
+                                final filteredMealsCount =
+                                    filteredBreakfast.length +
+                                        filteredLunch.length +
+                                        filteredDinner.length +
+                                        filteredSnacks.length +
+                                        filteredGeneral.length +
+                                        filteredOther.length;
+
+                                final hasAnyFilteredMeals =
+                                    filteredMealsCount > 0;
+
+                                return Column(
+                                  children: [
+                                    SizedBox(
+                                        height:
+                                            getPercentageHeight(0.5, context)),
+                                    // Show filter status
+                                    if (selectedMealTypes.isNotEmpty &&
+                                        totalMeals > 0)
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal:
+                                                getPercentageWidth(4, context)),
+                                        child: Text(
+                                          'Showing $filteredMealsCount of $totalMeals meals',
+                                          textAlign: TextAlign.center,
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: Colors.grey[600],
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                      ),
+                                    SizedBox(
+                                        height:
+                                            getPercentageHeight(1, context)),
+                                    // Meal lists
+                                    if (filteredBreakfast.isNotEmpty)
+                                      _buildMealsList(filteredBreakfast,
+                                          'Breakfast', context),
+                                    if (filteredLunch.isNotEmpty)
+                                      _buildMealsList(
+                                          filteredLunch, 'Lunch', context),
+                                    if (filteredDinner.isNotEmpty)
+                                      _buildMealsList(
+                                          filteredDinner, 'Dinner', context),
+                                    if (filteredSnacks.isNotEmpty)
+                                      _buildMealsList(
+                                          filteredSnacks, 'Snacks', context),
+                                    if (filteredGeneral.isNotEmpty)
+                                      _buildMealsList(filteredGeneral,
+                                          'General Meals', context),
+                                    if (filteredOther.isNotEmpty)
+                                      _buildMealsList(filteredOther,
+                                          'Other Meals', context),
+                                    // Show message when no meals match the filter
+                                    if (!hasAnyFilteredMeals &&
+                                        selectedMealTypes.isNotEmpty)
+                                      Padding(
+                                        padding: EdgeInsets.all(
+                                            getPercentageWidth(4, context)),
+                                        child: Center(
+                                          child: Column(
+                                            children: [
+                                              SizedBox(
+                                                  height: getPercentageHeight(
+                                                      2, context)),
+                                              Icon(
+                                                Icons.restaurant_menu,
+                                                size: getPercentageWidth(
+                                                    12, context),
                                                 color: Colors.grey,
                                               ),
-                                            ),
-                                            SizedBox(
-                                                height: getPercentageHeight(
-                                                    1, context)),
-                                            Text(
-                                              'Try selecting different meal types above',
-                                              textAlign: TextAlign.center,
-                                              style:
-                                                  textTheme.bodySmall?.copyWith(
-                                                color: Colors.grey[600],
+                                              SizedBox(
+                                                  height: getPercentageHeight(
+                                                      1, context)),
+                                              Text(
+                                                'No meals match the current filter',
+                                                textAlign: TextAlign.center,
+                                                style: textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                  color: Colors.grey,
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                              SizedBox(
+                                                  height: getPercentageHeight(
+                                                      1, context)),
+                                              Text(
+                                                'Try selecting different meal types above',
+                                                textAlign: TextAlign.center,
+                                                style: textTheme.bodySmall
+                                                    ?.copyWith(
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                ],
-                              );
-                            },
-                          ),
-                          SizedBox(height: getPercentageHeight(13, context)),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
+                                  ],
+                                );
+                              },
+                            ),
+                            SizedBox(height: getPercentageHeight(13, context)),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
-          ),
+          ],
+        ),
       ),
     );
   }
@@ -1531,7 +1546,6 @@ class _BuddyTabState extends State<BuddyTab> {
 
   Future<void> _showAddToMealPlanDialog(BuildContext context, Meal meal,
       String mealTypeVariable, bool isDarkMode) async {
-    final textTheme = Theme.of(context).textTheme;
     final DateTime now = DateTime.now();
 
     final DateTime? pickedDate = await showDatePicker(
@@ -1551,70 +1565,7 @@ class _BuddyTabState extends State<BuddyTab> {
       final formattedDate = DateFormat('yyyy-MM-dd').format(pickedDate);
 
       // Show meal type selection dialog
-      final mealType = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-          title: Text(
-            'Select Meal Type',
-            style: textTheme.titleLarge?.copyWith(
-              color: isDarkMode ? kWhite : kBlack,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(
-                  'Breakfast',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: mealTypeVariable.toLowerCase() == 'breakfast'
-                        ? kAccent
-                        : null,
-                  ),
-                ),
-                onTap: () => Navigator.pop(context, 'breakfast'),
-              ),
-              ListTile(
-                title: Text(
-                  'Lunch',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: mealTypeVariable.toLowerCase() == 'lunch'
-                        ? kAccent
-                        : null,
-                  ),
-                ),
-                onTap: () => Navigator.pop(context, 'lunch'),
-              ),
-              ListTile(
-                title: Text(
-                  'Dinner',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: mealTypeVariable.toLowerCase() == 'dinner'
-                        ? kAccent
-                        : null,
-                  ),
-                ),
-                onTap: () => Navigator.pop(context, 'dinner'),
-              ),
-              ListTile(
-                title: Text(
-                  'Snacks',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: mealTypeVariable.toLowerCase() == 'snacks'
-                        ? kAccent
-                        : null,
-                  ),
-                ),
-                onTap: () => Navigator.pop(context, 'snacks'),
-              ),
-            ],
-          ),
-        ),
-      );
+      final mealType = await showMealTypePicker(context, isDarkMode);
 
       if (mealType != null && context.mounted) {
         // Get family member name if in family mode
@@ -1626,35 +1577,55 @@ class _BuddyTabState extends State<BuddyTab> {
               _familyMemberCategories[selectedUserIndex]['name'] ?? '';
         }
 
+        // Convert meal type to suffix format (breakfast->bf, lunch->lh, dinner->dn, snacks->sk)
+        String mealTypeSuffix;
+        switch (mealType.toLowerCase()) {
+          case 'breakfast':
+            mealTypeSuffix = 'bf';
+            break;
+          case 'lunch':
+            mealTypeSuffix = 'lh';
+            break;
+          case 'dinner':
+            mealTypeSuffix = 'dn';
+            break;
+          case 'snacks':
+            mealTypeSuffix = 'sk';
+            break;
+          default:
+            mealTypeSuffix = mealType.toLowerCase();
+        }
+
         // Create meal ID with format: "mealid/mealtype/familyname"
         String mealId;
         if (familyMode && familyMemberName.isNotEmpty) {
-          mealId = '${meal.mealId}/$mealType/$familyMemberName';
+          mealId =
+              '${meal.mealId}/$mealTypeSuffix/${familyMemberName.toLowerCase()}';
         } else {
-          mealId = '${meal.mealId}/$mealType';
+          mealId = '${meal.mealId}/$mealTypeSuffix/';
         }
 
         try {
-        await helperController.saveMealPlanBuddy(
-          userService.userId ?? '',
-          formattedDate,
-          'chef_tasty',
-          [mealId],
-        );
-
-        if (context.mounted) {
-          String successMessage =
-              'Meal added to ${DateFormat('MMM d').format(pickedDate)} as ${getMealTypeLabel(mealType)}';
-          if (familyMode && familyMemberName.isNotEmpty) {
-            successMessage += ' for $familyMemberName';
-          }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(successMessage),
-                backgroundColor: kAccent,
-            ),
+          await helperController.saveMealPlanBuddy(
+            userService.userId ?? '',
+            formattedDate,
+            'chef_turner',
+            [mealId],
           );
+
+          if (context.mounted) {
+            String successMessage =
+                'Meal added to ${DateFormat('MMM d').format(pickedDate)} as ${getMealTypeLabel(mealType)}';
+            if (familyMode && familyMemberName.isNotEmpty) {
+              successMessage += ' for $familyMemberName';
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(successMessage),
+                backgroundColor: kAccent,
+              ),
+            );
           }
         } catch (e) {
           debugPrint('Error saving meal to calendar: $e');
@@ -1665,5 +1636,72 @@ class _BuddyTabState extends State<BuddyTab> {
         }
       }
     }
+  }
+
+  Future<String?> showMealTypePicker(
+      BuildContext context, bool isDarkMode) async {
+    return await showModalBottomSheet<String>(
+      backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final textTheme = Theme.of(context).textTheme;
+        return Padding(
+          padding: EdgeInsets.all(getPercentageWidth(2, context)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Select Meal Type',
+                  style: textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w200,
+                      fontSize: getTextScale(7, context),
+                      color: isDarkMode ? kWhite : kBlack)),
+              SizedBox(height: getPercentageHeight(1, context)),
+              ...[
+                {
+                  'label': 'Breakfast (BF)',
+                  'icon': Icons.emoji_food_beverage,
+                  'value': 'breakfast'
+                },
+                {
+                  'label': 'Lunch (LH)',
+                  'icon': Icons.lunch_dining,
+                  'value': 'lunch'
+                },
+                {
+                  'label': 'Dinner (DN)',
+                  'icon': Icons.dinner_dining,
+                  'value': 'dinner'
+                },
+                {
+                  'label': 'Snacks (SK)',
+                  'icon': Icons.fastfood,
+                  'value': 'snacks'
+                },
+              ].map((item) => ListTile(
+                    leading: Icon(item['icon'] as IconData,
+                        color: isDarkMode ? kWhite : kBlack),
+                    title: Text(item['label'] as String,
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: isDarkMode ? kWhite : kBlack,
+                        )),
+                    onTap: () =>
+                        Navigator.pop(context, item['value'] as String),
+                  )),
+              SizedBox(height: getPercentageHeight(0.5, context)),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    )),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

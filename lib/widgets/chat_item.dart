@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:tasteturner/data_models/meal_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../constants.dart';
@@ -10,6 +9,8 @@ import '../detail_screen/recipe_detail.dart';
 import '../helper/utils.dart';
 import '../pages/program_progress_screen.dart';
 import '../service/chat_controller.dart';
+import '../service/chat_utilities.dart';
+import '../service/buddy_chat_controller.dart';
 import '../service/meal_manager.dart';
 import '../service/program_service.dart';
 import '../service/meal_planning_service.dart';
@@ -18,7 +19,7 @@ import '../widgets/bottom_nav.dart';
 class ChatItem extends StatelessWidget {
   final ChatScreenData dataSrc;
   final bool isMe;
-  final ChatController chatController;
+  final dynamic chatController; // Can be ChatController or BuddyChatController
   final String chatId;
 
   const ChatItem({
@@ -34,12 +35,26 @@ class ChatItem extends StatelessWidget {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
     double screenWidth = MediaQuery.of(context).size.width;
+
+    // Detect chat type: buddy chat (AI) vs friend chat
+    final isBuddyChat = chatController is BuddyChatController;
+
     List<String> extractedItems = extractSlashedItems(dataSrc.messageContent);
+
     if (extractedItems.isEmpty) {
       extractedItems.add(dataSrc.messageId);
       extractedItems.add('name');
       extractedItems.add('post');
     }
+
+    // Recipe share logic ONLY applies to friend chats, not buddy chats
+    // Recipe share: last item is 'share_recipe' AND 'private' is NOT in items
+    // If 'private' is present, it's a regular post share, not a recipe share
+    final isRecipeShare = !isBuddyChat && // Only check for friend chats
+        extractedItems.isNotEmpty &&
+        extractedItems.last == 'share_recipe' &&
+        !extractedItems.contains('private');
+
     return Container(
       padding: EdgeInsets.only(
           left: getPercentageWidth(4, context),
@@ -62,102 +77,12 @@ class ChatItem extends StatelessWidget {
             crossAxisAlignment:
                 isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              // Display Images if any
-              if (dataSrc.imageUrls.isNotEmpty)
-                Column(
-                  children: dataSrc.imageUrls.map((url) {
-                    return Padding(
-                      padding: EdgeInsets.only(
-                          bottom: getPercentageHeight(0.8, context)),
-                      child: GestureDetector(
-                        onTap: () {
-                          if (extractedItems.isNotEmpty &&
-                              extractedItems.last == 'share_recipe') {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RecipeDetailScreen(
-                                  mealData:
-                                      Meal.fromJson(extractedItems[0], {}),
-                                  screen: extractedItems.last,
-                                ),
-                              ),
-                            );
-                          } else if (extractedItems.isNotEmpty &&
-                              extractedItems.last == 'post') {
-                            // Navigate to PostDetailScreen
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ChallengeDetailScreen(
-                                  dataSrc: dataSrc.toMap(),
-                                  screen: 'myPost',
-                                ),
-                              ),
-                            );
-                          } else {
-                            // Navigate to ChallengeDetailScreen
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ChallengeDetailScreen(
-                                  screen: extractedItems.isNotEmpty
-                                      ? extractedItems.last
-                                      : 'post',
-                                  dataSrc: dataSrc.toMap(),
-                                  isMessage: true,
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(
-                              getPercentageWidth(1, context)),
-                          child: url.contains('http')
-                              ? buildOptimizedNetworkImage(
-                                  imageUrl: url,
-                                  height: getPercentageHeight(20, context),
-                                  width: getPercentageWidth(60, context),
-                                  fit: BoxFit.cover,
-                                  borderRadius: BorderRadius.circular(
-                                      getPercentageWidth(1, context)),
-                                )
-                              : Image.asset(
-                                  height: getPercentageHeight(30, context),
-                                  width: getPercentageWidth(70, context),
-                                  getAssetImageForItem(url),
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-
-              // Show Text if Available
-              if (dataSrc.messageContent.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.only(
-                      bottom: dataSrc.actionButtons != null &&
-                              dataSrc.actionButtons!.isNotEmpty
-                          ? getPercentageHeight(0.5, context)
-                          : 0),
-                  child: Text(
-                    // Show full content for buddy messages (AI responses) to prevent truncation
-                    // Only use getTextBeforeSlash for special formatted messages (with navigation)
-                    // For regular messages with action buttons or buddy messages, show full content
-                    (dataSrc.actionButtons != null &&
-                                dataSrc.actionButtons!.isNotEmpty) ||
-                            dataSrc.senderId == 'buddy'
-                        ? dataSrc.messageContent.replaceAll('00:00:00.000 ', '')
-                        : getTextBeforeSlash(dataSrc.messageContent
-                            .replaceAll('00:00:00.000 ', '')),
-                    style: textTheme.bodyMedium?.copyWith(),
-                    softWrap: true,
-                    overflow: TextOverflow.visible,
-                  ),
-                ),
+              // Display Images if any OR fetch recipe image for recipe shares (friend chats only)
+              // For buddy chats: only show if imageUrls exist (no recipe share logic)
+              // For friend chats: show if imageUrls exist OR it's a recipe share
+              if (dataSrc.imageUrls.isNotEmpty ||
+                  (!isBuddyChat && isRecipeShare))
+                _buildRecipeImage(context, extractedItems),
 
               // Show Action Buttons if available
               if (dataSrc.actionButtons != null)
@@ -172,6 +97,14 @@ class ChatItem extends StatelessWidget {
               if (dataSrc.friendRequest != null)
                 _buildFriendRequest(
                     context, isDarkMode, chatId, dataSrc.messageId, textTheme),
+
+              // Display message text content
+              // For buddy chats: always show text
+              // For friend chats: show text unless it's a recipe share
+              if (dataSrc.messageContent.isNotEmpty &&
+                  (isBuddyChat || !isRecipeShare))
+                _buildMessageText(context, isDarkMode, textTheme,
+                    extractedItems, isBuddyChat),
 
               SizedBox(height: getPercentageHeight(0.5, context)),
 
@@ -211,6 +144,270 @@ class ChatItem extends StatelessWidget {
       debugPrint('Error parsing date: $e');
       return dateString; // Return original string if parsing fails
     }
+  }
+
+  Widget _buildRecipeImage(BuildContext context, List<String> extractedItems) {
+    // Detect chat type: buddy chat (AI) vs friend chat
+    final isBuddyChat = chatController is BuddyChatController;
+
+    // Recipe share logic ONLY applies to friend chats, not buddy chats
+    // Recipe share: last item is 'share_recipe' AND 'private' is NOT in items
+    // If 'private' is present, it's a regular post share, not a recipe share
+    final isRecipeShare = !isBuddyChat && // Only check for friend chats
+        extractedItems.isNotEmpty &&
+        extractedItems.last == 'share_recipe' &&
+        extractedItems.last != 'private';
+
+    // Helper function to get mealId with fallback
+    String? getMealId() {
+      final messageContent = dataSrc.messageContent;
+
+      // Message format: "Shared caption: Title /mealId /Title /share_recipe"
+      // The mealId is the alphanumeric segment between slashes that appears after the title
+      // We need to handle cases where the title itself contains slashes
+
+      // First, try to extract from extractedItems if available
+      if (extractedItems.isNotEmpty) {
+        // The mealId should be an alphanumeric string (typically looks like an ID)
+        // It's usually the first or second item that matches the pattern
+        for (var item in extractedItems) {
+          final trimmed = item.trim();
+          // MealId is typically alphanumeric, 10-30 chars, no spaces
+          if (trimmed.isNotEmpty &&
+              trimmed.length >= 10 &&
+              trimmed.length <= 30 &&
+              !trimmed.contains(' ') &&
+              RegExp(r'^[a-zA-Z0-9]+$').hasMatch(trimmed) &&
+              trimmed != 'share_recipe') {
+            return trimmed;
+          }
+        }
+      }
+
+      // Fallback: Use regex to find mealId pattern
+      // Look for pattern: /[alphanumeric-id] / where the id is between 10-30 chars
+      // This should match the mealId even if title has slashes
+      final mealIdPattern = RegExp(r' /([a-zA-Z0-9]{10,30}) /');
+      final mealIdMatch = mealIdPattern.firstMatch(messageContent);
+      if (mealIdMatch != null && mealIdMatch.group(1) != null) {
+        final extracted = mealIdMatch.group(1)!.trim();
+        return extracted;
+      }
+
+      // Last resort: Try to find the segment that looks like an ID
+      // Split by space-slash-space pattern to handle titles with slashes
+      final segments = messageContent.split(RegExp(r' /'));
+      for (var segment in segments) {
+        final trimmed = segment.trim();
+        // Check if it looks like a mealId (alphanumeric, 10-30 chars, no spaces)
+        if (trimmed.isNotEmpty &&
+            trimmed.length >= 10 &&
+            trimmed.length <= 30 &&
+            !trimmed.contains(' ') &&
+            RegExp(r'^[a-zA-Z0-9]+$').hasMatch(trimmed) &&
+            trimmed != 'share_recipe' &&
+            !trimmed.toLowerCase().contains('shared caption')) {
+          return trimmed;
+        }
+      }
+
+      return null;
+    }
+
+    // Cache the mealId to prevent multiple extractions and continuous rebuilds
+    final cachedMealId = getMealId();
+
+    // If we have image URLs for non-recipe shares, display them
+    // Recipe shares will show a button instead
+    if (dataSrc.imageUrls.isNotEmpty && !isRecipeShare) {
+      return Column(
+        children: dataSrc.imageUrls.map((url) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: getPercentageHeight(0.8, context)),
+            child: GestureDetector(
+              onTap: () {
+                if (isRecipeShare) {
+                  final mealId = getMealId();
+                  if (mealId == null || mealId.isEmpty) {
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RecipeDetailScreen(
+                        mealId: mealId,
+                        screen: extractedItems.isNotEmpty
+                            ? extractedItems.last
+                            : 'share_recipe',
+                      ),
+                    ),
+                  );
+                } else if (extractedItems.isNotEmpty &&
+                    extractedItems.last == 'post') {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChallengeDetailScreen(
+                        dataSrc: dataSrc.toMap(),
+                        screen: 'myPost',
+                      ),
+                    ),
+                  );
+                } else {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChallengeDetailScreen(
+                        screen: extractedItems.isNotEmpty
+                            ? extractedItems.last
+                            : 'post',
+                        dataSrc: dataSrc.toMap(),
+                        isMessage: true,
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: ClipRRect(
+                borderRadius:
+                    BorderRadius.circular(getPercentageWidth(1, context)),
+                child: url.contains('http')
+                    ? buildOptimizedNetworkImage(
+                        imageUrl: url,
+                        height: getPercentageHeight(20, context),
+                        width: getPercentageWidth(60, context),
+                        fit: BoxFit.cover,
+                        borderRadius: BorderRadius.circular(
+                            getPercentageWidth(1, context)),
+                      )
+                    : Image.asset(
+                        height: getPercentageHeight(30, context),
+                        width: getPercentageWidth(70, context),
+                        getAssetImageForItem(url),
+                        fit: BoxFit.cover,
+                        filterQuality:
+                            FilterQuality.high, // High quality rendering
+                        color: null, // No color tinting
+                      ),
+              ),
+            ),
+          );
+        }).toList(),
+      );
+    }
+
+    // For recipe shares, show a simple button with caption
+    if (isRecipeShare) {
+      if (cachedMealId == null || cachedMealId.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      // Extract recipe title from message (text before first slash)
+      final recipeTitle = getTextBeforeSlash(dataSrc.messageContent)
+          .replaceAll('Shared caption:', '')
+          .trim();
+
+      final isDarkMode = getThemeProvider(context).isDarkMode;
+      final textTheme = Theme.of(context).textTheme;
+
+      return Padding(
+        padding: EdgeInsets.only(bottom: getPercentageHeight(0.8, context)),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? kAccentLight.withValues(alpha: 0.15)
+                : kAccentLight.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(getPercentageWidth(2, context)),
+            border: Border.all(
+              color: kAccent.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(getPercentageWidth(3, context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Recipe icon and title
+                Row(
+                  children: [
+                    Icon(
+                      Icons.restaurant_menu,
+                      color: kAccent,
+                      size: getPercentageWidth(6, context),
+                    ),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                    Expanded(
+                      child: Text(
+                        recipeTitle.isNotEmpty ? recipeTitle : 'Shared Recipe',
+                        style: textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode ? kWhite : kBlack,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: getPercentageHeight(2, context)),
+                // View Recipe button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RecipeDetailScreen(
+                            mealId: cachedMealId,
+                            screen: extractedItems.isNotEmpty
+                                ? extractedItems.last
+                                : 'share_recipe',
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kAccent,
+                      foregroundColor: kWhite,
+                      padding: EdgeInsets.symmetric(
+                        vertical: getPercentageHeight(1.5, context),
+                        horizontal: getPercentageWidth(4, context),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                            getPercentageWidth(2, context)),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.visibility,
+                          size: getPercentageWidth(5, context),
+                        ),
+                        SizedBox(width: getPercentageWidth(2, context)),
+                        Text(
+                          'View Recipe',
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: kWhite,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildFriendRequest(BuildContext context, bool isDarkMode,
@@ -297,7 +494,6 @@ class ChatItem extends StatelessWidget {
         return dateString;
       }
     } catch (e) {
-      debugPrint('Error parsing share request date: $e');
       return dateString; // Fallback to raw string
     }
   }
@@ -348,9 +544,11 @@ class ChatItem extends StatelessWidget {
                 TextButton(
                   onPressed: () {
                     try {
-                      chatController.acceptCalendarShare(dataSrc.messageId);
+                      // Only ChatController has acceptCalendarShare (for friend chats)
+                      if (chatController is ChatController) {
+                        chatController.acceptCalendarShare(dataSrc.messageId);
+                      }
                     } catch (e) {
-                      debugPrint('Error accepting calendar share: $e');
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
@@ -386,6 +584,44 @@ class ChatItem extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildMessageText(BuildContext context, bool isDarkMode,
+      TextTheme textTheme, List<String> extractedItems, bool isBuddyChat) {
+    // For buddy chats: always show message text (no recipe share logic)
+    // For friend chats: check if it's a recipe share
+    if (!isBuddyChat) {
+      // Recipe share logic ONLY for friend chats
+      // Recipe share: last item is 'share_recipe' AND 'private' is NOT in items
+      final isRecipeShare = extractedItems.isNotEmpty &&
+          extractedItems.last == 'share_recipe' &&
+          !extractedItems.contains('private');
+
+      // For recipe shares in friend chats, hide the text (show button only)
+      if (isRecipeShare) {
+        return const SizedBox.shrink();
+      }
+    }
+
+    // Get the message content
+    String messageText = dataSrc.messageContent;
+
+    // If message is empty, don't display anything
+    if (messageText.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: getPercentageHeight(0.8, context),
+      ),
+      child: SelectableText(
+        messageText,
+        style: textTheme.bodyMedium?.copyWith(
+          color: isDarkMode ? Colors.white : Colors.black87,
+        ),
+      ),
     );
   }
 
@@ -452,12 +688,10 @@ class ChatItem extends StatelessWidget {
           Get.offAll(() =>
               const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 1));
         } catch (e) {
-          debugPrint('Error navigating to meal plan: $e');
           // Fallback: navigate to meal design screen without specifying tab
           try {
             Get.offAll(() => const BottomNavSec(selectedIndex: 4));
           } catch (e2) {
-            debugPrint('Error with fallback navigation: $e2');
             Get.snackbar(
               'Navigation Error',
               'Unable to open meal plan. Please navigate manually.',
@@ -528,12 +762,10 @@ class ChatItem extends StatelessWidget {
                     ));
               }
             } catch (e) {
-              debugPrint('Error navigating: $e');
               // Fallback: navigate to meal design screen without specifying tab
               try {
                 Get.offAll(() => const BottomNavSec(selectedIndex: 4));
               } catch (e2) {
-                debugPrint('Error with fallback navigation: $e2');
                 Get.snackbar(
                   'Navigation Error',
                   'Unable to open meal. Please navigate manually.',

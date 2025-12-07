@@ -9,6 +9,8 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
 import '../helper/helper_functions.dart';
@@ -131,16 +133,18 @@ class _DineInScreenState extends State<DineInScreen> {
   @override
   void initState() {
     super.initState();
+    // Load synchronous data immediately (fast operation)
     loadExcludedIngredients();
-    // Load local data immediately (fast operations)
-    _loadSavedMeal();
-    _loadFridgeData();
-    _loadFridgeRecipesFromSharedPreferences();
-    _loadRecentlyUsedIngredients();
 
-    // Defer Firestore query to after first frame to avoid blocking UI
+    // Defer all async operations to after first frame to avoid blocking navigation
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        // Load local data (SharedPreferences - fast but async)
+        _loadSavedMeal();
+        _loadFridgeData();
+        _loadFridgeRecipesFromSharedPreferences();
+        _loadRecentlyUsedIngredients();
+        // Load Firestore data
         _fetchPantryItems();
       }
     });
@@ -464,7 +468,6 @@ class _DineInScreenState extends State<DineInScreen> {
       final selectedOption = await showMediaSelectionDialog(
         isCamera: true,
         context: context,
-        isVideo: false,
       );
 
       if (selectedOption == null) {
@@ -602,14 +605,32 @@ class _DineInScreenState extends State<DineInScreen> {
       //   0, 0, 0, 1, 0, // Alpha channel: no change
       // ]);
 
-      // Convert back to bytes
-      final processedBytes = img.encodeJpg(image, quality: 85);
+      // Save processed image to temporary file first
+      final tempDir = await getTemporaryDirectory();
+      final tempProcessedPath =
+          '${tempDir.path}/processed_fridge_temp_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final tempProcessedFile = File(tempProcessedPath);
+      await tempProcessedFile.writeAsBytes(img.encodeJpg(image, quality: 95));
 
-      // Create a new file with processed image
-      final tempDir = Directory.systemTemp;
+      // Use FlutterImageCompress for final compression with proper color handling
       final processedFile = File(
           '${tempDir.path}/processed_fridge_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      await processedFile.writeAsBytes(processedBytes);
+
+      await FlutterImageCompress.compressAndGetFile(
+        tempProcessedPath,
+        processedFile.path,
+        quality: 85,
+        format: CompressFormat.jpeg,
+        keepExif: false, // Remove EXIF to prevent color profile issues
+        autoCorrectionAngle: true,
+      );
+
+      // Clean up temporary file
+      try {
+        await tempProcessedFile.delete();
+      } catch (e) {
+        debugPrint('Error deleting temporary processed file: $e');
+      }
 
       debugPrint('Image processed successfully: ${processedFile.path}');
       return processedFile;

@@ -36,6 +36,9 @@ class OptimizedImage extends StatelessWidget {
           width: width,
           height: height,
           fit: fit,
+          filterQuality: FilterQuality.high, // Use high quality to prevent film-like filter
+          color: null, // Ensure no color tinting
+          colorBlendMode: BlendMode.srcOver, // Default blend mode, no filtering
           errorBuilder: (context, error, stackTrace) =>
               errorWidget ?? Image.asset(intPlaceholderImage, fit: fit),
         ),
@@ -50,6 +53,9 @@ class OptimizedImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        filterQuality: FilterQuality.high, // Use high quality to prevent film-like filter
+        color: null, // Ensure no color tinting
+        colorBlendMode: BlendMode.srcOver, // Default blend mode, no filtering
         placeholder: (context, url) =>
             placeholder ??
             Container(
