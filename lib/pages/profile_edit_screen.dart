@@ -1,12 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
 
 import '../constants.dart';
 import '../helper/helper_functions.dart';
@@ -36,48 +33,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Future<String> _compressAndResizeProfileImage(String imagePath) async {
-    // Read the image file
-    final File imageFile = File(imagePath);
-    final List<int> bytes = await imageFile.readAsBytes();
-    final Uint8List uint8Bytes = Uint8List.fromList(bytes);
-    final img.Image? image = img.decodeImage(uint8Bytes);
-
-    if (image == null) throw Exception('Failed to decode image');
-
-    // Calculate new dimensions while maintaining aspect ratio
-    const int maxDimension = 400; // Maximum dimension for profile images
-    final double aspectRatio = image.width / image.height;
-    int newWidth = image.width;
-    int newHeight = image.height;
-
-    if (image.width > maxDimension || image.height > maxDimension) {
-      if (aspectRatio > 1) {
-        newWidth = maxDimension;
-        newHeight = (maxDimension / aspectRatio).round();
-      } else {
-        newHeight = maxDimension;
-        newWidth = (maxDimension * aspectRatio).round();
-      }
-    }
-
-    // Resize the image
-    final img.Image resized = img.copyResize(
-      image,
-      width: newWidth,
-      height: newHeight,
+    // Use shared compression utility for consistent quality and color handling
+    return await compressImageForUpload(
+      imagePath,
+      maxDimension: 400, // Profile images are smaller
     );
-
-    // Compress the image
-    final List<int> compressed = img.encodeJpg(resized, quality: 85);
-    final Uint8List compressedBytes = Uint8List.fromList(compressed);
-
-    // Save to temporary file
-    final tempDir = await getTemporaryDirectory();
-    final String tempPath =
-        '${tempDir.path}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await File(tempPath).writeAsBytes(compressedBytes);
-
-    return tempPath;
   }
 
   @override
@@ -115,70 +75,86 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   AvatarUpload(
                     avatarUrl: user?.profileImage ?? '',
                     press: () async {
-                      List<XFile> pickedImages =
-                          await openMultiImagePickerModal(context: context);
+                      try {
+                        final ImagePicker picker = ImagePicker();
+                        List<XFile> pickedImages = await picker.pickMultiImage(
+                          imageQuality: 85,
+                          maxWidth: 2048,
+                          maxHeight: 2048,
+                        );
 
-                      if (pickedImages.isNotEmpty) {
-                        List<XFile> croppedImages = [];
-                        for (final img in pickedImages) {
-                          final XFile? cropped = await cropImage(
-                            img,
-                            context,
-                            getThemeProvider(context).isDarkMode,
-                          );
-                          if (cropped != null) {
-                            croppedImages.add(cropped);
+                        if (pickedImages.isNotEmpty) {
+                          List<XFile> croppedImages = [];
+                          for (final img in pickedImages) {
+                            final XFile? cropped = await cropImage(
+                              img,
+                              context,
+                              getThemeProvider(context).isDarkMode,
+                            );
+                            if (cropped != null) {
+                              croppedImages.add(cropped);
+                            }
                           }
-                        }
-                        setState(() {
-                          _selectedImages = pickedImages;
-                          _recentImage = _selectedImages.first;
-                        });
+                          setState(() {
+                            _selectedImages = pickedImages;
+                            _recentImage = _selectedImages.first;
+                          });
 
-                        try {
-                          final String userId = userService.userId ?? "";
-                          if (userId.isEmpty) return;
+                          try {
+                            final String userId = userService.userId ?? "";
+                            if (userId.isEmpty) return;
 
-                          if (_recentImage == null) {
-                            throw Exception("No image selected.");
-                          }
+                            if (_recentImage == null) {
+                              throw Exception("No image selected.");
+                            }
 
-                          // Compress and resize profile image before upload
-                          final String compressedPath =
-                              await _compressAndResizeProfileImage(
-                                  _recentImage!.path);
+                            // Compress and resize profile image before upload
+                            final String compressedPath =
+                                await _compressAndResizeProfileImage(
+                                    _recentImage!.path);
 
-                          // Upload Image to Firebase Storage
-                          String filePath = 'users/$userId/profileImage.jpg';
-                          TaskSnapshot uploadTask = await firebaseStorage
-                              .ref(filePath)
-                              .putFile(File(compressedPath));
+                            // Upload Image to Firebase Storage
+                            String filePath = 'users/$userId/profileImage.jpg';
+                            TaskSnapshot uploadTask = await firebaseStorage
+                                .ref(filePath)
+                                .putFile(File(compressedPath));
 
-                          // Get Image URL
-                          String imageUrl =
-                              await uploadTask.ref.getDownloadURL();
+                            // Get Image URL
+                            String imageUrl =
+                                await uploadTask.ref.getDownloadURL();
 
-                          final updatedUser = {
-                            'profileImage': imageUrl,
-                          };
-                          authController.updateUserData(updatedUser);
+                            final updatedUser = {
+                              'profileImage': imageUrl,
+                            };
+                            authController.updateUserData(updatedUser);
 
-                          // Clean up temporary file
-                          await File(compressedPath).delete();
+                            // Clean up temporary file
+                            await File(compressedPath).delete();
 
-                          showTastySnackbar(
-                            'Service Approved',
-                            'Your image was updated successfully, Chef!',
-                            context,
-                          );
-                        } catch (e) {
-                          if (mounted) {
                             showTastySnackbar(
-                              'Service Error',
-                              'Failed to update profile image, Chef. Please try again.',
+                              'Service Approved',
+                              'Your image was updated successfully, Chef!',
                               context,
                             );
+                          } catch (e) {
+                            if (mounted) {
+                              showTastySnackbar(
+                                'Service Error',
+                                'Failed to update profile image, Chef. Please try again.',
+                                context,
+                              );
+                            }
                           }
+                        }
+                      } catch (e) {
+                        debugPrint('Error picking images: $e');
+                        if (mounted) {
+                          showTastySnackbar(
+                            'Error',
+                            'Failed to pick images. Please try again.',
+                            context,
+                            backgroundColor: kRed,
+                          );
                         }
                       }
                     },

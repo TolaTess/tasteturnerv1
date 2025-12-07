@@ -47,14 +47,16 @@ class _BadgesScreenState extends State<BadgesScreen>
     );
     _animationController.forward();
 
-    // Load user progress if logged in
-    if (userService.currentUser.value?.userId != null) {
-      badgeService.loadAvailableBadges();
-      badgeService.loadUserStreak(userService.userId!);
-      badgeService.loadUserPoints(userService.userId!);
-      badgeService.loadUserProgress(userService.userId!);
-      _loadPlantDiversityData();
-    }
+    // Defer data loading to after first frame to avoid blocking navigation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && userService.currentUser.value?.userId != null) {
+        badgeService.loadAvailableBadges();
+        badgeService.loadUserStreak(userService.userId!);
+        badgeService.loadUserPoints(userService.userId!);
+        badgeService.loadUserProgress(userService.userId!);
+        _loadPlantDiversityData();
+      }
+    });
   }
 
   Future<void> _loadPlantDiversityData() async {

@@ -6,8 +6,9 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
-import '../pages/photo_manager.dart';
 import '../pages/safe_text_field.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../service/chat_controller.dart';
 
 import '../widgets/icon_widget.dart';
@@ -55,6 +56,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (chatId != null && chatId!.isNotEmpty) {
       try {
+        // Ensure we're using friend chat mode
         chatController.chatId = chatId!;
         chatController.listenToFriendMessages();
         if (widget.friendId != null && widget.friendId!.isNotEmpty) {
@@ -64,16 +66,52 @@ class _ChatScreenState extends State<ChatScreen> {
         if (widget.dataSrc != null && widget.dataSrc!.isNotEmpty) {
           if (widget.dataSrc?['screen'] == 'meal_design') {
             _handleCalendarShare(widget.dataSrc!);
+          } else if (widget.screen == 'share_recipe' ||
+              widget.dataSrc?['screen'] == 'share_recipe') {
+            // Wait a bit for messages to load, then check and share
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (!mounted) return;
+              // Check if this recipe was already shared in this chat
+              final mealId = widget.dataSrc?['mealId'] ?? '';
+              final alreadyShared = _checkIfRecipeAlreadyShared(mealId);
+              if (alreadyShared) {
+              } else {
+                // Handle recipe sharing - check for image or share without image
+                final mediaPaths = widget.dataSrc?['mediaPaths'];
+                final image = widget.dataSrc?['image'];
+                if (mediaPaths != null &&
+                    mediaPaths is List &&
+                    mediaPaths.isNotEmpty) {
+                  _shareImage(mediaPaths[0]);
+                } else if (image != null &&
+                    image is String &&
+                    image.isNotEmpty) {
+                  _shareImage(image);
+                } else {
+                  // Share recipe without image
+                  _shareRecipeWithoutImage();
+                }
+              }
+            });
           } else if (widget.dataSrc?['mediaPaths'] != null) {
-            _shareImage(widget.dataSrc?['mediaPaths'][0]);
-          }
-        }
+            final mediaPaths = widget.dataSrc?['mediaPaths'];
+            if (mediaPaths is List && mediaPaths.isNotEmpty) {
+              _shareImage(mediaPaths[0] ?? widget.dataSrc?['image']);
+            } else if (widget.dataSrc?['image'] != null) {
+              _shareImage(widget.dataSrc?['image']);
+            }
+          } else if (widget.dataSrc?['image'] != null) {
+            _shareImage(widget.dataSrc?['image']);
+          } else {}
+        } else {}
       } catch (e) {
         debugPrint('Error initializing chat with chatId: $e');
       }
     } else if (widget.friendId != null && widget.friendId!.isNotEmpty) {
       chatController.initializeFriendChat(widget.friendId!).then((_) {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
         setState(() {
           chatId = chatController.chatId;
         });
@@ -84,11 +122,44 @@ class _ChatScreenState extends State<ChatScreen> {
         if (widget.dataSrc != null && widget.dataSrc!.isNotEmpty) {
           if (widget.dataSrc?['screen'] == 'meal_design') {
             _handleCalendarShare(widget.dataSrc!);
+          } else if (widget.screen == 'share_recipe' ||
+              widget.dataSrc?['screen'] == 'share_recipe') {
+            // Wait a bit for messages to load, then check and share
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (!mounted) return;
+              // Check if this recipe was already shared in this chat
+              final mealId = widget.dataSrc?['mealId'] ?? '';
+              final alreadyShared = _checkIfRecipeAlreadyShared(mealId);
+              if (alreadyShared) {
+              } else {
+                // Handle recipe sharing - check for image or share without image
+                final mediaPaths = widget.dataSrc?['mediaPaths'];
+                final image = widget.dataSrc?['image'];
+                if (mediaPaths != null &&
+                    mediaPaths is List &&
+                    mediaPaths.isNotEmpty) {
+                  _shareImage(mediaPaths[0]);
+                } else if (image != null &&
+                    image is String &&
+                    image.isNotEmpty) {
+                  _shareImage(image);
+                } else {
+                  // Share recipe without image
+                  _shareRecipeWithoutImage();
+                }
+              }
+            });
           } else if (widget.dataSrc?['mediaPaths'] != null) {
-            _shareImage(
-                widget.dataSrc?['mediaPaths'][0] ?? widget.dataSrc?['image']);
-          }
-        }
+            final mediaPaths = widget.dataSrc?['mediaPaths'];
+            if (mediaPaths is List && mediaPaths.isNotEmpty) {
+              _shareImage(mediaPaths[0] ?? widget.dataSrc?['image']);
+            } else if (widget.dataSrc?['image'] != null) {
+              _shareImage(widget.dataSrc?['image']);
+            }
+          } else if (widget.dataSrc?['image'] != null) {
+            _shareImage(widget.dataSrc?['image']);
+          } else {}
+        } else {}
       }).catchError((e) {
         debugPrint('Error initializing chat with friendId: $e');
         if (mounted && context.mounted) {
@@ -96,6 +167,8 @@ class _ChatScreenState extends State<ChatScreen> {
               details: e.toString());
         }
       });
+    } else {
+      debugPrint('ChatScreen: No chatId and no friendId provided');
     }
   }
 
@@ -103,21 +176,77 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       String message = '';
       if (widget.screen == 'share_recipe') {
+        final title = widget.dataSrc?['title'] ?? '';
+        final mealId = widget.dataSrc?['mealId'] ?? '';
         message =
-            'Shared caption: ${capitalizeFirstLetter(widget.dataSrc?['title'])} /${widget.dataSrc?['mealId']} /${widget.dataSrc?['title']} /${widget.screen}';
+            'Shared caption: ${capitalizeFirstLetter(title)} /$mealId /${capitalizeFirstLetter(title)} /${widget.screen ?? ''}';
       } else {
+        // For non-recipe image shares, mark as private to prevent showing in posts
+        final title = widget.dataSrc?['title'] ?? '';
+        final id = widget.dataSrc?['id'] ?? '';
+        final screen = widget.screen ?? 'post';
         message =
-            'Shared caption: ${capitalizeFirstLetter(widget.dataSrc?['title'])} /${widget.dataSrc?['id']} /${widget.dataSrc?['title']} /${widget.screen}';
+            'Shared caption: ${capitalizeFirstLetter(title)} /$id /${capitalizeFirstLetter(title)} /$screen /private';
+      }
+
+      if (chatId == null || chatId!.isEmpty) {
+        debugPrint(
+            '_shareImage ERROR: chatId is null or empty, cannot send message');
+        return;
       }
 
       chatController.sendMessage(
         messageContent: message,
         imageUrls: [imageUrl],
+        isPrivate: true, // Mark as private to prevent showing in posts
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Error sharing image: $e');
+      debugPrint('Stack trace: $stackTrace');
       if (mounted && context.mounted) {
         _handleError('Failed to share image. Please try again.',
+            details: e.toString());
+      }
+    }
+  }
+
+  /// Check if a recipe with the given mealId was already shared in this chat
+  bool _checkIfRecipeAlreadyShared(String mealId) {
+    if (mealId.isEmpty) return false;
+
+    // Check if any existing message contains this mealId
+    final currentUserId = userService.userId ?? '';
+    final sharePattern = '/$mealId /';
+
+    for (final message in chatController.messages) {
+      // Check if message is from current user and contains the mealId pattern
+      if (message.senderId == currentUserId &&
+          message.messageContent.contains(sharePattern) &&
+          message.messageContent.contains('share_recipe')) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  void _shareRecipeWithoutImage() {
+    try {
+      if (widget.dataSrc == null) return;
+
+      final mealId = widget.dataSrc?['mealId'] ?? '';
+      final title = widget.dataSrc?['title'] ?? 'Recipe';
+
+      String message =
+          'Shared caption: ${capitalizeFirstLetter(title)} /$mealId /${capitalizeFirstLetter(title)} /${widget.screen ?? 'share_recipe'}';
+
+      chatController.sendMessage(
+        messageContent: message,
+      );
+    } catch (e) {
+      debugPrint('Error sharing recipe without image: $e');
+      if (mounted && context.mounted) {
+        _handleError('Failed to share recipe. Please try again.',
             details: e.toString());
       }
     }
@@ -388,21 +517,38 @@ class _ChatScreenState extends State<ChatScreen> {
           InkWell(
             onTap: isDisabled
                 ? null
-                : () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      builder: (_) {
-                        return CustomImagePickerModal(
-                          onSend: (images, caption) => handleImageSend(
-                              images,
-                              caption,
-                              chatId!,
-                              _scrollController,
-                              chatController),
+                : () async {
+                    try {
+                      final ImagePicker picker = ImagePicker();
+                      // Pick at full quality, we'll compress properly in handleImageSend
+                      List<XFile> pickedImages = await picker.pickMultiImage(
+                        imageQuality: 100, // Full quality to avoid color shifts
+                      );
+
+                      if (pickedImages.isNotEmpty) {
+                        // Convert XFile to File and call handleImageSend
+                        List<File> imageFiles = pickedImages
+                            .map((xfile) => File(xfile.path))
+                            .toList();
+                        await handleImageSend(
+                          imageFiles,
+                          null, // No caption for chat images
+                          chatId!,
+                          _scrollController,
+                          chatController,
                         );
-                      },
-                    );
+                      }
+                    } catch (e) {
+                      debugPrint('Error picking images: $e');
+                      if (mounted) {
+                        showTastySnackbar(
+                          'Error',
+                          'Failed to pick images. Please try again.',
+                          context,
+                          backgroundColor: kRed,
+                        );
+                      }
+                    }
                   },
             child: const IconCircleButton(
               icon: Icons.camera_alt,

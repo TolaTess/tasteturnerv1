@@ -37,7 +37,16 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     super.initState();
 
     if (widget.screen == 'share_recipe') {
-      _getMeal();
+      // For shared recipes, use mealId if provided, otherwise use mealData
+      if (widget.mealId != null && widget.mealId!.isNotEmpty) {
+        _getMealById(widget.mealId!);
+      } else if (widget.mealData != null &&
+          widget.mealData!.mealId.isNotEmpty) {
+        _getMeal();
+      } else {
+        debugPrint(
+            'Warning: share_recipe screen but no mealId or mealData provided');
+      }
     } else if (widget.screen == 'fridge-recipe') {
       // For fridge recipes, we need to fetch from Firestore using mealId
       if (widget.mealId != null && widget.mealId!.isNotEmpty) {
@@ -178,11 +187,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     return Scaffold(
-      floatingActionButton: buildFullWidthAddMealButton(
-        context: context,
-        meal: _meal!,
-        date: DateTime.now(),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          buildAddToScheduleButton(
+            context: context,
+            meal: _meal!,
+            date: DateTime.now(),
+          ),
+          SizedBox(height: getPercentageHeight(1.5, context)),
+          buildFullWidthAddMealButton(
+            context: context,
+            meal: _meal!,
+            date: DateTime.now(),
+          ),
+        ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: Obx(() {
         final mealUser = friendController.userProfileData.value;
 
@@ -771,7 +792,7 @@ class _RecipeTittleState extends State<RecipeTittle> {
                       Text(
                         capitalizeFirstLetter(widget.meal.title),
                         textAlign: TextAlign.center,
-                        maxLines: 2,
+                        maxLines: 3,
                         style: textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                           overflow: TextOverflow.ellipsis,

@@ -9,7 +9,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image/image.dart' as img;
+import 'dart:typed_data';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tasteturner/helper/helper_functions.dart';
@@ -21,10 +24,9 @@ import '../data_models/macro_data.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../data_models/post_model.dart';
-import '../pages/photo_manager.dart';
 import '../screens/friend_screen.dart';
 import '../screens/food_analysis_results_screen.dart';
-import '../service/chat_controller.dart';
+import '../service/buddy_chat_controller.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/optimized_image.dart';
@@ -151,19 +153,138 @@ OutlineInputBorder outlineInputBorder(
   );
 }
 
+// Helper function to calculate optimal dimensions for images (same logic as post_manager)
+Future<(int, int)> _calculateOptimalDimensions(
+    int originalWidth, int originalHeight, int maxDimension) async {
+  final double aspectRatio = originalWidth / originalHeight;
+
+  // Check if we're on iOS for device-specific optimizations
+  if (Platform.isIOS) {
+    final deviceInfo = await DeviceInfoPlugin().iosInfo;
+    final bool isModernDevice =
+        int.parse(deviceInfo.systemVersion.split('.')[0]) >= 13;
+
+    // Modern iOS devices can handle larger images better (only for non-profile images)
+    if (isModernDevice && maxDimension >= 1200) {
+      const int iosMaxDimension = 1600;
+      if (aspectRatio > 1) {
+        return (iosMaxDimension, (iosMaxDimension / aspectRatio).round());
+      } else {
+        return ((iosMaxDimension * aspectRatio).round(), iosMaxDimension);
+      }
+    }
+  }
+
+  // Default dimensions for other devices
+  if (aspectRatio > 1) {
+    return (maxDimension, (maxDimension / aspectRatio).round());
+  } else {
+    return ((maxDimension * aspectRatio).round(), maxDimension);
+  }
+}
+
+/// Shared compression utility function for consistent image compression across the app
+/// Uses the same two-pass FlutterImageCompress system as post_manager.dart
+///
+/// [imagePath] - Path to the image file to compress
+/// [maxDimension] - Maximum dimension for the image (default: 1200, use 400 for profile images)
+///
+/// Returns the path to the compressed temporary file
+Future<String> compressImageForUpload(String imagePath,
+    {int maxDimension = 1200}) async {
+  final File imageFile = File(imagePath);
+  final bool isLargeFile = await imageFile.length() > 5 * 1024 * 1024; // 5MB
+
+  // First pass: Decode and analyze the image using image package (better color handling)
+  final List<int> bytes = await imageFile.readAsBytes();
+  final Uint8List uint8Bytes = Uint8List.fromList(bytes);
+  final img.Image? originalImage = img.decodeImage(uint8Bytes);
+
+  if (originalImage == null) {
+    throw Exception('Failed to decode image');
+  }
+
+  // Calculate optimal dimensions based on the device
+  final (int targetWidth, int targetHeight) = await _calculateOptimalDimensions(
+    originalImage.width,
+    originalImage.height,
+    maxDimension,
+  );
+
+  // First compression pass using flutter_image_compress for better quality
+  final tempDir = await getTemporaryDirectory();
+  final String firstPassPath =
+      '${tempDir.path}/compressed_1st_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+  await FlutterImageCompress.compressAndGetFile(
+    imagePath,
+    firstPassPath,
+    minWidth: targetWidth,
+    minHeight: targetHeight,
+    quality: isLargeFile ? 80 : 90, // Match post_manager quality settings
+    format: CompressFormat.jpeg,
+    keepExif: false, // Remove EXIF to prevent color profile issues
+    autoCorrectionAngle: true,
+  );
+
+  // Check if the first pass achieved desired file size
+  final File firstPassFile = File(firstPassPath);
+  final bool needsSecondPass =
+      await firstPassFile.length() > 1 * 1024 * 1024; // 1MB
+
+  if (needsSecondPass) {
+    final String secondPassPath =
+        '${tempDir.path}/compressed_2nd_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    await FlutterImageCompress.compressAndGetFile(
+      firstPassPath,
+      secondPassPath,
+      minWidth: (targetWidth * 0.8).round(), // Reduce dimensions by 20%
+      minHeight: (targetHeight * 0.8).round(),
+      quality: 70,
+      format: CompressFormat.jpeg,
+      keepExif: false,
+    );
+
+    // Clean up first pass file
+    try {
+      await File(firstPassPath).delete();
+    } catch (e) {
+      debugPrint('Error deleting first pass file: $e');
+    }
+
+    return secondPassPath;
+  }
+
+  return firstPassPath;
+}
+
 Future<void> handleImageSend(List<File> images, String? caption, String chatId,
-    ScrollController scrollController, ChatController chatController) async {
+    ScrollController scrollController, dynamic chatController) async {
   List<String> uploadedUrls = [];
 
   for (File image in images) {
     try {
+      // Use shared compression utility for consistency
+      final String compressedPath = await compressImageForUpload(
+        image.absolute.path,
+        maxDimension: 1200, // Standard size for chat images
+      );
+
       final String fileName =
           'chats/$chatId/${DateTime.now().millisecondsSinceEpoch}.jpg';
       final Reference storageRef = firebaseStorage.ref().child(fileName);
 
-      final uploadTask = storageRef.putFile(image);
+      final uploadTask = storageRef.putFile(File(compressedPath));
       final snapshot = await uploadTask;
       final imageUrl = await snapshot.ref.getDownloadURL();
+
+      // Clean up temporary compressed file
+      try {
+        await File(compressedPath).delete();
+      } catch (e) {
+        debugPrint('Error deleting temporary file: $e');
+      }
 
       uploadedUrls.add(imageUrl);
     } catch (e, stack) {
@@ -172,8 +293,8 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
     }
   }
 
-  // Check if this is a buddy chat (AI chat)
-  final isBuddyChat = chatId == userService.buddyId;
+  // Check if this is a buddy chat (AI chat) by checking controller type
+  final isBuddyChat = chatController is BuddyChatController;
 
   if (isBuddyChat) {
     // For buddy chat, send image and trigger AI analysis
@@ -191,8 +312,6 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
     // For regular chats, create a post and send the message
     final postRef = firestore.collection('posts').doc();
     final postId = postRef.id;
-    final messageContent =
-        'Shared caption: ${capitalizeFirstLetter(caption ?? '')} /${postId} /${'post'} /${'private'}';
 
     final post = Post(
       id: postId,
@@ -217,7 +336,11 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
     }
 
     WriteBatch batch = firestore.batch();
-    batch.set(postRef, post.toFirestore());
+    // Set post with battleId: 'private' to filter it from public posts feed
+    final postData = post.toFirestore();
+    postData['battleId'] =
+        'private'; // Mark as private to prevent showing in posts feed
+    batch.set(postRef, postData);
 
     // Now we can safely update the usersPosts document
     batch.update(usersPostsDoc, {
@@ -226,8 +349,9 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
 
     await batch.commit();
 
+    // Send message with image only, no caption text
     await chatController.sendMessage(
-      messageContent: messageContent,
+      messageContent: null, // No caption when sending images
       imageUrls: uploadedUrls,
       isPrivate: true,
     );
@@ -244,13 +368,13 @@ Future<void> _triggerAIImageAnalysis(
     List<String> imageUrls,
     String? caption,
     String chatId,
-    ChatController chatController,
+    dynamic chatController,
     ScrollController scrollController) async {
   if (imageUrls.isEmpty) return;
 
   try {
     // Send loading message
-    await ChatController.saveMessageToFirestore(
+    await BuddyChatController.saveMessageToFirestore(
       chatId: chatId,
       content:
           "🔍 Tasting your dish, Chef... This will help me give you better suggestions!",
@@ -288,7 +412,7 @@ Future<void> _triggerAIImageAnalysis(
         _createAnalysisSummaryResponse(analysisResult, userContext);
 
     // Send analysis summary with the analysis ID attached
-    await ChatController.saveMessageToFirestore(
+    await BuddyChatController.saveMessageToFirestore(
       chatId: chatId,
       content: summaryResponse,
       senderId: 'buddy',
@@ -297,7 +421,7 @@ Future<void> _triggerAIImageAnalysis(
     // Send follow-up with action options
     await Future.delayed(const Duration(milliseconds: 1500));
     final optionsMessage = _createActionOptionsMessage(userContext);
-    await ChatController.saveMessageToFirestore(
+    await BuddyChatController.saveMessageToFirestore(
       chatId: chatId,
       content: optionsMessage,
       senderId: 'buddy',
@@ -307,7 +431,7 @@ Future<void> _triggerAIImageAnalysis(
   } catch (e) {
     debugPrint('Error in AI image analysis: $e');
     // Send fallback response as buddy
-    await ChatController.saveMessageToFirestore(
+    await BuddyChatController.saveMessageToFirestore(
       chatId: chatId,
       content:
           "I can see your delicious food! While I had trouble with the detailed analysis, I'm here to help you optimize your nutrition. What would you like to know about this meal? 🍽️",
@@ -431,7 +555,7 @@ Future<void> handleDetailedFoodAnalysis(
     BuildContext context, String chatId) async {
   if (_lastFoodAnalysisId == null) {
     // Send error message as buddy
-    await ChatController.saveMessageToFirestore(
+    await BuddyChatController.saveMessageToFirestore(
       chatId: chatId,
       content:
           "Sorry, I snoozed for a moment. Please upload the image again! 📸",
@@ -458,7 +582,7 @@ Future<void> handleDetailedFoodAnalysis(
         analysisData['imagePath'] as String; // Use 'imagePath' field
 
     // Send message indicating we're opening detailed view
-    await ChatController.saveMessageToFirestore(
+    await BuddyChatController.saveMessageToFirestore(
       chatId: chatId,
       content:
           "📊 Opening detailed food analysis for you! You'll see comprehensive nutritional breakdown, calories, and personalized recommendations.",
@@ -492,7 +616,7 @@ Future<void> handleDetailedFoodAnalysis(
       );
 
       // Send completion message when user returns to chat
-      await ChatController.saveMessageToFirestore(
+      await BuddyChatController.saveMessageToFirestore(
         chatId: chatId,
         content:
             "Great! Hope the detailed analysis was helpful. Feel free to ask me any questions about your meal or nutrition goals! 😊",
@@ -502,7 +626,7 @@ Future<void> handleDetailedFoodAnalysis(
   } catch (e) {
     debugPrint('Error in detailed food analysis: $e');
     // Send error message as buddy
-    await ChatController.saveMessageToFirestore(
+    await BuddyChatController.saveMessageToFirestore(
       chatId: chatId,
       content:
           "Sorry, I had trouble opening the detailed analysis. The basic analysis showed it looks nutritious though! Feel free to ask me any specific questions about your meal. 😊",
@@ -807,34 +931,6 @@ Color checkSeason(String season) {
     default:
       return kWhite;
   }
-}
-
-Future<List<XFile>> openMultiImagePickerModal({
-  required BuildContext context,
-}) async {
-  final Completer<List<XFile>> completer = Completer();
-
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    builder: (context) {
-      return MultiImagePickerModal(
-        onImagesSelected: (List<File> selectedFiles) {
-          // Convert File to XFile before completing
-          List<XFile> xFiles =
-              selectedFiles.map((file) => XFile(file.path)).toList();
-          completer.complete(xFiles);
-        },
-      );
-    },
-  ).then((_) {
-    // When modal is dismissed (user clicked back or swipe down)
-    if (!completer.isCompleted) {
-      completer.complete([]); // Return empty list when cancelled
-    }
-  });
-
-  return completer.future;
 }
 
 ThemeProvider getThemeProvider(BuildContext context) {
@@ -1429,7 +1525,7 @@ IconData getDayTypeIcon(String type) {
       return Icons.fitness_center;
     case 'add your own':
       return Icons.add;
-    case 'chef tasty':
+    case 'chef turner':
     case 'sous chef':
       return Icons.restaurant;
     case 'welcome day':
@@ -1455,7 +1551,7 @@ Color getDayTypeColor(String type, bool isDarkMode) {
       return Colors.blue;
     case 'add your own':
       return Colors.blueGrey;
-    case 'chef tasty':
+    case 'chef turner':
     case 'sous chef':
       return Colors.red;
     case 'welcome day':
@@ -1516,12 +1612,22 @@ String getMealTypeLabel(String type) {
 String getMealTypeSubtitle(String type) {
   switch (type.toLowerCase()) {
     case 'breakfast':
+    case 'bf':
+    case 'b':
       return 'BF';
     case 'lunch':
+    case 'lh':
+    case 'l':
       return 'LH';
     case 'dinner':
+    case 'dn':
+    case 'd':
       return 'DN';
     case 'snack':
+    case 'snacks':
+    case 'sk':
+    case 'sn':
+    case 's':
       return 'SK';
     default:
       return 'BF';
@@ -1567,6 +1673,10 @@ Widget buildNetworkImage({
     width: width,
     height: height,
     fit: fit,
+    filterQuality:
+        FilterQuality.high, // Use high quality to prevent film-like filter
+    color: null, // Ensure no color tinting
+    colorBlendMode: BlendMode.srcOver, // Default blend mode, no filtering
     loadingBuilder: (context, child, loadingProgress) {
       if (loadingProgress == null) return child;
       return placeholder ??

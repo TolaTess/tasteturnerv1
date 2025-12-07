@@ -8,8 +8,9 @@ import 'package:tasteturner/widgets/chat_mode_switcher.dart';
 import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
-import '../pages/photo_manager.dart';
-import '../service/chat_controller.dart';
+import '../service/buddy_chat_controller.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../themes/theme_provider.dart';
 import '../widgets/chat_item.dart';
 import '../widgets/icon_widget.dart';
@@ -34,7 +35,7 @@ class _TastyScreenState extends State<TastyScreen>
   final FocusNode _textFieldFocusNode = FocusNode();
   String? chatId;
 
-  late ChatController chatController;
+  late BuddyChatController chatController;
   late TabController _tabController;
 
   // Speech-to-text
@@ -42,20 +43,24 @@ class _TastyScreenState extends State<TastyScreen>
   bool _isListening = false;
   String _recognizedText = '';
 
-  // Quick actions visibility state
-  bool _showQuickActions = true;
+  // Quick actions visibility state (use RxBool for reactive updates)
+  final RxBool _showQuickActions = true.obs;
+
+  // Input enabled state (disabled in meal plan mode until user clicks "Type my own request")
+  final RxBool _isInputEnabled = true.obs;
 
   // Pending mode switches (deferred to post-frame callback to avoid chatId initialization issues)
   bool _pendingMealPlanMode = false;
+  bool _pendingSousChefMode = false;
 
   @override
   void initState() {
     super.initState();
     try {
-      chatController = Get.find<ChatController>();
+      chatController = Get.find<BuddyChatController>();
     } catch (e) {
       // If controller is not found, initialize it
-      chatController = Get.put(ChatController());
+      chatController = Get.put(BuddyChatController());
     }
     chatId = userService.buddyId;
 
@@ -88,6 +93,9 @@ class _TastyScreenState extends State<TastyScreen>
         }
 
         _pendingMealPlanMode = true;
+      } else if (args['mealPlanMode'] == false) {
+        // Explicitly set to sous chef mode when mealPlanMode is false
+        _pendingSousChefMode = true;
       }
     }
 
@@ -108,7 +116,19 @@ class _TastyScreenState extends State<TastyScreen>
         } else {
           chatController.currentMode.value = 'meal';
         }
-        _showMealPlanWelcomeWithOptions();
+        // Disable input in meal plan mode
+        _isInputEnabled.value = false;
+      } else if (_pendingSousChefMode) {
+        _pendingSousChefMode = false;
+        _tabController.index = 0; // Sous Chef is index 0
+        // Only switch mode if chatId is initialized
+        if (chatId != null && chatId!.isNotEmpty) {
+          chatController.switchMode('sous chef');
+        } else {
+          chatController.currentMode.value = 'sous chef';
+        }
+        // Enable input in sous chef mode
+        _isInputEnabled.value = true;
       }
 
       // Initialize mode-specific content
@@ -133,9 +153,11 @@ class _TastyScreenState extends State<TastyScreen>
 
         // Show quick actions when switching to meal mode
         if (newMode == 'meal') {
-          setState(() {
-            _showQuickActions = true;
-          });
+          _showQuickActions.value = true;
+          _isInputEnabled.value = false; // Disable input in meal plan mode
+        } else {
+          // Enable input when switching to sous chef mode
+          _isInputEnabled.value = true;
         }
 
         _initializeModeContent();
@@ -567,10 +589,11 @@ class _TastyScreenState extends State<TastyScreen>
                     child: Obx(() {
                       final messages = chatController.messages;
                       final currentMode = chatController.currentMode.value;
+                      final showQuickActions = _showQuickActions.value;
 
                       if (messages.isEmpty) {
                         // Show quick actions for meal plan mode when no messages and visible
-                        if (currentMode == 'meal' && _showQuickActions) {
+                        if (currentMode == 'meal' && showQuickActions) {
                           return SingleChildScrollView(
                             child: Column(
                               children: [
@@ -594,7 +617,7 @@ class _TastyScreenState extends State<TastyScreen>
                       return Column(
                         children: [
                           // Show meal plan quick actions at the top when in meal mode and visible
-                          if (currentMode == 'meal' && _showQuickActions)
+                          if (currentMode == 'meal' && showQuickActions)
                             Flexible(
                               child: _buildMealPlanQuickActions(
                                   themeProvider.isDarkMode, context),
@@ -630,38 +653,64 @@ class _TastyScreenState extends State<TastyScreen>
                       );
                     }),
                   ),
-                  // Input Section
-                  ChatInputBar(
-                    controller: textController,
-                    focusNode: _textFieldFocusNode,
-                    isListening: _isListening,
-                    canUseAI: canUseAI(),
-                    onSend: () async {
-                      final messageText = textController.text.trim();
-                      if (messageText.isNotEmpty) {
-                        chatController.sendMessageToAI(messageText, context);
-                        textController.clear();
-                      }
-                    },
-                    onImagePick: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (_) {
-                          return CustomImagePickerModal(
-                            onSend: (images, caption) => handleImageSend(
-                                images,
-                                caption,
-                                chatId!,
-                                _scrollController,
-                                chatController),
+                  // Input Section - Only show if enabled or not in meal plan mode
+                  Obx(() {
+                    final currentMode = chatController.currentMode.value;
+                    final isInputEnabled = _isInputEnabled.value;
+                    // Hide input in meal plan mode unless user clicked "Type my own request"
+                    if (currentMode == 'meal' && !isInputEnabled) {
+                      return const SizedBox.shrink();
+                    }
+                    return ChatInputBar(
+                      controller: textController,
+                      focusNode: _textFieldFocusNode,
+                      isListening: _isListening,
+                      canUseAI: canUseAI(),
+                      enabled: isInputEnabled,
+                      onSend: () async {
+                        final messageText = textController.text.trim();
+                        if (messageText.isNotEmpty) {
+                          chatController.sendMessageToAI(messageText, context);
+                          textController.clear();
+                        }
+                      },
+                      onImagePick: () async {
+                        try {
+                          final ImagePicker picker = ImagePicker();
+                          // Pick at full quality, we'll compress properly in handleImageSend
+                          List<XFile> pickedImages = await picker.pickMultiImage(
+                            imageQuality: 100, // Full quality to avoid color shifts
                           );
-                        },
-                      );
-                    },
-                    onVoiceToggle:
-                        _isListening ? _stopListening : _startListening,
-                  ),
+
+                          if (pickedImages.isNotEmpty) {
+                            // Convert XFile to File and call handleImageSend
+                            List<File> imageFiles = pickedImages
+                                .map((xfile) => File(xfile.path))
+                                .toList();
+                            await handleImageSend(
+                              imageFiles,
+                              null, // No caption for buddy chat images
+                              chatId!,
+                              _scrollController,
+                              chatController,
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint('Error picking images: $e');
+                          if (mounted) {
+                            showTastySnackbar(
+                              'Error',
+                              'Failed to pick images. Please try again.',
+                              context,
+                              backgroundColor: kRed,
+                            );
+                          }
+                        }
+                      },
+                      onVoiceToggle:
+                          _isListening ? _stopListening : _startListening,
+                    );
+                  }),
                   SizedBox(height: getPercentageHeight(3, context)),
                 ],
               ),
@@ -680,12 +729,32 @@ class _TastyScreenState extends State<TastyScreen>
     if (!canUseAI() || !mounted) return;
 
     try {
+      // Check navigation arguments to determine initial mode
+      final args = Get.arguments;
+      final shouldBeMealMode =
+          args != null && args is Map && args['mealPlanMode'] == true;
+      final shouldBeSousChefMode =
+          args != null && args is Map && args['mealPlanMode'] == false;
+
       if (chatId != null && chatId!.isNotEmpty) {
         // Existing chat - set chatId and initialize mode
         chatController.chatId = chatId!;
         await chatController.initializeChat('buddy');
 
         if (!mounted) return;
+
+        // Override loaded mode if navigation arguments specify a mode
+        if (shouldBeSousChefMode) {
+          chatController.currentMode.value = 'sous chef';
+          if (chatId != null && chatId!.isNotEmpty) {
+            await chatController.switchMode('sous chef');
+          }
+        } else if (shouldBeMealMode) {
+          chatController.currentMode.value = 'meal';
+          if (chatId != null && chatId!.isNotEmpty) {
+            await chatController.switchMode('meal');
+          }
+        }
 
         // Sync tab controller with current mode
         final modes = ['sous chef', 'meal'];
@@ -694,12 +763,18 @@ class _TastyScreenState extends State<TastyScreen>
           _tabController.index = modeIndex;
         }
 
-        chatController.markMessagesAsRead(chatId!, 'buddy');
       } else {
         // New chat - create it and listen
         await chatController.initializeChat('buddy');
 
         if (!mounted) return;
+
+        // Override default mode if navigation arguments specify a mode
+        if (shouldBeSousChefMode) {
+          chatController.currentMode.value = 'sous chef';
+        } else if (shouldBeMealMode) {
+          chatController.currentMode.value = 'meal';
+        }
 
         setState(() {
           chatId = chatController.chatId;
@@ -707,7 +782,12 @@ class _TastyScreenState extends State<TastyScreen>
         if (chatId != null && chatId!.isNotEmpty) {
           try {
             userService.setBuddyChatId(chatId!);
-            chatController.markMessagesAsRead(chatId!, 'buddy');
+            // Update mode in Firestore if we have a chatId
+            if (shouldBeSousChefMode) {
+              await chatController.switchMode('sous chef');
+            } else if (shouldBeMealMode) {
+              await chatController.switchMode('meal');
+            }
           } catch (e) {
             debugPrint('Error setting buddy chat ID: $e');
             _handleError('Failed to initialize chat. Please try again.',
@@ -724,10 +804,6 @@ class _TastyScreenState extends State<TastyScreen>
     }
   }
 
-  // Show meal plan welcome with quick action buttons (when entering from buddy tab)
-  void _showMealPlanWelcomeWithOptions() {
-    // Quick actions are now always shown when in meal mode
-  }
 
   // Show favorite meals dialog for remix selection
   Future<void> _showFavoriteMealsDialog(BuildContext context) async {
@@ -866,25 +942,39 @@ class _TastyScreenState extends State<TastyScreen>
   void _handleMealPlanQuickAction(String action, bool isDarkMode) {
     if (!mounted) return;
 
-    // Dismiss keyboard first
-    FocusScope.of(context).unfocus();
-
-    // If custom action, focus the text input field (no confirmation needed)
+    // If custom action, enable input and focus the text input field (no confirmation needed)
     if (action == 'custom') {
-      // Use a small delay to ensure the UI is ready
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted && _textFieldFocusNode.canRequestFocus) {
-          _textFieldFocusNode.requestFocus();
-        }
+      // Hide quick actions first (reactive update)
+      _showQuickActions.value = false;
+      
+      // Enable input (reactive update)
+      _isInputEnabled.value = true;
+      
+      // Wait for the widget tree to rebuild before focusing
+      // Use addPostFrameCallback to ensure UI is fully updated
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Add a delay to ensure the input bar is fully rendered and visible
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && _textFieldFocusNode.canRequestFocus) {
+            // Unfocus any existing focus first, then focus the text field
+            FocusScope.of(context).unfocus();
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted && _textFieldFocusNode.canRequestFocus) {
+                _textFieldFocusNode.requestFocus();
+              }
+            });
+          }
+        });
       });
       return;
     }
 
+    // Dismiss keyboard first for other actions
+    FocusScope.of(context).unfocus();
+
     // For remix, show favorite meals dialog directly (no confirmation)
     if (action == 'remix') {
-      setState(() {
-        _showQuickActions = false;
-      });
+      _showQuickActions.value = false;
       _showFavoriteMealsDialog(context);
       return;
     }
@@ -961,9 +1051,7 @@ class _TastyScreenState extends State<TastyScreen>
                 // Ensure keyboard stays dismissed before executing action
                 FocusScope.of(context).unfocus();
                 // Hide quick actions after action is executed
-                setState(() {
-                  _showQuickActions = false;
-                });
+                _showQuickActions.value = false;
                 // Execute action
                 chatController.handleMealPlanQuickAction(action);
               },
@@ -1040,9 +1128,7 @@ class _TastyScreenState extends State<TastyScreen>
                           size: 20,
                         ),
                         onPressed: () {
-                          setState(() {
-                            _showQuickActions = false;
-                          });
+                          _showQuickActions.value = false;
                         },
                         tooltip: 'Close',
                         padding: EdgeInsets.zero,

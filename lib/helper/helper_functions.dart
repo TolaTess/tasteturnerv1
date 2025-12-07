@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import '../service/meal_planning_service.dart';
 
 Widget buildTastyFloatingActionButton({
   required BuildContext context,
@@ -29,11 +30,11 @@ Widget buildTastyFloatingActionButton({
     key: buttonKey,
     onPressed: () {
       if (canUseAI()) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const TastyScreen(screen: 'message'),
-          ),
+        Get.to(
+          () => const TastyScreen(screen: 'message'),
+          arguments: {
+            'mealPlanMode': false,
+          },
         );
       } else {
         showDialog(
@@ -104,7 +105,7 @@ Widget buildFullWidthAddMealButton({
               double.tryParse(value) ?? 0.0,
             ));
       }
-      
+
       final userMeal = UserMeal(
         name: meal.title,
         quantity: '1',
@@ -187,6 +188,111 @@ Widget buildFullWidthAddMealButton({
               Icon(
                 Icons.restaurant_menu,
                 color: kAccent,
+                size: getIconScale(6, context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget buildAddToScheduleButton({
+  required BuildContext context,
+  required Meal meal,
+  required DateTime date,
+  VoidCallback? onSuccess,
+  VoidCallback? onError,
+}) {
+  final isDarkMode = getThemeProvider(context).isDarkMode;
+  final textTheme = Theme.of(context).textTheme;
+
+  Future<void> addMealToSchedule() async {
+    try {
+      final mealPlanningService = MealPlanningService.instance;
+      final success = await mealPlanningService.addMealToCalendar(
+        [meal.mealId],
+        date,
+        mealType: null, // Let user choose or add without type
+        dayType: 'regular_day',
+      );
+
+      if (success && context.mounted) {
+        showTastySnackbar(
+          'Success',
+          'Added ${meal.title} to today\'s schedule',
+          context,
+        );
+        onSuccess?.call();
+      } else if (context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to add meal to schedule. Please try again later',
+          context,
+          backgroundColor: kRed,
+        );
+        onError?.call();
+      }
+    } catch (e) {
+      debugPrint('Error adding meal to schedule: $e');
+      if (context.mounted) {
+        showTastySnackbar(
+          'Error',
+          'Failed to add meal to schedule. Please try again later',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+      onError?.call();
+    }
+  }
+
+  return Container(
+    width: MediaQuery.of(context).size.width - getPercentageWidth(9, context),
+    height: getPercentageHeight(7, context),
+    decoration: BoxDecoration(
+      color: isDarkMode ? kBackgroundColor : kDarkGrey,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: kAccentLight.withValues(alpha: 0.2),
+          blurRadius: 5,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: addMealToSchedule,
+        child: Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: getPercentageWidth(4, context)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.calendar_today,
+                color: kAccentLight,
+                size: getIconScale(6, context),
+              ),
+              SizedBox(width: getPercentageWidth(3, context)),
+              Expanded(
+                child: Text(
+                  'Add to Schedule',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: kAccentLight,
+                    fontWeight: FontWeight.w600,
+                    fontSize: getTextScale(4, context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              Icon(
+                Icons.schedule,
+                color: kAccentLight,
                 size: getIconScale(6, context),
               ),
             ],
@@ -603,7 +709,7 @@ Color getRainbowColor(String rainbowValue) {
   if (rainbowValue.isEmpty || rainbowValue.trim().isEmpty) {
     return Colors.grey;
   }
-  
+
   // Normalize the value (handle case variations)
   final lowerValue = rainbowValue.toLowerCase().trim();
   switch (lowerValue) {
@@ -638,29 +744,29 @@ Color getRainbowColor(String rainbowValue) {
 // Check if current month matches the season string
 bool isCurrentlyInSeason(String season) {
   if (season.isEmpty) return false;
-  
+
   final now = DateTime.now();
   final currentMonth = now.month;
   final lowerSeason = season.toLowerCase().trim();
-  
+
   // Handle "all-year" or "year-round"
-  if (lowerSeason.contains('all-year') || 
+  if (lowerSeason.contains('all-year') ||
       lowerSeason.contains('year-round') ||
       lowerSeason.contains('all year')) {
     return true;
   }
-  
+
   // Map months to seasons
   // Spring: March (3), April (4), May (5)
   // Summer: June (6), July (7), August (8)
   // Fall/Autumn: September (9), October (10), November (11)
   // Winter: December (12), January (1), February (2)
-  
+
   bool isSpring = currentMonth >= 3 && currentMonth <= 5;
   bool isSummer = currentMonth >= 6 && currentMonth <= 8;
   bool isFall = currentMonth >= 9 && currentMonth <= 11;
   bool isWinter = currentMonth == 12 || currentMonth <= 2;
-  
+
   // Check various season formats
   if (lowerSeason.contains('spring')) {
     if (lowerSeason.contains('summer')) {
@@ -682,7 +788,7 @@ bool isCurrentlyInSeason(String season) {
   } else if (lowerSeason.contains('winter')) {
     return isWinter;
   }
-  
+
   return false;
 }
 
@@ -690,7 +796,7 @@ bool isCurrentlyInSeason(String season) {
 String getChefTermForFeature(String featureKey, String value) {
   final lowerKey = featureKey.toLowerCase();
   final lowerValue = value.toLowerCase().trim();
-  
+
   if (lowerKey == 'g_i' || lowerKey == 'gi' || lowerKey == 'glycemic_index') {
     // Extract numeric value if present
     final numericValue = _extractNumericValueFromString(value);
@@ -740,7 +846,7 @@ String getChefTermForFeature(String featureKey, String value) {
   } else if (lowerKey == 'rainbow') {
     return capitalizeFirstLetter(value);
   }
-  
+
   return capitalizeFirstLetter(value);
 }
 
@@ -752,7 +858,7 @@ double? _extractNumericValueFromString(String value) {
       .replaceAll('%', '')
       .replaceAll(' ', '')
       .trim();
-  
+
   try {
     return double.parse(cleaned);
   } catch (e) {
@@ -1221,7 +1327,6 @@ Future<void> handleCameraAction({
     final selectedOption = await showMediaSelectionDialog(
       isCamera: true,
       context: context,
-      isVideo: false,
     );
 
     if (selectedOption == null) {
@@ -1248,16 +1353,30 @@ Future<void> handleCameraAction({
 
     List<XFile> pickedImages = [];
 
+    final ImagePicker picker = ImagePicker();
+    
     if (selectedOption == 'photo') {
       // Take photo with camera
-      final ImagePicker picker = ImagePicker();
       final XFile? photo = await picker.pickImage(source: ImageSource.camera);
       if (photo != null) {
         pickedImages = [photo];
       }
     } else if (selectedOption == 'gallery') {
-      // Pick image from gallery using the existing modal
-      pickedImages = await openMultiImagePickerModal(context: context);
+      // Use OS native image picker for better performance and reliability
+      try {
+        pickedImages = await picker.pickMultiImage(
+          imageQuality: 85,
+          maxWidth: 2048,
+          maxHeight: 2048,
+        );
+      } catch (e) {
+        debugPrint('Error picking images: $e');
+        hideLoadingDialog(context);
+        if (onError != null) {
+          onError();
+        }
+        return;
+      }
     }
 
     if (pickedImages.isEmpty) {
@@ -1363,11 +1482,11 @@ Widget buildFullWidthHomeButton({
 
   Future<void> navigateToTasty() async {
     if (canUseAI()) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const TastyScreen(screen: 'message'),
-        ),
+      Get.to(
+        () => const TastyScreen(screen: 'message'),
+        arguments: {
+          'mealPlanMode': false,
+        },
       );
     } else {
       showDialog(
@@ -1513,10 +1632,10 @@ Widget buildFullWidthHomeButton({
   );
 }
 
-Future<String?> showMediaSelectionDialog(
-    {required bool isCamera,
-    required BuildContext context,
-    bool isVideo = false}) async {
+Future<String?> showMediaSelectionDialog({
+  required bool isCamera,
+  required BuildContext context,
+}) async {
   return await showDialog<String>(
     context: context,
     builder: (BuildContext context) {
@@ -1531,22 +1650,14 @@ Future<String?> showMediaSelectionDialog(
                 'title': 'Take Photo',
                 'value': 'photo'
               },
-              if (isVideo)
-                {
-                  'icon': Icons.video_library,
-                  'title': 'Take Video',
-                  'value': 'video'
-                },
-              if (!isVideo)
-                {
-                  'icon': Icons.photo_library,
-                  'title': 'Pick from Gallery',
-                  'value': 'gallery'
-                },
+              {
+                'icon': Icons.photo_library,
+                'title': 'Pick from Gallery',
+                'value': 'gallery'
+              },
             ]
           : [
               {'icon': Icons.photo, 'title': 'Photos', 'value': 'photos'},
-              {'icon': Icons.video_library, 'title': 'Video', 'value': 'video'},
             ];
 
       return AlertDialog(

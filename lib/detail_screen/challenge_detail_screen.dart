@@ -21,7 +21,6 @@ import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/info_icon_widget.dart';
-import '../widgets/video_player_widget.dart';
 import 'recipe_detail.dart';
 
 class ChallengeDetailScreen extends StatefulWidget {
@@ -59,11 +58,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   bool hasMeal = false;
   List<String> extractedItems = [];
   Map<String, dynamic> get _currentPostData => _posts[_currentIndex];
-
-  // Video optimization variables
-  Set<int> _loadedVideoIndices = {}; // Track which videos are loaded
-  Set<int> _preloadedVideoIndices = {}; // Track preloaded videos
-  final Set<String> _playingVideos = {}; // Track currently playing videos
 
   @override
   void initState() {
@@ -104,12 +98,6 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   void dispose() {
     _animationController.dispose();
     _pageController.dispose();
-
-    // Clean up video tracking
-    _loadedVideoIndices.clear();
-    _preloadedVideoIndices.clear();
-    _playingVideos.clear();
-
     super.dispose();
   }
 
@@ -118,22 +106,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
       _currentIndex = index;
     });
 
-    // Cleanup distant videos to free memory
-    _cleanupDistantVideos(index);
-
     _loadCurrentPostData();
-  }
-
-  void _cleanupDistantVideos(int currentIndex) {
-    // Remove videos that are more than 2 pages away
-    final distantIndices = _loadedVideoIndices
-        .where((index) => (index - currentIndex).abs() > 2)
-        .toList();
-
-    for (final index in distantIndices) {
-      _loadedVideoIndices.remove(index);
-      _preloadedVideoIndices.remove(index);
-    }
   }
 
   void _loadCurrentPostData() {
@@ -348,8 +321,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   // AI analysis flow
   Future<void> _analyzeWithAI(bool isDarkMode) async {
     try {
-     
-     showLoadingDialog(context);
+      showLoadingDialog(context);
 
       // Get the first image from the post
       final mediaPaths =
@@ -564,105 +536,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
   Widget _buildMediaContent(String url,
       {bool isCurrentPage = true, int? pageIndex}) {
-    // Enhanced video detection
-    final videoExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv'];
-    final isVideoByExtension =
-        videoExtensions.any((ext) => url.toLowerCase().contains(ext));
-    final isVideoByData = _currentPostData['isVideo'] == true;
-    final isVideo = isVideoByExtension || isVideoByData;
-
-    if (isVideo) {
-      return _buildOptimizedVideoPlayer(url,
-          isCurrentPage: isCurrentPage, pageIndex: pageIndex);
-    }
-
     return _buildImageContent(url);
-  }
-
-  Widget _buildOptimizedVideoPlayer(String url,
-      {bool isCurrentPage = true, int? pageIndex}) {
-    final shouldAutoPlay = isCurrentPage && pageIndex == _currentIndex;
-    final shouldPreload = pageIndex != null &&
-        (pageIndex == _currentIndex - 1 || pageIndex == _currentIndex + 1);
-
-    // For non-current pages, show thumbnail with play button
-    if (!isCurrentPage && pageIndex != _currentIndex) {
-      return _buildVideoThumbnail(url, pageIndex ?? 0);
-    }
-
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      child: OptimizedVideoPlayerWidget(
-        videoUrl: url,
-        autoPlay: shouldAutoPlay, // Only auto-play current video
-        preload: shouldPreload,
-        onVideoLoaded: () {
-          if (pageIndex != null) {
-            _loadedVideoIndices.add(pageIndex);
-          }
-        },
-        onVideoDisposed: () {
-          if (pageIndex != null) {
-            _loadedVideoIndices.remove(pageIndex);
-            _preloadedVideoIndices.remove(pageIndex);
-          }
-        },
-        // Better performance settings
-        enableControls: true,
-        showLoadingIndicator: true,
-        bufferDuration:
-            const Duration(seconds: 3), // Smaller buffer for faster loading
-      ),
-    );
-  }
-
-  Widget _buildVideoThumbnail(String videoUrl, int pageIndex) {
-    return Stack(
-      children: [
-        // Blurred background
-        Positioned.fill(
-          child: Container(
-            color: Colors.black.withValues(alpha: 0.8),
-            child: Center(
-              child: Icon(
-                Icons.play_circle_outline,
-                size: 80,
-                color: kWhite.withValues(alpha: 0.8),
-              ),
-            ),
-          ),
-        ),
-        // Thumbnail if available
-        Center(
-          child: GestureDetector(
-            onTap: () {
-              // Load video when thumbnail is tapped
-              setState(() {
-                _currentIndex = pageIndex;
-                _pageController.animateToPage(
-                  pageIndex,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: kAccent.withValues(alpha: 0.9),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.play_arrow,
-                size: 60,
-                color: kWhite,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildImageContent(String url) {
@@ -743,7 +617,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text( 
+            Text(
               'by Chef ${capitalizeFirstLetter(getTitle())}',
               textAlign: TextAlign.center,
               maxLines: 2,
@@ -951,9 +825,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           size: getResponsiveBoxSize(context, 23, 23),
                         ),
                       ),
-                      if (!hasMeal && _currentPostData['isVideo'] != true)
+                      if (!hasMeal)
                         SizedBox(width: getPercentageWidth(4, context)),
-                      if (!hasMeal && _currentPostData['isVideo'] != true)
+                      if (!hasMeal)
                         GestureDetector(
                           onTap: () {
                             _showRecipeChoiceDialog();
