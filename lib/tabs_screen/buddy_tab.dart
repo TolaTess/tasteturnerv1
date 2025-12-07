@@ -139,8 +139,13 @@ class _BuddyTabState extends State<BuddyTab> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _initializeFamilyMode();
-    _initializeBuddyData();
+    // Defer to avoid calling setState/markNeedsBuild during build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeFamilyMode();
+        _initializeBuddyData();
+      }
+    });
   }
 
   void _initializeFamilyMode() {

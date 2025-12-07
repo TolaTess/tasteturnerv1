@@ -408,6 +408,8 @@ class _DailyRoutineListHorizontalState
           String value = item.value;
 
           if (item.title.toLowerCase().contains('nutrition') ||
+              item.title.toLowerCase().contains('meal') ||
+              item.title.toLowerCase().contains('meals') ||
               item.title.toLowerCase().contains('food')) {
             value =
                 '${userService.currentUser.value?.settings['foodGoal'] ?? '0'} kcal';

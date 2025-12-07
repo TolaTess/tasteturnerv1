@@ -57,7 +57,12 @@ class SearchContentGridState extends State<SearchContentGrid> {
     // Refetch content when category or filter changes
     if (oldWidget.selectedCategory != widget.selectedCategory ||
         oldWidget.filterByRecipe != widget.filterByRecipe) {
-      fetchContent();
+      // Defer to avoid calling setState/markNeedsBuild during build phase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          fetchContent();
+        }
+      });
     }
   }
 

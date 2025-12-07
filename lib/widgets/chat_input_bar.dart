@@ -82,15 +82,7 @@ class ChatInputBar extends StatelessWidget {
       child: SafeArea(
         child: Row(
           children: [
-            // Camera Button
-            _buildIconButton(
-              context,
-              icon: Icons.camera_alt_outlined,
-              onTap: enabled && canUseAI ? onImagePick : null,
-              tooltip: 'Send Image',
-            ),
-            SizedBox(width: getPercentageWidth(2, context)),
-
+            // Camera Button removed - now in meal plan quick actions
             // Main Input Field
             Expanded(
               child: Container(
@@ -174,38 +166,6 @@ class ChatInputBar extends StatelessWidget {
             // Send Button
             _buildSendButton(context),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIconButton(
-    BuildContext context, {
-    required IconData icon,
-    required VoidCallback? onTap,
-    required String tooltip,
-  }) {
-    final theme = Theme.of(context);
-    final isEnabled = onTap != null;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: isEnabled
-                ? theme.colorScheme.primary.withOpacity(0.1)
-                : theme.disabledColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            icon,
-            color: isEnabled ? theme.colorScheme.primary : theme.disabledColor,
-            size: 22,
-          ),
         ),
       ),
     );

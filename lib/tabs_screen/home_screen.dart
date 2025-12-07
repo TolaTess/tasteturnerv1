@@ -12,9 +12,11 @@ import '../constants.dart';
 import '../helper/helper_functions.dart';
 import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
+import '../pages/leaderboard.dart';
 import '../pages/profile_edit_screen.dart';
 import '../pages/program_progress_screen.dart';
 import '../screens/add_food_screen.dart';
+import '../screens/daily_summary_screen.dart';
 import '../screens/message_screen.dart';
 import '../service/tasty_popup_service.dart';
 import '../service/program_service.dart';
@@ -66,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlobalKey _addShoppingButtonKey = GlobalKey();
   final GlobalKey _addRecipeButtonKey = GlobalKey();
   final GlobalKey _addMessageButtonKey = GlobalKey();
+  final GlobalKey _yesterdaySummaryKey = GlobalKey();
   String? _shoppingDay;
   int selectedUserIndex = 0;
   bool hasMealPlan = true;
@@ -156,11 +159,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (!mounted) return;
 
         // Initialize ads in background (not critical for startup)
-        try {
-          await MobileAds.instance.initialize();
-          debugPrint('Ads initialized successfully');
-        } catch (e) {
-          debugPrint('Error initializing ads: $e');
+        // Skip ad initialization for premium users
+        final isPremium = userService.currentUser.value?.isPremium ?? false;
+        if (!isPremium) {
+          try {
+            await MobileAds.instance.initialize();
+            debugPrint('Ads initialized successfully');
+          } catch (e) {
+            debugPrint('Error initializing ads: $e');
+          }
+        } else {
+          debugPrint('Skipping ad initialization - user is premium');
         }
       });
     });
@@ -1248,25 +1257,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            // Streak Card
+            //Points Card
             _buildStatCard(
               context: context,
-              icon: Icons.local_fire_department,
-              iconColor: Colors.orange,
-              value: badgeService.streakDays.value.toString(),
-              label: 'Day Streak',
+              icon: Icons.star,
+              iconColor: Colors.amber,
+              value: badgeService.totalPoints.value.toString(),
+              label: 'Points',
               isDarkMode: isDarkMode,
               textTheme: textTheme,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => BadgesScreen(),
+                    builder: (context) => const LeaderboardScreen(),
                   ),
                 );
               },
             ),
-            // Divider
+            //Divider
             Container(
               width: 1,
               height: getPercentageHeight(4, context),
@@ -1296,25 +1305,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               height: getPercentageHeight(4, context),
               color: kAccent.withValues(alpha: 0.2),
             ),
-            // Points Card
-            // _buildStatCard(
-            //   context: context,
-            //   icon: Icons.star,
-            //   iconColor: Colors.amber,
-            //   value: badgeService.totalPoints.value.toString(),
-            //   label: 'points',
-            //   isDarkMode: isDarkMode,
-            //   textTheme: textTheme,
-            //   onTap: () {
-            //     Navigator.push(
-            //       context,
-            //       MaterialPageRoute(
-            //         builder: (context) => const ProfileScreen(),
-            //       ),
-            //     );
-            //   },
-            // ),
-            // Divider
+
             Container(
               width: 1,
               height: getPercentageHeight(4, context),
@@ -1716,7 +1707,58 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                     // Quick Stats Row (Streak, Badges, Points, Rainbow Tracker)
                     _buildQuickStatsRow(context, isDarkMode, textTheme),
-                    SizedBox(height: getPercentageHeight(2, context)),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    // Daily Summary Link
+                    Padding(
+                      key: _yesterdaySummaryKey,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: getPercentageWidth(4, context)),
+                      child: GestureDetector(
+                        onTap: () {
+                          final date =
+                              DateTime.now().subtract(const Duration(days: 1));
+                          Get.to(() => DailySummaryScreen(date: date));
+                        },
+                        child: Container(
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(3, context)),
+                          decoration: BoxDecoration(
+                            color: kAccentLight.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: kAccentLight.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Icon(
+                                Icons.insights,
+                                color: kAccentLight,
+                                size: getIconScale(4, context),
+                              ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Text(
+                                'View Yesterday\'s Service',
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: kAccentLight,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(width: getPercentageWidth(1, context)),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: kAccentLight,
+                                size: getIconScale(3.5, context),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: getPercentageHeight(1, context)),
 
                     // Milestones tracker
                     Obx(() => GestureDetector(

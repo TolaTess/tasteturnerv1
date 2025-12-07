@@ -2975,7 +2975,7 @@ class _DineInScreenState extends State<DineInScreen> {
           SizedBox(height: getPercentageHeight(1, context)),
         ],
 
-        SizedBox(height: getPercentageHeight(2, context)),
+        SizedBox(height: getPercentageHeight(1, context)),
         // Current ingredients list
         // In pantry mode: show pantry items from Firestore
         // In fridge mode: show fridgeIngredients (items added from pantry or manually)
@@ -3058,8 +3058,42 @@ class _DineInScreenState extends State<DineInScreen> {
               );
             }).toList(),
           ),
-          SizedBox(height: getPercentageHeight(2, context)),
+          SizedBox(height: getPercentageHeight(0.5, context)),
 
+          // Display generated recipes - only in fridge mode, not pantry mode
+          if (!isPantryMode &&
+              _showFridgeRecipes &&
+              _fridgeRecipes.isNotEmpty) ...[
+            SizedBox(height: getPercentageHeight(2, context)),
+            Row(
+              children: [
+                Text(
+                  'Dishes Using Your Ingredients',
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: kAccent,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Icon(
+                  Icons.save,
+                  size: 16,
+                  color: kAccentLight,
+                ),
+                Text(
+                  'Saved',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: kAccentLight,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: getPercentageHeight(1, context)),
+            ...(_fridgeRecipes.map(
+                (recipe) => _buildRecipeCard(recipe, isDarkMode, textTheme))),
+          ],
+          SizedBox(height: getPercentageHeight(1.5, context)),
           // Generate recipes button - only show in fridge mode (not pantry mode)
           if (!isPantryMode && fridgeIngredients.isNotEmpty) ...[
             // Filter button - always show above Generate Recipes button
@@ -3115,6 +3149,7 @@ class _DineInScreenState extends State<DineInScreen> {
               ),
             ),
             SizedBox(height: getPercentageHeight(1.5, context)),
+
             // Use fridgeIngredients count in fridge mode
             if (fridgeIngredients.length >= 3) ...[
               SizedBox(
@@ -3173,40 +3208,6 @@ class _DineInScreenState extends State<DineInScreen> {
               ),
             ),
           ),
-        ],
-
-        // Display generated recipes - only in fridge mode, not pantry mode
-        if (!isPantryMode &&
-            _showFridgeRecipes &&
-            _fridgeRecipes.isNotEmpty) ...[
-          SizedBox(height: getPercentageHeight(2, context)),
-          Row(
-            children: [
-              Text(
-                'Dishes Using Your Ingredients',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: kAccent,
-                ),
-              ),
-              SizedBox(width: 8),
-              Icon(
-                Icons.save,
-                size: 16,
-                color: kAccentLight,
-              ),
-              Text(
-                'Saved',
-                style: textTheme.bodySmall?.copyWith(
-                  color: kAccentLight,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: getPercentageHeight(1, context)),
-          ...(_fridgeRecipes.map(
-              (recipe) => _buildRecipeCard(recipe, isDarkMode, textTheme))),
         ],
       ],
     );

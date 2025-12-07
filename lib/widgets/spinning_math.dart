@@ -248,7 +248,12 @@ class _PieChartState extends State<PieChart> {
     super.didUpdateWidget(oldWidget);
     if (widget.labels != currentLabels) {
       currentLabels = widget.labels;
-      setState(() {});
+      // Defer setState to avoid calling setState/markNeedsBuild during build phase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
     }
     widget.onImagesLoaded();
   }

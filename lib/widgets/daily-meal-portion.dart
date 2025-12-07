@@ -116,7 +116,15 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userProgram != widget.userProgram ||
         oldWidget.selectedUser != widget.selectedUser) {
-      _buildFoodTypesFromProgram();
+      // Defer to avoid calling setState/markNeedsBuild during build phase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _buildFoodTypesFromProgram();
+          setState(() {
+            // Trigger rebuild to reflect _foodTypes changes
+          });
+        }
+      });
     }
   }
 

@@ -229,13 +229,18 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       _tabController.addListener(_handleTabIndex);
     }
 
-    // Only update premium status if it changed, avoid unnecessary refresh
-    final newPremiumStatus = userService.currentUser.value?.isPremium ?? false;
-    if (newPremiumStatus != isPremium && mounted) {
-      setState(() {
-        isPremium = newPremiumStatus;
-      });
-    }
+    // Defer setState to avoid calling setState/markNeedsBuild during build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // Only update premium status if it changed, avoid unnecessary refresh
+        final newPremiumStatus = userService.currentUser.value?.isPremium ?? false;
+        if (newPremiumStatus != isPremium) {
+          setState(() {
+            isPremium = newPremiumStatus;
+          });
+        }
+      }
+    });
     // Removed _onRefresh() call - it's inefficient to refresh on every dependency change
   }
 
