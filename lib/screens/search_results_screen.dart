@@ -79,13 +79,23 @@ class _SearchResultGridState extends State<SearchResultGrid> {
         widget.search.toLowerCase() != 'general' &&
         widget.search.toLowerCase() != 'all') {
       _lastSearchQuery = widget.search;
-      _performSearch();
+      // Defer to avoid calling setState/markNeedsBuild during build phase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _performSearch();
+        }
+      });
     } else if (widget.search != _lastSearchQuery) {
       // If search changed to empty/general/all, just reset without fetching
       _lastSearchQuery = widget.search;
-      _apiMeals.clear();
-      _localMealsDisplayed.value = _localPageSize;
-      _hasMore.value = mealManager.meals.length > _localPageSize;
+      // Defer observable updates to avoid triggering reactive rebuilds during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _apiMeals.clear();
+          _localMealsDisplayed.value = _localPageSize;
+          _hasMore.value = mealManager.meals.length > _localPageSize;
+        }
+      });
     }
   }
 

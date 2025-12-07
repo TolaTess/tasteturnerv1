@@ -297,7 +297,7 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
   final isBuddyChat = chatController is BuddyChatController;
 
   if (isBuddyChat) {
-    // For buddy chat, send image and trigger AI analysis
+    // For buddy chat, send image
     final messageContent = caption?.isNotEmpty == true ? caption : '';
     await chatController.sendMessage(
       messageContent: messageContent,
@@ -305,9 +305,12 @@ Future<void> handleImageSend(List<File> images, String? caption, String chatId,
       isPrivate: true,
     );
 
-    // Trigger AI analysis of the image
-    await _triggerAIImageAnalysis(
-        uploadedUrls, caption, chatId, chatController, scrollController);
+    // Only trigger AI analysis in meal plan mode
+    // In sous chef mode, images are just sent without analysis
+    if (chatController.currentMode.value == 'meal') {
+      await _triggerAIImageAnalysis(
+          uploadedUrls, caption, chatId, chatController, scrollController);
+    }
   } else {
     // For regular chats, create a post and send the message
     final postRef = firestore.collection('posts').doc();

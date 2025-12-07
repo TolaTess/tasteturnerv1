@@ -336,12 +336,25 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         uploadedImageUrls.addAll(mediaPaths);
       } else {
         for (final image in _selectedImages) {
+          // Compress image before upload using shared utility
+          final String compressedPath = await compressImageForUpload(
+            image.path,
+            maxDimension: 1200, // Standard size for recipe images
+          );
+
           String filePath =
               'meals/$mealId/${userService.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
           TaskSnapshot uploadTask =
-              await firebaseStorage.ref(filePath).putFile(File(image.path));
+              await firebaseStorage.ref(filePath).putFile(File(compressedPath));
           String downloadUrl = await uploadTask.ref.getDownloadURL();
+
+          // Clean up temporary compressed file
+          try {
+            await File(compressedPath).delete();
+          } catch (e) {
+            debugPrint('Error deleting temporary compressed file: $e');
+          }
 
           uploadedImageUrls.add(downloadUrl);
         }
@@ -766,27 +779,43 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 Center(
                   child: InkWell(
                     onTap: () async {
-                      List<XFile> pickedImages =
-                          await openMultiImagePickerModal(context: context);
+                      try {
+                        final ImagePicker picker = ImagePicker();
+                        List<XFile> pickedImages = await picker.pickMultiImage(
+                          imageQuality: 85,
+                          maxWidth: 2048,
+                          maxHeight: 2048,
+                        );
 
-                      if (pickedImages.isNotEmpty) {
-                        List<XFile> croppedImages = [];
-                        for (final img in pickedImages) {
-                          final XFile? cropped = await cropImage(
-                            img,
-                            context,
-                            getThemeProvider(context).isDarkMode,
-                          );
-                          if (cropped != null) {
-                            croppedImages.add(cropped);
+                        if (pickedImages.isNotEmpty) {
+                          List<XFile> croppedImages = [];
+                          for (final img in pickedImages) {
+                            final XFile? cropped = await cropImage(
+                              img,
+                              context,
+                              getThemeProvider(context).isDarkMode,
+                            );
+                            if (cropped != null) {
+                              croppedImages.add(cropped);
+                            }
+                          }
+                          if (croppedImages.isNotEmpty) {
+                            setState(() {
+                              _selectedImages = croppedImages;
+                              _recentImage = croppedImages.first;
+                              _recentNetworkImage = null;
+                            });
                           }
                         }
-                        if (croppedImages.isNotEmpty) {
-                          setState(() {
-                            _selectedImages = croppedImages;
-                            _recentImage = croppedImages.first;
-                            _recentNetworkImage = null;
-                          });
+                      } catch (e) {
+                        debugPrint('Error picking images: $e');
+                        if (mounted) {
+                          showTastySnackbar(
+                            'Error',
+                            'Failed to pick images. Please try again.',
+                            context,
+                            backgroundColor: kRed,
+                          );
                         }
                       }
                     },

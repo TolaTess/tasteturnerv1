@@ -17,8 +17,6 @@ import '../widgets/icon_widget.dart';
 import '../screens/premium_screen.dart';
 import '../data_models/meal_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:permission_handler/permission_handler.dart';
 
 class TastyScreen extends StatefulWidget {
   final String screen;
@@ -37,11 +35,6 @@ class _TastyScreenState extends State<TastyScreen>
 
   late BuddyChatController chatController;
   late TabController _tabController;
-
-  // Speech-to-text
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  bool _isListening = false;
-  String _recognizedText = '';
 
   // Quick actions visibility state (use RxBool for reactive updates)
   final RxBool _showQuickActions = true.obs;
@@ -220,175 +213,8 @@ class _TastyScreenState extends State<TastyScreen>
     }
   }
 
-  // Speech-to-text methods
-  Future<void> _startListening() async {
-    // Check microphone permission status
-    final status = await Permission.microphone.status;
-
-    if (status.isDenied) {
-      // Request permission
-      final requestResult = await Permission.microphone.request();
-      if (!requestResult.isGranted) {
-        if (mounted) {
-          showTastySnackbar(
-            'Permission Required',
-            'Microphone permission is needed for voice notes.',
-            context,
-            backgroundColor: kRed,
-          );
-        }
-        return;
-      }
-    } else if (status.isPermanentlyDenied || status.isRestricted) {
-      // Permission permanently denied or restricted - open settings
-      if (mounted) {
-        final shouldOpenSettings = await showDialog<bool>(
-          context: context,
-          builder: (BuildContext context) {
-            final isDarkMode = getThemeProvider(context).isDarkMode;
-            final textTheme = Theme.of(context).textTheme;
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-              title: Text(
-                'Microphone Permission Required',
-                style: textTheme.titleMedium?.copyWith(
-                  color: isDarkMode ? kWhite : kBlack,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: Text(
-                'Microphone access was denied. To use voice notes, please enable microphone permission in Settings → TasteTurner → Microphone.',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: isDarkMode ? kWhite.withOpacity(0.9) : kDarkGrey,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: Text(
-                    'Cancel',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: isDarkMode ? kWhite.withOpacity(0.7) : kLightGrey,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: Text(
-                    'Open Settings',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: kWhite,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-
-        if (shouldOpenSettings == true) {
-          await openAppSettings();
-        }
-      }
-      return;
-    } else if (!status.isGranted) {
-      if (mounted) {
-        showTastySnackbar(
-          'Permission Required',
-          'Microphone permission is needed for voice notes.',
-          context,
-          backgroundColor: kRed,
-        );
-      }
-      return;
-    }
-
-    // Check if speech recognition is available
-    bool available = await _speech.initialize(
-      onStatus: (status) {
-        if (mounted) {
-          setState(() {
-            if (status == 'done' || status == 'notListening') {
-              _isListening = false;
-            }
-          });
-        }
-      },
-      onError: (error) {
-        debugPrint('Speech recognition error: $error');
-        if (mounted) {
-          setState(() {
-            _isListening = false;
-          });
-          showTastySnackbar(
-            'Speech Error',
-            'Failed to recognize speech. Please try again.',
-            context,
-            backgroundColor: kRed,
-          );
-        }
-      },
-    );
-
-    if (!available) {
-      if (mounted) {
-        showTastySnackbar(
-          'Not Available',
-          'Speech recognition is not available on this device.',
-          context,
-          backgroundColor: kRed,
-        );
-      }
-      return;
-    }
-
-    if (mounted) {
-      setState(() {
-        _isListening = true;
-        _recognizedText = '';
-      });
-    }
-
-    // Start listening
-    await _speech.listen(
-      onResult: (result) {
-        if (mounted) {
-          setState(() {
-            _recognizedText = result.recognizedWords;
-            // Update text controller with recognized text
-            textController.text = _recognizedText;
-          });
-        }
-      },
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 3),
-      partialResults: true,
-      localeId: 'en_US',
-    );
-  }
-
-  Future<void> _stopListening() async {
-    await _speech.stop();
-    if (mounted) {
-      setState(() {
-        _isListening = false;
-      });
-    }
-  }
-
   @override
   void dispose() {
-    _speech.stop();
     _scrollController.dispose();
     textController.dispose();
     _textFieldFocusNode.dispose();
@@ -664,7 +490,7 @@ class _TastyScreenState extends State<TastyScreen>
                     return ChatInputBar(
                       controller: textController,
                       focusNode: _textFieldFocusNode,
-                      isListening: _isListening,
+                      isListening: false,
                       canUseAI: canUseAI(),
                       enabled: isInputEnabled,
                       onSend: () async {
@@ -678,8 +504,10 @@ class _TastyScreenState extends State<TastyScreen>
                         try {
                           final ImagePicker picker = ImagePicker();
                           // Pick at full quality, we'll compress properly in handleImageSend
-                          List<XFile> pickedImages = await picker.pickMultiImage(
-                            imageQuality: 100, // Full quality to avoid color shifts
+                          List<XFile> pickedImages =
+                              await picker.pickMultiImage(
+                            imageQuality:
+                                100, // Full quality to avoid color shifts
                           );
 
                           if (pickedImages.isNotEmpty) {
@@ -707,8 +535,9 @@ class _TastyScreenState extends State<TastyScreen>
                           }
                         }
                       },
-                      onVoiceToggle:
-                          _isListening ? _stopListening : _startListening,
+                      onVoiceToggle: () {
+                        // Microphone functionality removed
+                      },
                     );
                   }),
                   SizedBox(height: getPercentageHeight(3, context)),
@@ -762,7 +591,6 @@ class _TastyScreenState extends State<TastyScreen>
         if (modeIndex >= 0 && modeIndex < 2) {
           _tabController.index = modeIndex;
         }
-
       } else {
         // New chat - create it and listen
         await chatController.initializeChat('buddy');
@@ -803,7 +631,6 @@ class _TastyScreenState extends State<TastyScreen>
       }
     }
   }
-
 
   // Show favorite meals dialog for remix selection
   Future<void> _showFavoriteMealsDialog(BuildContext context) async {
@@ -946,10 +773,10 @@ class _TastyScreenState extends State<TastyScreen>
     if (action == 'custom') {
       // Hide quick actions first (reactive update)
       _showQuickActions.value = false;
-      
+
       // Enable input (reactive update)
       _isInputEnabled.value = true;
-      
+
       // Wait for the widget tree to rebuild before focusing
       // Use addPostFrameCallback to ensure UI is fully updated
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1207,18 +1034,61 @@ class _TastyScreenState extends State<TastyScreen>
                   ),
                   SizedBox(height: getPercentageHeight(1, context)),
 
-                  // Custom option
-                  OutlinedButton.icon(
-                    onPressed: () =>
-                        _handleMealPlanQuickAction('custom', isDarkMode),
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Type my own request'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  // Custom option and Image picker in a row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _handleMealPlanQuickAction('custom', isDarkMode),
+                          icon: const Icon(Icons.edit, size: 18),
+                          label: const Text('Type my own request'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 44),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      // Image picker button
+                      Material(
+                        color: Theme.of(context).colorScheme.surfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: () async {
+                            await handleCameraAction(
+                              context: context,
+                              date: DateTime.now(),
+                              isDarkMode: getThemeProvider(context).isDarkMode,
+                              mealType: null,
+                              onSuccess: () {
+                                // Hide quick actions after successful image analysis
+                                _showQuickActions.value = false;
+                              },
+                              onError: () {
+                                // Error handling is done in handleCameraAction
+                              },
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.camera_alt_outlined,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

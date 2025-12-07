@@ -192,9 +192,14 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
     if (oldWidget.customLabels != widget.customLabels ||
         oldWidget.mealList != widget.mealList ||
         oldWidget.labels != widget.labels) {
-      _updateLabels();
-      setState(() {
-        _spinningWheelKey = UniqueKey();
+      // Defer to avoid calling setState/markNeedsBuild during build phase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _updateLabels();
+          setState(() {
+            _spinningWheelKey = UniqueKey();
+          });
+        }
       });
     }
   }

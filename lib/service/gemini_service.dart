@@ -353,7 +353,8 @@ class GeminiService {
           'programId': programId,
           'basicProgram': basicProgram,
           if (formData != null) 'formData': formData,
-          if (conversationContext != null) 'conversationContext': conversationContext,
+          if (conversationContext != null)
+            'conversationContext': conversationContext,
         },
         operation: 'enrich program',
       );
@@ -2962,7 +2963,8 @@ class GeminiService {
   }
 
   /// Build streamlined context string for AI prompts (reduced token usage)
-  Future<String> _buildAIContext({bool includeDiet = true, bool includeProgramContext = true}) async {
+  Future<String> _buildAIContext(
+      {bool includeDiet = true, bool includeProgramContext = true}) async {
     final userContext = await _getUserContext();
 
     String context = '';
@@ -3014,7 +3016,8 @@ class GeminiService {
       {int maxTokens = 8000,
       String? role,
       bool includeDietContext = true,
-      bool includeProgramContext = true}) async {
+      bool includeProgramContext = true,
+      List<Map<String, String>>? conversationHistory}) async {
     // Initialize model if not already done
     if (_activeModel == null) {
       final initialized = await initializeModel();
@@ -3032,21 +3035,37 @@ class GeminiService {
     // Add brevity instruction and context to the role/prompt
     final briefingInstruction =
         "Please provide brief, concise responses in 2-4 sentences maximum. ";
-    final modifiedPrompt = role != null
-        ? '$briefingInstruction\n${aiContext.isNotEmpty ? '$aiContext\n' : ''}$role\nUser: $prompt'
-        : '$briefingInstruction\n${aiContext.isNotEmpty ? '$aiContext\n' : ''}User: $prompt';
+    final contextPrefix = role != null
+        ? '$briefingInstruction\n${aiContext.isNotEmpty ? '$aiContext\n' : ''}$role\n'
+        : '$briefingInstruction\n${aiContext.isNotEmpty ? '$aiContext\n' : ''}';
+
+    // Build contents array with conversation history
+    // Gemini API expects alternating user/model messages without explicit roles
+    List<Map<String, dynamic>> contents = [];
+
+    // Add conversation history if provided
+    if (conversationHistory != null && conversationHistory.isNotEmpty) {
+      for (final msg in conversationHistory) {
+        contents.add({
+          "parts": [
+            {"text": msg['text'] ?? ''}
+          ]
+        });
+      }
+    }
+
+    // Add current user prompt with context
+    contents.add({
+      "parts": [
+        {"text": '$contextPrefix$prompt'}
+      ]
+    });
 
     try {
       final response = await _makeApiCallWithRetry(
         endpoint: '${_activeModel}:generateContent',
         body: {
-          "contents": [
-            {
-              "parts": [
-                {"text": modifiedPrompt}
-              ]
-            }
-          ],
+          "contents": contents,
           "generationConfig": {
             "temperature": 0.7,
             "topK": 40,
@@ -3080,11 +3099,13 @@ class GeminiService {
               if (text == null || text.trim().isEmpty) {
                 // Return empty string for MAX_TOKENS to allow caller to handle gracefully
                 if (finishReason == 'MAX_TOKENS') {
-                  debugPrint('[Gemini] MAX_TOKENS with no text content - returning empty string');
+                  debugPrint(
+                      '[Gemini] MAX_TOKENS with no text content - returning empty string');
                   return '';
                 }
                 // For other cases with no text, return empty string
-                debugPrint('[Gemini] No text content in response - returning empty string');
+                debugPrint(
+                    '[Gemini] No text content in response - returning empty string');
                 return '';
               }
 
@@ -3098,29 +3119,35 @@ class GeminiService {
             } else {
               // No text field in part - return empty string for MAX_TOKENS, let caller handle
               if (finishReason == 'MAX_TOKENS') {
-                debugPrint('[Gemini] MAX_TOKENS with no text field - returning empty string');
+                debugPrint(
+                    '[Gemini] MAX_TOKENS with no text field - returning empty string');
                 return '';
               }
-              debugPrint('[Gemini] No text field in part - returning empty string');
+              debugPrint(
+                  '[Gemini] No text field in part - returning empty string');
               return '';
             }
           } else {
             // No content parts - return empty string for MAX_TOKENS, let caller handle
             if (finishReason == 'MAX_TOKENS') {
-              debugPrint('[Gemini] MAX_TOKENS with no content parts - returning empty string');
+              debugPrint(
+                  '[Gemini] MAX_TOKENS with no content parts - returning empty string');
               return '';
             }
-            debugPrint('[Gemini] No content parts in response - returning empty string');
+            debugPrint(
+                '[Gemini] No content parts in response - returning empty string');
             return '';
           }
         } else {
           // No content in candidate - return empty string for MAX_TOKENS, let caller handle
           final finishReason = candidate['finishReason'] as String?;
           if (finishReason == 'MAX_TOKENS') {
-            debugPrint('[Gemini] MAX_TOKENS with no content - returning empty string');
+            debugPrint(
+                '[Gemini] MAX_TOKENS with no content - returning empty string');
             return '';
           }
-          debugPrint('[Gemini] No content in candidate - returning empty string');
+          debugPrint(
+              '[Gemini] No content in candidate - returning empty string');
           return '';
         }
       } else {
@@ -4149,22 +4176,32 @@ Generate $mealCount meals. Return JSON only:
   /// then save basic data for Firebase Functions processing
   Future<Map<String, dynamic>> generateMealsIntelligently(
       String prompt, String contextInformation, String cuisine,
-      {int mealCount = 10, bool partOfWeeklyMeal = false, String weeklyPlanContext = ''}) async {
+      {int mealCount = 10,
+      Map<String, int>? distribution,
+      bool partOfWeeklyMeal = false,
+      String weeklyPlanContext = ''}) async {
     try {
       // Try cloud function first for better performance
       try {
         debugPrint(
             '[Cloud Function] Attempting meal generation via cloud function');
-        
-        // Calculate distribution based on mealCount
-        Map<String, int> distribution;
-        if (mealCount == 1) {
+
+        // Use provided distribution or calculate based on mealCount
+        Map<String, int> calculatedDistribution;
+        if (distribution != null) {
+          calculatedDistribution = Map<String, int>.from(distribution);
+        } else if (mealCount == 1) {
           // Single meal - default to breakfast
-          distribution = {'breakfast': 1, 'lunch': 0, 'dinner': 0, 'snack': 0};
+          calculatedDistribution = {
+            'breakfast': 1,
+            'lunch': 0,
+            'dinner': 0,
+            'snack': 0
+          };
         } else if (mealCount <= 3) {
           // Few meals - distribute evenly
           final perType = (mealCount / 3).ceil();
-          distribution = {
+          calculatedDistribution = {
             'breakfast': perType,
             'lunch': perType,
             'dinner': perType,
@@ -4172,20 +4209,21 @@ Generate $mealCount meals. Return JSON only:
           };
         } else {
           // Default distribution for multiple meals
-          distribution = {
+          calculatedDistribution = {
             'breakfast': (mealCount * 0.2).round(),
             'lunch': (mealCount * 0.3).round(),
             'dinner': (mealCount * 0.3).round(),
             'snack': (mealCount * 0.2).round()
           };
           // Ensure total matches mealCount
-          final total = distribution.values.reduce((a, b) => a + b);
+          final total = calculatedDistribution.values.reduce((a, b) => a + b);
           if (total != mealCount) {
             final diff = mealCount - total;
-            distribution['lunch'] = (distribution['lunch'] ?? 0) + diff;
+            calculatedDistribution['lunch'] =
+                (calculatedDistribution['lunch'] ?? 0) + diff;
           }
         }
-        
+
         final cloudResult = await _callCloudFunction(
           functionName: 'generateMealsWithAI',
           data: {
@@ -4193,7 +4231,7 @@ Generate $mealCount meals. Return JSON only:
             'context': contextInformation,
             'cuisine': cuisine,
             'mealCount': mealCount,
-            'distribution': distribution,
+            'distribution': calculatedDistribution,
             'isIngredientBased': false,
             'partOfWeeklyMeal': partOfWeeklyMeal,
             'weeklyPlanContext': weeklyPlanContext,
@@ -4243,7 +4281,12 @@ Generate $mealCount meals. Return JSON only:
       // Calculate distribution based on mealCount for fallback
       Map<String, int> fallbackDistribution;
       if (mealCount == 1) {
-        fallbackDistribution = {'breakfast': 1, 'lunch': 0, 'dinner': 0, 'snack': 0};
+        fallbackDistribution = {
+          'breakfast': 1,
+          'lunch': 0,
+          'dinner': 0,
+          'snack': 0
+        };
       } else if (mealCount <= 3) {
         final perType = (mealCount / 3).ceil();
         fallbackDistribution = {
@@ -4262,10 +4305,11 @@ Generate $mealCount meals. Return JSON only:
         final total = fallbackDistribution.values.reduce((a, b) => a + b);
         if (total != mealCount) {
           final diff = mealCount - total;
-          fallbackDistribution['lunch'] = (fallbackDistribution['lunch'] ?? 0) + diff;
+          fallbackDistribution['lunch'] =
+              (fallbackDistribution['lunch'] ?? 0) + diff;
         }
       }
-      
+
       final mealData = await generateMealTitlesAndIngredients(
         prompt,
         contextInformation,
@@ -5134,9 +5178,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
   }
 
   Future<Map<String, dynamic>> generateMealsFromIngredients(
-      List<dynamic> displayedItems,
-      BuildContext parentContext,
-      bool isDineIn,
+      List<dynamic> displayedItems, BuildContext parentContext, bool isDineIn,
       {String? cuisineFilter}) async {
     try {
       showLoadingDialog(parentContext, loadingText: loadingTextSearchMeals);
@@ -5192,14 +5234,16 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
         // Generate meals directly using generateMealTitlesAndIngredients
         // (no need to check existing meals again since we already did that)
         // Build prompt with cuisine filter if provided
-        String prompt = 'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
+        String prompt =
+            'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
         String contextInfo = 'Stay within the ingredients provided';
-        
+
         if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
           prompt += ' in the style of $cuisineFilter cuisine';
-          contextInfo += '. The meals should reflect $cuisineFilter cooking style and flavors';
+          contextInfo +=
+              '. The meals should reflect $cuisineFilter cooking style and flavors';
         }
-        
+
         final mealData = await generateMealTitlesAndIngredients(
           prompt,
           contextInfo,
@@ -5447,7 +5491,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                                     if (selectedMealId != null) {
                                       await docRef.set({
                                         'userId': userId,
-                                        'dayType': 'chef_tasty',
+                                        'dayType': 'chef_turner',
                                         'isSpecial': true,
                                         'date': date,
                                         'meals': FieldValue.arrayUnion(
@@ -5551,18 +5595,23 @@ Stay within the ingredients provided.
 IMPORTANT: Do NOT generate these existing meals: ${existingMealTitles.join(', ')}
 Generate completely new and different meal ideas using the same ingredients.
 ''';
-                                
+
                                 // Add cuisine filter to context if provided
-                                if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
-                                  contextWithExistingMeals += '\nThe meals should reflect $cuisineFilter cooking style and flavors.';
+                                if (cuisineFilter != null &&
+                                    cuisineFilter.isNotEmpty) {
+                                  contextWithExistingMeals +=
+                                      '\nThe meals should reflect $cuisineFilter cooking style and flavors.';
                                 }
 
                                 debugPrint('Starting AI meal generation...');
-                                String prompt = 'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
-                                if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
-                                  prompt += ' in the style of $cuisineFilter cuisine';
+                                String prompt =
+                                    'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
+                                if (cuisineFilter != null &&
+                                    cuisineFilter.isNotEmpty) {
+                                  prompt +=
+                                      ' in the style of $cuisineFilter cuisine';
                                 }
-                                
+
                                 final mealData =
                                     await generateMealTitlesAndIngredients(
                                   prompt,
@@ -5748,18 +5797,23 @@ Stay within the ingredients provided.
 IMPORTANT: Do NOT generate these existing meals: ${existingMealTitles.join(', ')}
 Generate completely new and different meal ideas using the same ingredients.
 ''';
-                                  
+
                                   // Add cuisine filter to context if provided
-                                  if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
-                                    contextWithExistingMeals += '\nThe meals should reflect $cuisineFilter cooking style and flavors.';
+                                  if (cuisineFilter != null &&
+                                      cuisineFilter.isNotEmpty) {
+                                    contextWithExistingMeals +=
+                                        '\nThe meals should reflect $cuisineFilter cooking style and flavors.';
                                   }
 
                                   debugPrint('Starting AI meal generation...');
-                                  String prompt = 'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
-                                  if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
-                                    prompt += ' in the style of $cuisineFilter cuisine';
+                                  String prompt =
+                                      'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
+                                  if (cuisineFilter != null &&
+                                      cuisineFilter.isNotEmpty) {
+                                    prompt +=
+                                        ' in the style of $cuisineFilter cuisine';
                                   }
-                                  
+
                                   final mealData =
                                       await generateMealTitlesAndIngredients(
                                     prompt,
@@ -5875,7 +5929,7 @@ Generate completely new and different meal ideas using the same ingredients.
                                 }
                               },
                         child: Text(
-                          isGeneratingAI ? 'Generating...' : 'Sous Chef Turner',  
+                          isGeneratingAI ? 'Generating...' : 'Sous Chef Turner',
                           style: textTheme.bodyLarge?.copyWith(
                             color: (isProcessing || isGeneratingAI)
                                 ? kLightGrey

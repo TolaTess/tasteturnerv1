@@ -77,7 +77,6 @@ dependencies:
   video_thumbnail: ^0.5.3
   crypto: ^3.0.3
   permission_handler: ^11.3.1
-  speech_to_text: ^7.0.0
 
 # dependency_overrides:
 #   photo_manager: ^3.0.0-dev.2

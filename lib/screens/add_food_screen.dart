@@ -237,7 +237,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Refresh data when dependencies change (e.g., when returning to this screen)
-    _loadData();
+    // Defer to avoid calling setState/markNeedsBuild during build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadData();
+      }
+    });
   }
 
   // Load calorie adjustments from SharedPreferences
@@ -2654,8 +2659,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
                       // Save all pending items with retry logic
                       // Use userService.userId directly with null coalescing to avoid type inference issues
-                      final String currentUserId =
-                          (userService.userId ?? '') as String;
+                      final String currentUserId = userService.userId ?? '';
                       for (var item in _pendingMacroItems) {
                         await _retryOperation(
                             () => dailyDataController.addUserMeal(
@@ -3247,56 +3251,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     // View Yesterday's Summary and Today's Action Items
                     if (isToday) ...[
                       SizedBox(height: getPercentageHeight(2, context)),
-                      // Daily Summary Link
-                      Padding(
-                        key: _yesterdaySummaryKey,
-                        padding: EdgeInsets.symmetric(
-                            horizontal: getPercentageWidth(2, context)),
-                        child: GestureDetector(
-                          onTap: () {
-                            final date = DateTime.now()
-                                .subtract(const Duration(days: 1));
-                            Get.to(() => DailySummaryScreen(date: date));
-                          },
-                          child: Container(
-                            padding:
-                                EdgeInsets.all(getPercentageWidth(3, context)),
-                            decoration: BoxDecoration(
-                              color: kAccentLight.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: kAccentLight.withValues(alpha: 0.3),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Icon(
-                                  Icons.insights,
-                                  color: kAccentLight,
-                                  size: getIconScale(4, context),
-                                ),
-                                SizedBox(width: getPercentageWidth(2, context)),
-                                Text(
-                                  'View Yesterday\'s Service',
-                                  style: textTheme.titleMedium?.copyWith(
-                                    color: kAccentLight,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(width: getPercentageWidth(1, context)),
-                                Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: kAccentLight,
-                                  size: getIconScale(3.5, context),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: getPercentageHeight(2, context)),
+                  
+                      // SizedBox(height: getPercentageHeight(2, context)),
                       // Today's action items
                       Padding(
                         padding: EdgeInsets.symmetric(
