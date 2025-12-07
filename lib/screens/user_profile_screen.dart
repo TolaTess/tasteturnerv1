@@ -407,13 +407,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       if (userBadges.isNotEmpty)
                         TitleSection(
                           title: badges,
-                          more: seeAll,
-                          press: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => BadgesScreen(),
-                            ),
-                          ),
+                          more: '',
+                          press: () => {},
                         ),
                       SizedBox(height: getPercentageHeight(1, context)),
 

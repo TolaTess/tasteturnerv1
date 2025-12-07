@@ -306,6 +306,92 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
     }
   }
 
+  /// Save for challenge detail screen - saves to meals and tastyanalysis but NOT daily meals
+  Future<void> _saveForChallengeDetail() async {
+    if (_hasCreatedMeal) return; // Don't save twice
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      // Get suggested meal IDs from the analysis result
+      final mealIds = _editableAnalysis['mealIds'] as List<dynamic>? ?? [];
+
+      String actualMealId = '';
+
+      // Check if meal already exists
+      if (mealIds.isNotEmpty) {
+        // Meal already exists, use existing ID
+        actualMealId = mealIds.first.toString();
+        debugPrint('Using existing meal ID: $actualMealId');
+      } else {
+        // Create a new meal in the meals collection if no meal IDs exist
+        try {
+          actualMealId = await geminiService.createMealFromAnalysis(
+            analysisResult: _editableAnalysis,
+            userId: userService.userId ?? '',
+            imagePath: 'cloud_function_generated',
+            mealType: mealType,
+          );
+          debugPrint('Created new meal ID: $actualMealId');
+        } catch (e) {
+          debugPrint('Failed to create meal in meals collection: $e');
+          // Continue to save analysis even if meal creation fails
+        }
+      }
+
+      // Save analysis to tastyanalysis collection
+      try {
+        await geminiService.saveAnalysisToFirestore(
+          analysisResult: _editableAnalysis,
+          userId: userService.userId ?? '',
+          imagePath: 'cloud_function_generated',
+        );
+        debugPrint('Saved analysis to tastyanalysis collection');
+      } catch (e) {
+        debugPrint('Failed to save analysis to tastyanalysis: $e');
+        // Log error but continue
+      }
+
+      // Update existing post with meal ID if we have one
+      if (widget.postId != null &&
+          widget.postId!.isNotEmpty &&
+          actualMealId.isNotEmpty) {
+        try {
+          await postController.updatePost(
+            postId: widget.postId!,
+            updateData: {'mealId': actualMealId},
+          );
+          debugPrint('Updated post with mealId: $actualMealId');
+        } catch (e) {
+          debugPrint('Failed to update post with mealId: $e');
+          // Log error but don't show to user
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _hasCreatedMeal = true;
+          _isSaving = false;
+        });
+        // Navigate back
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      debugPrint('Failed to save for challenge detail: $e');
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        if (context.mounted) {
+          _handleError('Failed to save. Please try again.',
+              details: e.toString());
+        }
+      }
+    }
+  }
+
   Future<void> _saveAnalysis() async {
     setState(() {
       _isSaving = true;
@@ -368,8 +454,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
       }
 
       // Skip daily meals addition for challenge detail screen
-      if (widget.skipAnalysisSave != true &&
-          widget.screen != 'challenge_detail') {
+      if (widget.skipAnalysisSave != true) {
         try {
           await geminiService.addAnalyzedMealToDaily(
             mealId: actualMealId,
@@ -404,7 +489,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
       // Handle post creation for analyze & upload flow in background
       if (widget.isAnalyzeAndUpload == true) {
-        await _handlePostCreationInBackground();
+        await _handlePostCreationInBackground(actualMealId: actualMealId);
       }
     } catch (e) {
       debugPrint('Background save to daily meals failed: $e');
@@ -414,12 +499,37 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
   }
 
   /// Handle post creation in background for analyze & upload flow
-  Future<void> _handlePostCreationInBackground() async {
+  Future<void> _handlePostCreationInBackground(
+      {required String actualMealId}) async {
     try {
       final bool isExistingPostAnalysis =
           widget.postId != null && widget.postId!.isNotEmpty;
 
       if (isExistingPostAnalysis) return; // Skip for existing posts
+
+      // Ensure we have a valid meal ID (not a temp or post_ prefixed ID)
+      String validMealId = actualMealId;
+      if (validMealId.isEmpty ||
+          validMealId.startsWith('temp_') ||
+          validMealId.startsWith('post_')) {
+        debugPrint('Invalid meal ID for post creation: $validMealId');
+        // Try to get meal ID from analysis result as fallback
+        final mealIds = _editableAnalysis['mealIds'] as List<dynamic>? ?? [];
+        if (mealIds.isNotEmpty) {
+          final mealIdFromAnalysis = mealIds.first.toString();
+          if (mealIdFromAnalysis.isNotEmpty &&
+              !mealIdFromAnalysis.startsWith('temp_') &&
+              !mealIdFromAnalysis.startsWith('post_')) {
+            validMealId = mealIdFromAnalysis;
+          } else {
+            debugPrint('No valid meal ID available for post creation');
+            return; // Don't create post without valid meal ID
+          }
+        } else {
+          debugPrint('No meal ID available for post creation');
+          return; // Don't create post without valid meal ID
+        }
+      }
 
       // Upload image to Firebase Storage
       try {
@@ -429,20 +539,14 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             await firebaseStorage.ref(imagePath).putFile(widget.imageFile);
         final String postImageUrl = await uploadTask.ref.getDownloadURL();
 
-        // Get the actual meal ID from the analysis result (generated by cloud function)
-        final mealIds = _editableAnalysis['mealIds'] as List<dynamic>? ?? [];
-        final String actualMealId = mealIds.isNotEmpty
-            ? mealIds.first.toString()
-            : 'post_${DateTime.now().millisecondsSinceEpoch}'; // Fallback if no meal ID
-
         // Generate a temporary post ID
         final String tempPostId =
             'post_${DateTime.now().millisecondsSinceEpoch}';
 
-        // Create the post with the actual meal ID
+        // Create the post with the actual meal ID (passed from _saveToDailyMealsInBackground)
         final post = Post(
           id: tempPostId,
-          mealId: actualMealId, // Use the actual meal ID from cloud function
+          mealId: validMealId, // Use the validated meal ID that was created
           userId: userService.userId ?? '',
           mediaPaths: [postImageUrl],
           name: userService.currentUser.value?.displayName ?? '',
@@ -454,6 +558,8 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         await postController.uploadPost(post, userService.userId ?? '', [
           postImageUrl,
         ]);
+
+        debugPrint('Post created successfully with mealId: $validMealId');
       } catch (e) {
         debugPrint('Background post creation failed: $e');
         // Log error but don't show to user (background operation)
@@ -466,6 +572,14 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
   }
 
   Future<bool> _onWillPop() async {
+    // For challenge detail screen, save to meals/tastyanalysis but not daily meals
+    if (widget.screen == 'challenge_detail') {
+      if (!_hasCreatedMeal && !_isSaving) {
+        await _saveForChallengeDetail();
+      }
+      return true; // Allow navigation back
+    }
+
     // Create meal only when user goes back without saving
     if (!_hasCreatedMeal && !_isSaving) {
       await _createMealOnly();
@@ -1394,9 +1508,13 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
               ? null
               : [
                   TextButton(
-                    onPressed: _isSaving ? null : _saveAnalysis,
+                    onPressed: _isSaving
+                        ? null
+                        : widget.screen == 'challenge_detail'
+                            ? _saveForChallengeDetail
+                            : _saveAnalysis,
                     child: Text(
-                      'Save',
+                      widget.screen == 'challenge_detail' ? 'Close' : 'Save',
                       style: textTheme.displayMedium?.copyWith(
                         color: kAccent,
                         fontSize: getTextScale(4, context),
@@ -1825,6 +1943,7 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
 
   bool _isUpdatingFromWeight = false;
   bool _isUpdatingFromCalories = false;
+  bool _isUpdatingFromMacros = false;
 
   @override
   void initState() {
@@ -1864,6 +1983,9 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
     // Add listeners for automatic conversion
     _weightController.addListener(_onWeightChanged);
     _caloriesController.addListener(_onCaloriesChanged);
+    _proteinController.addListener(_onMacrosChanged);
+    _carbsController.addListener(_onMacrosChanged);
+    _fatController.addListener(_onMacrosChanged);
   }
 
   void _onWeightChanged() {
@@ -1883,7 +2005,7 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
   }
 
   void _onCaloriesChanged() {
-    if (_isUpdatingFromWeight) return;
+    if (_isUpdatingFromWeight || _isUpdatingFromMacros) return;
 
     final newCalories = double.tryParse(_caloriesController.text) ?? 0.0;
     if (newCalories > 0 && _originalCalories > 0) {
@@ -1898,10 +2020,28 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
     }
   }
 
+  void _onMacrosChanged() {
+    if (_isUpdatingFromWeight || _isUpdatingFromCalories) return;
+
+    // Recalculate calories from macros when protein, carbs, or fat changes
+    final protein = double.tryParse(_proteinController.text) ?? 0.0;
+    final carbs = double.tryParse(_carbsController.text) ?? 0.0;
+    final fat = double.tryParse(_fatController.text) ?? 0.0;
+
+    final calculatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
+
+    _isUpdatingFromMacros = true;
+    _caloriesController.text = calculatedCalories.round().toString();
+    _isUpdatingFromMacros = false;
+  }
+
   @override
   void dispose() {
     _weightController.removeListener(_onWeightChanged);
     _caloriesController.removeListener(_onCaloriesChanged);
+    _proteinController.removeListener(_onMacrosChanged);
+    _carbsController.removeListener(_onMacrosChanged);
+    _fatController.removeListener(_onMacrosChanged);
     _nameController.dispose();
     _weightController.dispose();
     _caloriesController.dispose();
@@ -1921,22 +2061,21 @@ class _FoodItemEditDialogState extends State<_FoodItemEditDialog> {
     );
 
     // Use double parsing for better precision, then convert to int for storage
-    final calories = double.tryParse(_caloriesController.text) ?? 0.0;
     final protein = double.tryParse(_proteinController.text) ?? 0.0;
     final carbs = double.tryParse(_carbsController.text) ?? 0.0;
     final fat = double.tryParse(_fatController.text) ?? 0.0;
 
-    // Calculate calories from macros
+    // Always calculate calories from macros for consistency
     final calculatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
 
-    // Use macro-based calories if they don't equal the provided calories
-    final finalCalories =
-        calculatedCalories != calories ? calculatedCalories : calories;
-
-    nutrition['calories'] = finalCalories.round();
+    // Update nutrition values
+    nutrition['calories'] = calculatedCalories.round();
     nutrition['protein'] = protein.round();
     nutrition['carbs'] = carbs.round();
     nutrition['fat'] = fat.round();
+
+    // Ensure nutritionalInfo is updated in the item
+    updatedItem['nutritionalInfo'] = nutrition;
 
     widget.onSave(updatedItem);
     Navigator.of(context).pop();

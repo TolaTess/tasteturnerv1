@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
 import '../helper/utils.dart';
+import '../service/chat_utilities.dart';
 import '../pages/safe_text_field.dart';
 import '../screens/add_food_screen.dart';
 import '../service/badge_service.dart';
@@ -386,7 +387,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         // Create buddy chat
         final String buddyChatId =
-            await chatController.getOrCreateChatId(widget.userId, 'buddy');
+            await ChatUtilities.getOrCreateChatId(widget.userId, 'buddy');
 
         await firestore.collection('users').doc(widget.userId).set(
           {'buddyChatId': buddyChatId},
@@ -1071,7 +1072,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Enable Notifications",
+                          "Notifications",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: getTextScale(4, context),

@@ -530,9 +530,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                                                 final meal = meals[index];
                                                 return OverlappingCard(
                                                   title: meal.title,
-                                                  subtitle: meal.description
-                                                              ?.isNotEmpty ==
-                                                          true
+                                                  subtitle: (meal.description?.isNotEmpty == true && meal.description != 'unknown description')
                                                       ? meal.description!
                                                       : '${meal.calories} kcal • ${meal.serveQty} servings',
                                                   color: colors[

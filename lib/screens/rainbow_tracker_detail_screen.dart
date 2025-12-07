@@ -27,7 +27,12 @@ class _RainbowTrackerDetailScreenState
   @override
   void initState() {
     super.initState();
-    _loadPlantData();
+    // Defer data loading to after first frame to avoid blocking navigation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadPlantData();
+      }
+    });
   }
 
   Future<void> _loadPlantData() async {
@@ -195,6 +200,7 @@ class _RainbowTrackerDetailScreenState
                     children: [
                       // Summary Card
                       Container(
+                        alignment: Alignment.center,
                         padding: EdgeInsets.all(getPercentageWidth(4, context)),
                         decoration: BoxDecoration(
                           color: isDarkMode ? kDarkGrey : kWhite,
@@ -479,7 +485,7 @@ class _RainbowTrackerDetailScreenState
                             decoration: BoxDecoration(
                               color: isDarkMode
                                   ? kDarkGrey.withValues(alpha: 0.5)
-                                  : kLightGrey.withValues(alpha: 0.3),
+                                  : kAccentLight.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: kAccent.withValues(alpha: 0.2),
@@ -508,7 +514,7 @@ class _RainbowTrackerDetailScreenState
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        plant.name,
+                                        capitalizeFirstLetter(plant.name),
                                         style: textTheme.bodyLarge?.copyWith(
                                           fontWeight: FontWeight.w600,
                                           color: isDarkMode ? kWhite : kBlack,

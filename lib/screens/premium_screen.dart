@@ -367,7 +367,6 @@ class _PremiumScreenState extends State<PremiumScreen> {
         final productId = purchaseDetails.productID;
         final selectedPlan = isYearlySelected ? 'year' : 'month';
 
-
         // Verify purchase with server (this will update premium status after validation)
         await authController.verifyPurchaseWithServer(
           context,
@@ -499,6 +498,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 ),
               ),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
                     'Monthly Service',
@@ -506,19 +507,22 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         fontWeight: FontWeight.bold,
                         color: isDarkMode ? kLightGrey : kBlack),
                   ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-                  if (isDiscount && discountPerc > 0)
+                  SizedBox(height: getPercentageHeight(1.5, context)),
+                  if (isDiscount && discountPerc > 0) ...[
                     Text(
                       '\$${monthlyPrice.toStringAsFixed(2)}',
                       style: textTheme.bodyMedium?.copyWith(
                           decoration: TextDecoration.lineThrough,
                           color: isDarkMode ? Colors.grey : Colors.grey[600]),
                     ),
+                    SizedBox(height: getPercentageHeight(0.5, context)),
+                  ],
                   Text(
                     '\$${monthlyPerMonth.toStringAsFixed(2)}',
                     style: textTheme.headlineMedium
                         ?.copyWith(fontWeight: FontWeight.bold, color: kAccent),
                   ),
+                  SizedBox(height: getPercentageHeight(0.3, context)),
                   Text(
                     '/month',
                     style: textTheme.bodyMedium
@@ -548,22 +552,26 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 ),
               ),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        'Yearly Service',
-                        style: textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode ? kLightGrey : kBlack),
+                      Flexible(
+                        child: Text(
+                          'Yearly Service',
+                          style: textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode ? kLightGrey : kBlack),
+                        ),
                       ),
                       SizedBox(width: getPercentageWidth(1, context)),
                       Flexible(
                         child: Container(
                           padding: EdgeInsets.symmetric(
                               horizontal: getPercentageWidth(2, context),
-                              vertical: getPercentageHeight(1, context)),
+                              vertical: getPercentageHeight(0.8, context)),
                           decoration: BoxDecoration(
                             color: kAccent,
                             borderRadius: BorderRadius.circular(12),
@@ -571,7 +579,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           child: Text(
                             textAlign: TextAlign.center,
                             'SAVE ${((1 - yearlyPerMonth / monthlyPerMonth) * 100).toStringAsFixed(0)}%',
-                            style: textTheme.bodyMedium?.copyWith(
+                            style: textTheme.bodySmall?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold),
                           ),
@@ -579,19 +587,22 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       ),
                     ],
                   ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-                  if (isDiscount && discountPerc > 0)
+                  SizedBox(height: getPercentageHeight(1.5, context)),
+                  if (isDiscount && discountPerc > 0) ...[
                     Text(
                       '\$${yearlyPrice.toStringAsFixed(2)}',
                       style: textTheme.bodyMedium?.copyWith(
                           decoration: TextDecoration.lineThrough,
                           color: isDarkMode ? Colors.grey : Colors.grey[600]),
                     ),
+                    SizedBox(height: getPercentageHeight(0.5, context)),
+                  ],
                   Text(
                     '\$${discountedYearlyPrice.toStringAsFixed(2)}',
                     style: textTheme.headlineMedium
                         ?.copyWith(fontWeight: FontWeight.bold, color: kAccent),
                   ),
+                  SizedBox(height: getPercentageHeight(0.3, context)),
                   Text(
                     '\$${yearlyPerMonth.toStringAsFixed(2)}/mo',
                     style: textTheme.bodyMedium
@@ -660,8 +671,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
                     Text(
                       isUserPremium
-                          ? 'You\'re currently enjoying an distraction-free service, Chef!'
-                          : 'Upgrade to Executive Chef for an distraction-free service, Chef!',
+                          ? 'You\'re currently enjoying a distraction free service, Chef!'
+                          : 'Upgrade to Executive Chef for a distraction free service, Chef!',
                       style: textTheme.titleMedium?.copyWith(),
                       textAlign: TextAlign.center,
                     ),

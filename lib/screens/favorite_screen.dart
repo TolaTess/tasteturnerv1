@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
@@ -17,27 +19,73 @@ class FavoriteScreen extends StatefulWidget {
 class _FavoriteScreenState extends State<FavoriteScreen> {
   List<Meal> favoriteMeals = [];
   bool isLoading = true;
+  StreamSubscription<DocumentSnapshot>? _favoritesSubscription;
 
   @override
   void initState() {
     super.initState();
+    _setupFavoritesListener();
+  }
+
+  void _setupFavoritesListener() {
+    final currentUserId = userService.userId;
+    
+    if (currentUserId == null || currentUserId.isEmpty) {
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+
+    // Listen to real-time changes in the user document's favorites field
+    _favoritesSubscription = firestore
+        .collection('users')
+        .doc(currentUserId)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        if (!mounted) return;
+        
+        // When favorites change, refetch the favorite meals
+        _fetchFavorites();
+      },
+      onError: (error) {
+        debugPrint("Error listening to favorites: $error");
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+      },
+    );
+
+    // Initial fetch
     _fetchFavorites();
   }
 
   Future<void> _fetchFavorites() async {
     try {
-      final meals =
-          await mealManager.fetchFavoriteMeals(); // Use your fetch function
-      setState(() {
-        favoriteMeals = meals;
-        isLoading = false;
-      });
+      final meals = await mealManager.fetchFavoriteMeals();
+      if (mounted) {
+        setState(() {
+          favoriteMeals = meals;
+          isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint("Error fetching favorite meals: $e");
-      setState(() {
-        isLoading = false; // Stop loading on error
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false; // Stop loading on error
+        });
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _favoritesSubscription?.cancel();
+    super.dispose();
   }
 
   @override

@@ -57,6 +57,7 @@ class _MealSpinListState extends State<MealSpinList> {
             .toList(),
       );
 
+      // Show snackbar before navigating back to ensure context is still mounted
       if (mounted) {
         showTastySnackbar(
           'Success',
@@ -82,15 +83,18 @@ class _MealSpinListState extends State<MealSpinList> {
       appBar: AppBar(
         automaticallyImplyLeading: true,
         title: Text('Select items',
-            style:
-                textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w500)),
+            style: textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w500,
+                fontSize: getTextScale(7, context))),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 15.0),
             child: GestureDetector(
-              onTap: () {
-                _saveToMealPlan();
-                Navigator.pop(context);
+              onTap: () async {
+                await _saveToMealPlan();
+                if (mounted) {
+                  Navigator.pop(context);
+                }
               },
               child: Padding(
                 padding: EdgeInsets.all(getPercentageWidth(1, context)),
