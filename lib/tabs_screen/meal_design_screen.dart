@@ -25,6 +25,7 @@ import '../screens/recipes_list_category_screen.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../widgets/info_icon_widget.dart';
 import '../widgets/optimized_image.dart';
+import '../widgets/tutorial_blocker.dart';
 import 'buddy_tab.dart';
 import '../helper/calendar_sharing_controller.dart';
 import '../service/calendar_sharing_service.dart';
@@ -233,7 +234,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         // Only update premium status if it changed, avoid unnecessary refresh
-        final newPremiumStatus = userService.currentUser.value?.isPremium ?? false;
+        final newPremiumStatus =
+            userService.currentUser.value?.isPremium ?? false;
         if (newPremiumStatus != isPremium) {
           setState(() {
             isPremium = newPremiumStatus;
@@ -425,7 +427,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   Widget _buildCalendarTab() {
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final textTheme = Theme.of(context).textTheme;
-    return SingleChildScrollView(
+    return BlockableSingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -461,7 +463,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         'icon': Icons.shopping_cart,
                         'title': 'Cycle Syncing',
                         'description':
-                            'Adjust macro goals based on your menstrual cycle phase',
+                            'Adjust macro goals based on your menstrual cycle phase. Go to edit goals to enable',
                         'color': kAccentLight,
                       },
                     {
@@ -2383,6 +2385,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       height: 200,
       child: Center(
         child: Column(
+          key: _addMealButtonKey,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (birthdayName.isNotEmpty &&
@@ -2601,7 +2604,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       userService.currentUser.value?.displayName
                           ?.toLowerCase()) ...[
                 GestureDetector(
-                  key: _addMealButtonKey,
                   onTap: () => _addMealPlan(
                       context, isDarkMode, false, currentDayType,
                       goStraightToAddMeal: false),

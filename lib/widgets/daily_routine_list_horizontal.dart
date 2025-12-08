@@ -202,6 +202,30 @@ class RoutineController extends GetxController {
             '🔄 Routine Water Toggle ON - waterTotal: $waterTotal, setting to: $waterTotal');
         await dailyDataController.updateCurrentWater(userId, waterTotal,
             date: date);
+
+        // Award points and show snackbar
+        if (waterTotal > 0) {
+          final alreadyAwarded = await badgeService.hasBeenAwardedToday(
+              userId, "Water routine completed!");
+          if (!alreadyAwarded) {
+            await badgeService.awardPoints(userId, 10,
+                reason: "Water routine completed!");
+            Get.snackbar(
+              'Success',
+              'Water routine completed! +10 points',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: kAccentLight.withValues(alpha: 0.5),
+            );
+          } else {
+            // Already awarded today, just show update confirmation
+            Get.snackbar(
+              'Success',
+              'Water updated',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: kAccentLight.withValues(alpha: 0.5),
+            );
+          }
+        }
       } else if (title.contains('Water') && currentStatus == true) {
         // Toggling OFF: Reset water to 0 (undo the action)
         debugPrint('🔄 Routine Water Toggle OFF - resetting to 0.0');
@@ -217,18 +241,88 @@ class RoutineController extends GetxController {
             '🔄 Routine Steps Toggle ON - stepsTotal: $stepsTotal, setting to: $stepsTotal');
         await dailyDataController.updateCurrentSteps(userId, stepsTotal,
             date: date);
+
+        // Award points and show snackbar
+        if (stepsTotal > 0) {
+          final alreadyAwarded = await badgeService.hasBeenAwardedToday(
+              userId, "Steps routine completed!");
+          if (!alreadyAwarded) {
+            await badgeService.awardPoints(userId, 10,
+                reason: "Steps routine completed!");
+            Get.snackbar(
+              'Success',
+              'Steps routine completed! +10 points',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: kAccentLight.withValues(alpha: 0.5),
+            );
+          } else {
+            // Already awarded today, just show update confirmation
+            Get.snackbar(
+              'Success',
+              'Steps updated',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: kAccentLight.withValues(alpha: 0.5),
+            );
+          }
+        }
       } else if (title.contains('Steps') && currentStatus == true) {
         // Toggling OFF: Reset steps to 0 (undo the action)
         debugPrint('🔄 Routine Steps Toggle OFF - resetting to 0.0');
         await dailyDataController.updateCurrentSteps(userId, 0.0, date: date);
       }
 
-      if ((title.contains('Nutrition') || title.contains('Food')) &&
+      if ((title.contains('Nutrition') ||
+              title.contains('Food') ||
+              title.contains('Meals') ||
+              title.contains('meal')) &&
           !currentStatus == true) {
-        dailyDataController.updateAllCalories(
-            dailyDataController.eatenCalories.value.toDouble(), true);
-      } else if ((title.contains('Nutrition') || title.contains('Food')) &&
+        // Get target calories from user settings
+        final settings = userService.currentUser.value?.settings;
+        final double targetCalories =
+            double.tryParse(settings?['foodGoal']?.toString() ?? '0') ?? 0.0;
+
+        // Get current calories so we only add enough to reach the target, not exceed it
+        final double currentCalories =
+            dailyDataController.eatenCalories.value.toDouble();
+        debugPrint(
+            '🔄 Routine Meals Toggle ON - currentCalories: $currentCalories, setting to: $currentCalories');
+        final double caloriesToAdd =
+            targetCalories > currentCalories ? targetCalories - currentCalories : 0.0;
+        debugPrint(
+            '🔄 Routine Meals Toggle ON - caloriesToAdd: $caloriesToAdd, setting to: $caloriesToAdd');
+
+        dailyDataController.updateAllCalories(caloriesToAdd, true);
+
+        // Award points and show snackbar for meal routine completion
+        if (targetCalories > 0) {
+          final alreadyAwarded = await badgeService.hasBeenAwardedToday(
+              userId, "Meals routine completed!");
+          if (!alreadyAwarded) {
+            await badgeService.awardPoints(userId, 10,
+                reason: "Meals routine completed!");
+            Get.snackbar(
+              'Success',
+              'Meals routine completed! +10 points',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: kAccentLight.withValues(alpha: 0.5),
+            );
+          } else {
+            // Already awarded today, just show update confirmation
+            Get.snackbar(
+              'Success',
+              'Meals updated',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: kAccentLight.withValues(alpha: 0.5),
+            );
+          }
+        }
+      } else if ((title.contains('Nutrition') ||
+              title.contains('Food') ||
+              title.contains('Meals') ||
+              title.contains('meal')) &&
           currentStatus == true) {
+        debugPrint(
+            '🔄 Routine Meals Toggle OFF - resetting to: ${dailyDataController.eatenCalories.value}');
         dailyDataController.updateAllCalories(
             dailyDataController.eatenCalories.value.toDouble(), false);
       }

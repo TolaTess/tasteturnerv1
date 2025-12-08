@@ -31,7 +31,7 @@ class DineInScreen extends StatefulWidget {
 }
 
 class _DineInScreenState extends State<DineInScreen> {
-  final MacroManager _macroManager = Get.find<MacroManager>();
+  late MacroManager _macroManager;
   final ImagePicker _imagePicker = ImagePicker();
 
   // Fridge feature variables
@@ -133,6 +133,15 @@ class _DineInScreenState extends State<DineInScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Safely initialize MacroManager
+    try {
+      _macroManager = MacroManager.instance;
+    } catch (e) {
+      debugPrint('Error initializing MacroManager: $e');
+      // Fallback: ensure it's registered
+      _macroManager = Get.put(MacroManager());
+    }
     // Load synchronous data immediately (fast operation)
     loadExcludedIngredients();
 
@@ -1932,7 +1941,7 @@ class _DineInScreenState extends State<DineInScreen> {
 
                       return CheckboxListTile(
                         title: Text(
-                          itemName,
+                          capitalizeFirstLetter(itemName),
                           style: TextStyle(
                             color: isDarkMode ? kWhite : kBlack,
                             fontSize: getTextScale(3.5, context),

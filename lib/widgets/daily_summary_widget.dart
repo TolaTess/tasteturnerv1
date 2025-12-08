@@ -39,7 +39,7 @@ class DailySummaryWidget extends StatefulWidget {
 }
 
 class _DailySummaryWidgetState extends State<DailySummaryWidget> {
-  final dailyDataController = Get.find<NutritionController>();
+  late NutritionController dailyDataController;
   final nutrientBreakdownService = NutrientBreakdownService.instance;
   final symptomService = SymptomService.instance;
   bool isLoading = true;
@@ -56,6 +56,21 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   @override
   void initState() {
     super.initState();
+
+    // Safely initialize NutritionController
+    try {
+      if (Get.isRegistered<NutritionController>()) {
+        dailyDataController = Get.find<NutritionController>();
+      } else {
+        // If not registered, ensure it's registered (lazy load will create it)
+        dailyDataController = Get.put(NutritionController());
+      }
+    } catch (e) {
+      debugPrint('Error initializing NutritionController: $e');
+      // Fallback: ensure controller is registered
+      dailyDataController = Get.put(NutritionController());
+    }
+
     // Set meal context from widget parameters if provided
     _currentMealId = widget.mealId;
     _currentInstanceId = widget.instanceId;
@@ -78,6 +93,16 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
 
     try {
       final userId = userService.userId ?? '';
+
+      // Handle case where user is not logged in or userId is empty
+      if (userId.isEmpty) {
+        debugPrint('Warning: userId is empty, cannot load daily summary');
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
       final dateString = DateFormat('yyyy-MM-dd').format(widget.date);
 
       // Load daily summary data
@@ -88,26 +113,38 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           .doc(dateString)
           .get();
 
-      if (summaryDoc.exists) {
+      if (summaryDoc.exists && summaryDoc.data() != null) {
         summaryData = summaryDoc.data()!;
+      } else {
+        // New user or no data for this date - initialize empty summary
+        summaryData = {};
       }
 
       // Load routine completion data
       await _loadRoutineCompletionData(userId, dateString);
 
-      // Load nutrient breakdowns
-      final breakdowns =
-          await nutrientBreakdownService.analyzeDailyNutrientBreakdowns(
-        userId,
-        widget.date,
-      );
-      nutrientBreakdowns = breakdowns;
+      // Load nutrient breakdowns (handle errors gracefully)
+      try {
+        nutrientBreakdowns =
+            await nutrientBreakdownService.analyzeDailyNutrientBreakdowns(
+          userId,
+          widget.date,
+        );
+      } catch (e) {
+        debugPrint('Error loading nutrient breakdowns: $e');
+        nutrientBreakdowns = {};
+      }
 
-      // Load existing symptoms for this date
-      currentSymptoms =
-          await symptomService.getSymptomsForDate(userId, widget.date);
+      // Load existing symptoms for this date (handle errors gracefully)
+      try {
+        currentSymptoms =
+            await symptomService.getSymptomsForDate(userId, widget.date);
+      } catch (e) {
+        debugPrint('Error loading symptoms: $e');
+        currentSymptoms = [];
+      }
 
-      // Load user goals
+      // Load user goals (handle null user gracefully)
       final user = userService.currentUser.value;
       if (user != null) {
         goals = {
@@ -122,6 +159,14 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
                   0,
           'fat':
               double.tryParse(user.settings['fatGoal']?.toString() ?? '0') ?? 0,
+        };
+      } else {
+        // New user or no settings - use default goals
+        goals = {
+          'calories': 0,
+          'protein': 0,
+          'carbs': 0,
+          'fat': 0,
         };
       }
 
@@ -139,6 +184,12 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   Future<void> _loadRoutineCompletionData(
       String userId, String dateString) async {
     try {
+      // Handle empty userId
+      if (userId.isEmpty) {
+        summaryData['routineCompletionPercentage'] = 0.0;
+        return;
+      }
+
       // Load routine completion data
       final routineDoc = await firestore
           .collection('userMeals')
@@ -147,7 +198,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           .doc(dateString)
           .get();
 
-      if (routineDoc.exists) {
+      if (routineDoc.exists && routineDoc.data() != null) {
         final routineData = routineDoc.data()!;
         summaryData['routineCompletionPercentage'] =
             routineData['completionPercentage'] ?? 0.0;

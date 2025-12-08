@@ -157,11 +157,14 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
                       size: getIconScale(4, context),
                     ),
                     SizedBox(width: getPercentageWidth(2, context)),
-                    Text(
-                      'You are enrolled in this menu, Chef',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      child: Text(
+                        'You are enrolled in this menu, Chef',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -230,7 +233,6 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
       ),
     );
   }
-
 
   Widget _buildActionButtons(BuildContext context, TextTheme textTheme) {
     return Container(

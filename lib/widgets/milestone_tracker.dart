@@ -84,7 +84,7 @@ class MilestonesTracker extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                ongoingPrograms > 0 ? 'View' : 'Join Program',
+                ongoingPrograms > 0 ? 'View' : 'Add Menu',
                 style: textTheme.bodyMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,

@@ -38,6 +38,9 @@ class UserDetailsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final name = user['name'] ?? '';
+    final firstName = name.split(' ').first;
+    final nameCapitalized = capitalizeFirstLetter(firstName);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -59,7 +62,7 @@ class UserDetailsSection extends StatelessWidget {
                         // Show snackbar when family member is selected
                         showTastySnackbar(
                           'Tracking Only',
-                          'Food tracking is only available for ${userService.currentUser.value?.displayName}',
+                          'Food tracking is only available for ${nameCapitalized}',
                           context,
                           backgroundColor: kAccentLight,
                         );
@@ -73,7 +76,7 @@ class UserDetailsSection extends StatelessWidget {
                           child: Text(
                             user['name'] ==
                                     userService.currentUser.value?.displayName
-                                ? 'Chef ${capitalizeFirstLetter(user['name'] ?? '')}'
+                                ? 'Chef $nameCapitalized'
                                 : capitalizeFirstLetter(user['name'] ?? ''),
                             style: textTheme.displaySmall?.copyWith(
                                 fontSize: getPercentageWidth(6, context)),

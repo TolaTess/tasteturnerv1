@@ -16,6 +16,7 @@ import '../service/tasty_popup_service.dart';
 import '../widgets/card_overlap.dart';
 import '../widgets/program_detail_widget.dart';
 import '../widgets/info_icon_widget.dart';
+import '../widgets/tutorial_blocker.dart';
 import '../helper/onboarding_prompt_helper.dart';
 import '../widgets/onboarding_prompt.dart';
 
@@ -34,7 +35,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
   RxList<Map<String, dynamic>> programTypes = <Map<String, dynamic>>[].obs;
   RxBool _programsLoaded =
       false.obs; // Track if programs have been loaded (even if empty)
-  final GlobalKey _addFeaturedButtonKey = GlobalKey();
   final GlobalKey _addTastyAIButtonKey = GlobalKey();
   final GlobalKey _addProgramButtonKey = GlobalKey();
   bool _showDietaryPrompt = false;
@@ -83,14 +83,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
       sequenceKey: 'program_screen_tutorial',
       tutorials: [
         TutorialStep(
-          tutorialId: 'add_featured_button',
-          message: 'Tap here to see today\'s featured dish, Chef!',
-          targetKey: _addFeaturedButtonKey,
-          onComplete: () {
-            // Optional: Add any actions to perform after the tutorial is completed
-          },
-        ),
-        TutorialStep(
           tutorialId: 'add_tasty_ai_button',
           message: 'Tap here to speak to Sous Chef Turner!',
           targetKey: _addTastyAIButtonKey,
@@ -100,7 +92,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
         ),
         TutorialStep(
           tutorialId: 'add_program_button',
-          message: 'Tap here to view your menus, Chef!',
+          message: 'Tap here to view available menus, Chef!',
           targetKey: _addProgramButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
@@ -511,7 +503,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            key: _addProgramButtonKey,
             ' Current Menu, Chef',
             style: textTheme.headlineMedium?.copyWith(
               color: isDarkMode ? kWhite : kDarkGrey,
@@ -945,13 +936,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
                 'color': kAccent,
               },
               {
-                'icon': Icons.auto_awesome,
-                'title': 'Make It Your Own, Chef',
-                'description':
-                    'Customize your nutrition menu so it fits your pantry and your palate.',
-                'color': kAccent,
-              },
-              {
                 'icon': Icons.schedule,
                 'title': 'Choose Your Timing',
                 'description':
@@ -997,7 +981,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
             ),
           ),
         ),
-        child: SingleChildScrollView(
+        child: BlockableSingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.only(
               top: getPercentageHeight(1, context),
@@ -1059,7 +1043,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                   : 'Not set',
                               style: textTheme.titleLarge?.copyWith(
                                 fontSize: fontSize,
-                                fontWeight: FontWeight.w100,
+                                fontWeight: FontWeight.w300,
                               ),
                             ),
                           ],
@@ -1099,7 +1083,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                                   : 'Not set',
                               style: textTheme.titleLarge?.copyWith(
                                 fontSize: fontSize,
-                                fontWeight: FontWeight.w100,
+                                fontWeight: FontWeight.w300,
                               ),
                             ),
                         ],
@@ -1246,6 +1230,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                 SizedBox(height: getPercentageHeight(2.5, context)),
 
                 Obx(() => Text(
+                    key: _addProgramButtonKey,
                       _programService.userPrograms.length > 1
                           ? 'Explore More Menus, Chef'
                           : _programService.userPrograms.length == 1

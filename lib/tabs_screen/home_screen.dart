@@ -43,6 +43,7 @@ import '../screens/rainbow_tracker_detail_screen.dart';
 import '../screens/badges_screen.dart';
 import '../service/badge_service.dart';
 import '../service/plant_detection_service.dart';
+import '../widgets/tutorial_blocker.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -125,11 +126,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       if (!mounted) return;
 
-      // Check and show notification preference prompt for existing users
-      _checkNotificationPreference();
-
-      if (!mounted) return;
-
       // Then show the meal tutorial
       _showAddMealTutorial();
 
@@ -153,25 +149,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Preload dietary/cuisine data early for better performance
       _preloadDietaryData();
 
-      // Initialize non-critical services after UI is rendered (with delay)
-      // This prevents blocking app startup
-      Future.delayed(const Duration(seconds: 2), () async {
-        if (!mounted) return;
+       if (!mounted) return;
 
-        // Initialize ads in background (not critical for startup)
-        // Skip ad initialization for premium users
-        final isPremium = userService.currentUser.value?.isPremium ?? false;
-        if (!isPremium) {
-          try {
-            await MobileAds.instance.initialize();
-            debugPrint('Ads initialized successfully');
-          } catch (e) {
-            debugPrint('Error initializing ads: $e');
-          }
-        } else {
-          debugPrint('Skipping ad initialization - user is premium');
-        }
-      });
+      // Check and show notification preference prompt for existing users
+      _checkNotificationPreference();
+
+      // Ads initialization is now handled during onboarding (in Meal Planning slide)
+      // This prevents blocking home screen loading
     });
   }
 
@@ -918,7 +902,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _checkFamilyDialogAfterTutorial() async {
     // Wait 30 seconds after tutorial completion
-    await Future.delayed(const Duration(seconds: 30));
+    await Future.delayed(const Duration(seconds: 45));
     if (mounted && _tutorialCompleted) {
       await _checkAndShowFamilyNutritionDialog();
     }
@@ -1083,6 +1067,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       TextTheme textTheme,
       String inspiration,
       String avatarUrl) {
+    final name = currentUser.displayName ?? '';
+    final firstName = name.split(' ').first;
+    final nameCapitalized = capitalizeFirstLetter(firstName);
     return Row(
       children: [
         Builder(builder: (context) {
@@ -1106,7 +1093,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$greeting Chef ${capitalizeFirstLetter(currentUser.displayName ?? '')}!',
+              '$greeting Chef $nameCapitalized!',
               style: textTheme.displaySmall?.copyWith(
                   fontWeight: FontWeight.w500,
                   fontSize: getPercentageWidth(6, context)),
@@ -1505,6 +1492,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       familyMode = currentUser.familyMode ?? false;
       final inspiration = currentUser.bio ?? getRandomBio(bios);
       final avatarUrl = currentUser.profileImage ?? intPlaceholderImage;
+      final name = currentUser.displayName ?? '';
+      final firstName = name.split(' ').first;
+      final nameCapitalized = capitalizeFirstLetter(firstName);
 
       return Scaffold(
         drawer: const CustomDrawer(),
@@ -1540,7 +1530,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               await _loadShoppingDay();
             },
             child: SafeArea(
-              child: SingleChildScrollView(
+              child: BlockableSingleChildScrollView(
                 padding: EdgeInsets.symmetric(
                     vertical: getPercentageHeight(0.5, context),
                     horizontal: getPercentageWidth(2, context)),
@@ -1646,7 +1636,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     // Show snackbar when family member is selected
                                     showTastySnackbar(
                                       'Station Tracking Limited, Chef',
-                                      'Food tracking is only available for ${userService.currentUser.value?.displayName}, Chef.',
+                                      'Food tracking is only available for ${nameCapitalized}, Chef.',
                                       context,
                                       backgroundColor: kAccentLight,
                                     );
@@ -1887,9 +1877,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   onEdit: (editedUser, isDarkMode) {
                                     // Handle family member editing
                                     if (familyMode &&
-                                        editedUser['name'] !=
-                                            userService.currentUser.value
-                                                ?.displayName) {
+                                        editedUser['name'] != nameCapitalized) {
                                       // Find the family member in the current user's family members
                                       final currentUser =
                                           userService.currentUser.value;

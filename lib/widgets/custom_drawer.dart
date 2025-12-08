@@ -22,6 +22,10 @@ class CustomDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final textTheme = Theme.of(context).textTheme;
+    final name = userService.currentUser.value!.displayName ?? '';
+    final firstName = name.split(' ').first;
+    final nameCapitalized = capitalizeFirstLetter(firstName);
+    
     return Drawer(
       width: getPercentageWidth(70, context),
       backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
@@ -60,7 +64,7 @@ class CustomDrawer extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Chef ${capitalizeFirstLetter(userService.currentUser.value!.displayName ?? '')}',
+                        'Chef $nameCapitalized',
                         style: textTheme.displaySmall?.copyWith(
                           fontSize: getPercentageWidth(7, context),
                         ),

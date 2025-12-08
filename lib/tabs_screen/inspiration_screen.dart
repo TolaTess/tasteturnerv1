@@ -6,6 +6,7 @@ import 'package:tasteturner/service/post_service.dart';
 import '../helper/utils.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/info_icon_widget.dart';
+import '../widgets/tutorial_blocker.dart';
 import '../screens/upload_image_screen.dart';
 
 class InspirationScreen extends StatefulWidget {
@@ -293,7 +294,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
       onRefresh: _refreshPosts,
       color: kAccent,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      child: SingleChildScrollView(
+      child: BlockableSingleChildScrollView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
