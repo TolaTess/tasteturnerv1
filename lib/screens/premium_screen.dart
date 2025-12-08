@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
+import 'dart:io';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -348,6 +350,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
   void _onPurchaseUpdate(purchaseDetails) async {
     if (purchaseDetails == null) return;
+
+    // Only process purchases that were initiated by the user
+    // If _purchaseInProgress is false, this is a pending purchase from a previous session
+    // and we should silently complete it without showing snackbars
+    final isUserInitiated = _purchaseInProgress;
+
     if (purchaseDetails.status == PurchaseStatus.purchased ||
         purchaseDetails.status == PurchaseStatus.restored) {
       try {
@@ -368,33 +376,48 @@ class _PremiumScreenState extends State<PremiumScreen> {
         final selectedPlan = isYearlySelected ? 'year' : 'month';
 
         // Verify purchase with server (this will update premium status after validation)
+        // Only show snackbar if this was a user-initiated purchase
         await authController.verifyPurchaseWithServer(
           context,
           receiptData,
           productId,
           selectedPlan,
+          showSnackbar:
+              isUserInitiated, // Only show snackbar for user-initiated purchases
         );
 
+        if (!mounted) return;
         setState(() {
           _purchaseInProgress = false;
         });
-        Navigator.pop(context);
+        if (isUserInitiated && mounted) {
+          Navigator.pop(context);
+        }
       } catch (e) {
         debugPrint("Error processing purchase: $e");
+        if (!mounted) return;
         setState(() {
           _purchaseInProgress = false;
-          _purchaseError = e.toString();
+          if (isUserInitiated) {
+            _purchaseError = e.toString();
+          }
         });
       }
     } else if (purchaseDetails.status == PurchaseStatus.error) {
+      if (!mounted) return;
       setState(() {
         _purchaseInProgress = false;
-        _purchaseError = purchaseDetails.error?.message ?? 'Unknown error';
+        if (isUserInitiated) {
+          _purchaseError = purchaseDetails.error?.message ?? 'Unknown error';
+        }
       });
     } else if (purchaseDetails.status == PurchaseStatus.canceled) {
+      if (!mounted) return;
       setState(() {
         _purchaseInProgress = false;
-        _purchaseError = 'Purchase cancelled, Chef.';
+        if (isUserInitiated) {
+          _purchaseError = 'Purchase cancelled, Chef.';
+        }
       });
     }
   }
@@ -416,6 +439,118 @@ class _PremiumScreenState extends State<PremiumScreen> {
         _purchaseInProgress = false;
         _purchaseError = e.toString();
       });
+    }
+  }
+
+  /// Show dialog with instructions for canceling subscription
+  Future<void> _showCancelSubscriptionDialog(
+      BuildContext context, bool isDarkMode, TextTheme textTheme) async {
+    final platform = Platform.isIOS ? 'iOS' : 'Android';
+    final instructions = Platform.isIOS
+        ? 'To cancel your subscription:\n\n1. Open Settings\n2. Tap your name at the top\n3. Tap Subscriptions\n4. Find TasteTurner and tap Cancel'
+        : 'To cancel your subscription:\n\n1. Open Google Play Store\n2. Tap Menu (☰) → Subscriptions\n3. Find TasteTurner\n4. Tap Cancel subscription';
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Text(
+          'Manage Subscription',
+          style: textTheme.titleLarge?.copyWith(color: kAccent),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              instructions,
+              style: textTheme.bodyMedium?.copyWith(
+                color: isDarkMode ? kWhite : kDarkGrey,
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(2, context)),
+            Text(
+              'Your subscription will remain active until the end of the current billing period.',
+              style: textTheme.bodySmall?.copyWith(
+                color: isDarkMode ? kLightGrey : kDarkGrey,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: textTheme.bodyMedium?.copyWith(
+                color: isDarkMode ? kWhite : kDarkGrey,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _openSubscriptionSettings(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kAccent,
+            ),
+            child: Text(
+              'Open $platform Settings',
+              style: textTheme.bodyMedium?.copyWith(color: kWhite),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Open platform-specific subscription settings
+  Future<void> _openSubscriptionSettings(BuildContext context) async {
+    try {
+      if (Platform.isIOS) {
+        // iOS: Open Settings app (can't deep link to subscriptions directly)
+        const url = 'app-settings:';
+        if (await canLaunchUrl(Uri.parse(url))) {
+          await launchUrl(Uri.parse(url));
+        } else {
+          // Fallback: Show instructions
+          if (mounted) {
+            showTastySnackbar(
+              'Open Settings',
+              'Go to Settings → [Your Name] → Subscriptions → TasteTurner',
+              context,
+            );
+          }
+        }
+      } else {
+        // Android: Open Google Play subscriptions
+        const url = 'https://play.google.com/store/account/subscriptions';
+        if (await canLaunchUrl(Uri.parse(url))) {
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        } else {
+          if (mounted) {
+            showTastySnackbar(
+              'Unable to Open',
+              'Please manually go to Google Play → Subscriptions, Chef.',
+              context,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error opening subscription settings: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Unable to Open Settings',
+          'Please manually go to ${Platform.isIOS ? "Settings → Subscriptions" : "Google Play → Subscriptions"}, Chef.',
+          context,
+        );
+      }
     }
   }
 
@@ -775,30 +910,58 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     SizedBox(height: getPercentageHeight(1, context)),
 
                     if (isUserPremium)
-                      GestureDetector(
-                        onTap: () async {
-                          final userId = userService.userId;
-                          if (userId != null) {
-                            try {
-                              await authController.updateIsPremiumStatus(
-                                  context, userId, false, '');
-                            } catch (e) {
-                              debugPrint("Error updating Premium: $e");
-                              if (mounted) {
-                                showTastySnackbar(
-                                  'Service Error',
-                                  'Failed to update service, Chef. Please try again.',
-                                  context,
-                                );
-                              }
-                            }
-                          }
-                        },
-                        child: Text(
-                          'Cancel anytime, Chef',
-                          style: textTheme.bodyLarge?.copyWith(
-                              color: isDarkMode ? kLightGrey : kBlack),
-                        ),
+                      Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _showCancelSubscriptionDialog(
+                                context, isDarkMode, textTheme),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(4, context),
+                                vertical: getPercentageHeight(1.5, context),
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: isDarkMode
+                                      ? kLightGrey.withValues(alpha: 0.5)
+                                      : kDarkGrey.withValues(alpha: 0.5),
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.settings_outlined,
+                                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                                    size: getIconScale(5, context),
+                                  ),
+                                  SizedBox(
+                                      width: getPercentageWidth(2, context)),
+                                  Text(
+                                    'Manage Subscription',
+                                    style: textTheme.bodyLarge?.copyWith(
+                                      color:
+                                          isDarkMode ? kLightGrey : kDarkGrey,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: getPercentageHeight(1, context)),
+                          Text(
+                            'Cancel anytime, Chef',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: isDarkMode
+                                  ? kLightGrey.withValues(alpha: 0.7)
+                                  : kDarkGrey.withValues(alpha: 0.7),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                       ),
                     SizedBox(height: getPercentageHeight(10, context)),
                   ],

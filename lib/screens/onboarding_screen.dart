@@ -22,6 +22,8 @@ import 'onboarding_cycle_sync_screen.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import 'splash_screen.dart';
+
 class OnboardingScreen extends StatefulWidget {
   final String userId;
   final String? displayName;
@@ -56,15 +58,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final TextEditingController _cycleLengthController =
       TextEditingController(text: '28');
 
+  // Track if UMP consent has been requested (to avoid multiple calls)
+  bool _umpConsentRequested = false;
+  // Track if UMP consent has been obtained (required to proceed)
+  bool _umpConsentObtained = false;
+
   // List<Map<String, String>> familyMembers = [];
 
   @override
   void initState() {
     super.initState();
+    // Pre-fill name if provided from Apple/Google, even though we skip the name page
     if (widget.displayName != null && widget.displayName!.isNotEmpty) {
       nameController.text = widget.displayName!;
       debugPrint("Display Onboarding Name: ${widget.displayName}");
-      _validateInputs(); // Validate to enable Next button
+    }
+    // If skipping name page, start validation for the first visible page (step 2)
+    if (_shouldSkipNamePage()) {
+      _validateInputs(); // Validate to enable Next button for step 2
+    } else {
+      _validateInputs(); // Validate for name page
     }
     _bounceController = AnimationController(
       vsync: this,
@@ -83,17 +96,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.dispose();
   }
 
-  /// Check if name page should be skipped (name provided from Apple/Google)
+  /// Check if name page should be skipped (skip step 1 for Apple/Google sign-in)
   bool _shouldSkipNamePage() {
-    final hasName =
-        widget.displayName != null && widget.displayName!.isNotEmpty;
+    // Skip step 1 (name page) when coming from Apple or Google sign-in
     final isAppleOrGoogle = widget.authProvider == 'apple.com' ||
         widget.authProvider == 'google.com';
-    return hasName && isAppleOrGoogle;
+    return isAppleOrGoogle;
   }
 
   /// Get the total number of pages (excluding name page if skipped)
-  int get _totalPages => _shouldSkipNamePage() ? 6 : 7;
+  int get _totalPages => _shouldSkipNamePage() ? 7 : 8;
 
   /// Build the list of pages for PageView, conditionally excluding name page
   List<Widget> _buildPageViewChildren() {
@@ -111,6 +123,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       _buildCommunitySlide(),
       _buildGenderSlide(),
       _buildCycleSyncSlide(),
+      _buildUMPConsentSlide(),
       _buildSettingsSlide(),
     ]);
 
@@ -232,8 +245,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           break;
         case 5:
           if (skipNamePage) {
-            // Page 5 is now Settings slide
-            _isNextEnabled = true; // Settings slide
+            // Page 5 is now UMP Consent slide
+            // Next button is only enabled after consent is obtained
+            _isNextEnabled = _umpConsentObtained;
           } else {
             // Page 5 is Cycle Sync slide
             final isMale = _selectedGender?.toLowerCase() == 'male';
@@ -255,6 +269,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           }
           break;
         case 6:
+          if (skipNamePage) {
+            // Page 6 is now Settings slide
+            _isNextEnabled = true; // Settings slide
+          } else {
+            // Page 6 is UMP Consent slide
+            // Next button is only enabled after consent is obtained
+            _isNextEnabled = _umpConsentObtained;
+          }
+          break;
+        case 7:
           // Only reached if name page is NOT skipped
           _isNextEnabled = true; // Settings slide
           break;
@@ -282,7 +306,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       }
 
       // Validate name before submission
-      final name = nameController.text.trim();
+      // If name page was skipped, use displayName from widget; otherwise use controller
+      final name = _shouldSkipNamePage() &&
+              (widget.displayName != null && widget.displayName!.isNotEmpty)
+          ? widget.displayName!.trim()
+          : nameController.text.trim();
       final nameValidation = _validateName(name);
       if (nameValidation != null) {
         if (mounted) {
@@ -311,8 +339,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       );
 
       // Sanitize name before saving
-      final sanitizedName =
-          nameController.text.trim().replaceAll(RegExp(r'[<>{}[\]\\]'), '');
+      // Use displayName from widget if name page was skipped, otherwise use controller
+      final nameToSave = _shouldSkipNamePage() &&
+              (widget.displayName != null && widget.displayName!.isNotEmpty)
+          ? widget.displayName!
+          : nameController.text.trim();
+      final sanitizedName = nameToSave.replaceAll(RegExp(r'[<>{}[\]\\]'), '');
 
       final newUser = UserModel(
         userId: widget.userId,
@@ -408,12 +440,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         await prefs.setBool('is_first_time_user', true);
 
-        // Request UMP consent before navigation
-        try {
-          await requestUMPConsent();
-        } catch (e) {
-          debugPrint("Error requesting UMP consent: $e");
-        }
+        // UMP consent is now handled in the UMP consent slide before Settings
+        // No need to request it here during submission
 
         // Initialize notifications if enabled
         if (_notificationsEnabled && mounted) {
@@ -679,8 +707,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       FocusScope.of(context).unfocus();
                       setState(() {
                         _currentPage = value;
-                        _validateInputs();
                       });
+                      // Reset consent obtained flag when navigating to UMP page
+                      // User must interact with the form to enable next button
+                      final skipNamePage = _shouldSkipNamePage();
+                      final isUMPPage = (skipNamePage && value == 5) ||
+                          (!skipNamePage && value == 6);
+                      if (isUMPPage) {
+                        _umpConsentObtained = false;
+                      }
+                      _validateInputs();
+                      // UMP consent is now triggered by button click on the slide
+                      // No automatic call here - user must click the button
                     },
                     children: _buildPageViewChildren(),
                   ),
@@ -753,7 +791,46 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildMealPlanningSlide() {
     final userName = nameController.text.trim().isNotEmpty
         ? nameController.text.trim()
-        : "there";
+        : (widget.displayName != null && widget.displayName!.isNotEmpty
+            ? widget.displayName!
+            : "there");
+    debugPrint("Meal Planning Slide User Name: $userName");
+
+    // Initialize ads in background when this slide is displayed
+    // This ensures ads are ready without delaying home screen loading
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.microtask(() async {
+        if (!mounted) return;
+
+        // Skip ad initialization for premium users (though unlikely during onboarding)
+        try {
+          final currentUser = userService.currentUser.value;
+          final isPremium = currentUser?.isPremium ?? false;
+
+          if (!isPremium) {
+            try {
+              await MobileAds.instance.initialize();
+              debugPrint('Ads initialized successfully during onboarding');
+            } catch (e) {
+              debugPrint('Error initializing ads during onboarding: $e');
+              // Don't show error to user - ads are not critical for onboarding
+            }
+          } else {
+            debugPrint('Skipping ad initialization - user is premium');
+          }
+        } catch (e) {
+          debugPrint('Error checking premium status during onboarding: $e');
+          // Try to initialize anyway if we can't check premium status
+          try {
+            await MobileAds.instance.initialize();
+            debugPrint(
+                'Ads initialized successfully during onboarding (premium check failed)');
+          } catch (initError) {
+            debugPrint('Error initializing ads during onboarding: $initError');
+          }
+        }
+      });
+    });
 
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
@@ -1020,11 +1097,102 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
+  /// UMP Consent Slide: Privacy & Ads Consent
+  Widget _buildUMPConsentSlide() {
+    final userName = nameController.text.trim().isNotEmpty
+        ? nameController.text.trim()
+        : (widget.displayName != null && widget.displayName!.isNotEmpty
+            ? widget.displayName!
+            : "there");
+
+    return _buildPage(
+      textTheme: Theme.of(context).textTheme,
+      title: "Privacy & Consent,\nChef $userName!",
+      description:
+          "We respect your privacy. Please review and accept our privacy policy and terms. This helps us provide you with personalized content and ads.",
+      child1: Container(
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [kAccentLight, kAccentLight.withValues(alpha: 0.7)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: kAccentLight.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: getPercentageHeight(2, context)),
+            Icon(
+              Icons.privacy_tip,
+              color: Colors.white,
+              size: getIconScale(12, context),
+            ),
+            SizedBox(height: getPercentageHeight(3, context)),
+            Text(
+              "Privacy & Terms",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: getTextScale(5, context),
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: getPercentageHeight(2, context)),
+            Text(
+              "Please review our privacy policy and terms. Click the button below to see the consent form.",
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: getTextScale(3.5, context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: getPercentageHeight(3, context)),
+            ElevatedButton(
+              onPressed: () => _requestUMPConsentFromSlide(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: kAccentLight,
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(8, context),
+                  vertical: getPercentageHeight(1.5, context),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                elevation: 5,
+              ),
+              child: Text(
+                'Review Privacy Policy',
+                style: TextStyle(
+                  fontSize: getTextScale(4, context),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(2, context)),
+          ],
+        ),
+      ),
+      child2: const SizedBox.shrink(),
+      child3: const SizedBox.shrink(),
+    );
+  }
+
   /// Settings Slide: Notifications & Dark Mode
   Widget _buildSettingsSlide() {
     final userName = nameController.text.trim().isNotEmpty
         ? nameController.text.trim()
-        : "there";
+        : (widget.displayName != null && widget.displayName!.isNotEmpty
+            ? widget.displayName!
+            : "there");
 
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
@@ -1303,31 +1471,84 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Future<void> requestUMPConsent() async {
+  /// Request UMP consent from the onboarding slide (button click)
+  Future<void> _requestUMPConsentFromSlide() async {
     try {
       final params = ConsentRequestParameters();
       ConsentInformation.instance.requestConsentInfoUpdate(
         params,
         () async {
           // Consent info updated successfully
-          // For new users, always try to show the consent form
-          // loadAndShowConsentFormIfRequired will automatically check if form is needed
-          ConsentForm.loadAndShowConsentFormIfRequired((formError) {
-            if (formError != null) {
-              debugPrint('UMP Consent form error: $formError');
-              // Consent gathering failed, but you can still check if ads can be requested
-              _setFirebaseConsent();
-            } else {
-              debugPrint('UMP Consent form processed successfully');
-              // Consent has been gathered or was not required
-              _setFirebaseConsent();
+          final canRequest = await ConsentInformation.instance.canRequestAds();
+          final privacyOptionsStatus = await ConsentInformation.instance
+              .getPrivacyOptionsRequirementStatus();
+
+          debugPrint(
+              'UMP Status - canRequestAds: $canRequest, privacyOptionsStatus: $privacyOptionsStatus');
+
+          // If consent hasn't been obtained, show the initial consent form
+          if (!canRequest) {
+            debugPrint('Consent not obtained, showing initial consent form...');
+            ConsentForm.loadAndShowConsentFormIfRequired((formError) {
+              if (formError != null) {
+                debugPrint('UMP Consent form error: $formError');
+                _setFirebaseConsent();
+              } else {
+                debugPrint('UMP Consent form processed successfully');
+                _setFirebaseConsent();
+                // Update state to reflect consent was obtained
+                if (mounted) {
+                  setState(() {
+                    _umpConsentRequested = true;
+                    _umpConsentObtained = true;
+                  });
+                  // Re-validate to enable next button
+                  _validateInputs();
+                }
+              }
+            });
+          } else if (privacyOptionsStatus ==
+              PrivacyOptionsRequirementStatus.required) {
+            // If consent was already obtained but privacy options are required,
+            // show the privacy options form
+            debugPrint('Showing privacy options form...');
+            ConsentForm.showPrivacyOptionsForm((formError) {
+              if (formError != null) {
+                debugPrint('Privacy options form error: $formError');
+                _setFirebaseConsent();
+              } else {
+                debugPrint('Privacy options form processed successfully');
+                _setFirebaseConsent();
+                // Update state to reflect consent was obtained
+                if (mounted) {
+                  setState(() {
+                    _umpConsentRequested = true;
+                    _umpConsentObtained = true;
+                  });
+                  // Re-validate to enable next button
+                  _validateInputs();
+                }
+              }
+            });
+          } else {
+            // Consent already obtained and privacy options not required
+            // Still require user to click the button to acknowledge
+            debugPrint('Consent already obtained, no form needed');
+            _setFirebaseConsent();
+            if (mounted) {
+              setState(() {
+                _umpConsentRequested = true;
+                // Set consent obtained since user clicked the button and consent is already there
+                _umpConsentObtained = true;
+              });
+              // Re-validate to enable next button
+              _validateInputs();
             }
-          });
+          }
         },
         (FormError error) {
           // Handle the error updating consent info
           debugPrint('UMP Consent info update error: $error');
-          // Optionally, you can still check if ads can be requested
           _setFirebaseConsent();
         },
       );
@@ -1336,6 +1557,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       // Still set Firebase consent even if UMP fails
       _setFirebaseConsent();
     }
+  }
+
+  /// Legacy method - kept for compatibility but not used
+  @Deprecated('Use _requestUMPConsentFromSlide instead')
+  Future<void> requestUMPConsent() async {
+    await _requestUMPConsentFromSlide();
   }
 
   Future<void> _setFirebaseConsent() async {
@@ -1350,7 +1577,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildGenderSlide() {
     final userName = nameController.text.trim().isNotEmpty
         ? nameController.text.trim()
-        : "there";
+        : (widget.displayName != null && widget.displayName!.isNotEmpty
+            ? widget.displayName!
+            : "there");
+
+    debugPrint("Gender Slide User Name: $userName");
     final textTheme = Theme.of(context).textTheme;
 
     return _buildPage(

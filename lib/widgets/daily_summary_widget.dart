@@ -40,8 +40,8 @@ class DailySummaryWidget extends StatefulWidget {
 
 class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   late NutritionController dailyDataController;
-  final nutrientBreakdownService = NutrientBreakdownService.instance;
-  final symptomService = SymptomService.instance;
+  late NutrientBreakdownService nutrientBreakdownService;
+  late SymptomService symptomService;
   bool isLoading = true;
   Map<String, dynamic> summaryData = {};
   Map<String, dynamic> goals = {};
@@ -70,6 +70,10 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       // Fallback: ensure controller is registered
       dailyDataController = Get.put(NutritionController());
     }
+
+    // Initialize services (these are singletons, safe to access)
+    nutrientBreakdownService = NutrientBreakdownService.instance;
+    symptomService = SymptomService.instance;
 
     // Set meal context from widget parameters if provided
     _currentMealId = widget.mealId;

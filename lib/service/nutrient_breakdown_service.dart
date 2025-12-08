@@ -121,9 +121,11 @@ class NutrientBreakdownService {
 
       // Map nutrient names to macro keys
       String macroKey = normalizedNutrient;
-      if (normalizedNutrient == 'saturated fat' || normalizedNutrient == 'saturatedfat') {
+      if (normalizedNutrient == 'saturated fat' ||
+          normalizedNutrient == 'saturatedfat') {
         macroKey = 'saturatedFat';
-      } else if (normalizedNutrient == 'carbs' || normalizedNutrient == 'carbohydrates') {
+      } else if (normalizedNutrient == 'carbs' ||
+          normalizedNutrient == 'carbohydrates') {
         macroKey = 'carbs';
       }
 
@@ -161,10 +163,8 @@ class NutrientBreakdownService {
   double _parseQuantity(String quantity) {
     try {
       // Remove common units and extract number
-      final cleaned = quantity
-          .toLowerCase()
-          .replaceAll(RegExp(r'[a-z\s]+'), '')
-          .trim();
+      final cleaned =
+          quantity.toLowerCase().replaceAll(RegExp(r'[a-z\s]+'), '').trim();
       return double.tryParse(cleaned) ?? 0.0;
     } catch (e) {
       return 0.0;
@@ -172,7 +172,8 @@ class NutrientBreakdownService {
   }
 
   /// Analyze all meals logged today and get nutrient breakdowns
-  Future<Map<String, List<Map<String, dynamic>>>> analyzeDailyNutrientBreakdowns(
+  Future<Map<String, List<Map<String, dynamic>>>>
+      analyzeDailyNutrientBreakdowns(
     String userId,
     DateTime date,
   ) async {
@@ -244,4 +245,3 @@ class NutrientBreakdownService {
     }
   }
 }
-

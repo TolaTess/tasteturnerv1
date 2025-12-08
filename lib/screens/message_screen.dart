@@ -10,6 +10,7 @@ import '../service/chat_controller.dart';
 import '../service/tasty_popup_service.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/icon_widget.dart';
+import '../widgets/tutorial_blocker.dart';
 import '../constants.dart';
 import 'chat_screen.dart';
 import 'friend_screen.dart';
@@ -302,14 +303,14 @@ class _MessageScreenState extends State<MessageScreen>
                           throw Exception('Invalid chat ID');
                         }
                         await chatController.disableChats(chatId, true);
-                      await chatController.loadUserChats(userId);
+                        await chatController.loadUserChats(userId);
                         if (mounted && context.mounted) {
                           Navigator.pop(context);
-                      showTastySnackbar(
-                        'Success',
-                        'Chat was restored',
-                        context,
-                      );
+                          showTastySnackbar(
+                            'Success',
+                            'Chat was restored',
+                            context,
+                          );
                         }
                       } catch (e) {
                         debugPrint('Error restoring chat: $e');
@@ -363,192 +364,193 @@ class _MessageScreenState extends State<MessageScreen>
           ),
         ),
         child: SafeArea(
-          child: CustomScrollView(
+          child: BlockableCustomScrollView(
             controller: _scrollController,
             slivers: [
-            SliverAppBar(
-              expandedHeight: MediaQuery.of(context).size.height > 1100
-                  ? getPercentageHeight(6, context)
-                  : getPercentageHeight(4, context),
-              backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
-              title: Text(
-                inbox,
-                style: textTheme.displaySmall?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              pinned: true,
-              leading: Padding(
-                padding: EdgeInsets.only(
-                  right: getPercentageWidth(2, context),
-                  left: getPercentageWidth(2.5, context),
-                ),
-                child: GestureDetector(
-                  onTap: () => Get.back(),
-                  child: IconCircleButton(
-                    isRemoveContainer: true,
-                    size: getIconScale(6, context),
+              SliverAppBar(
+                expandedHeight: MediaQuery.of(context).size.height > 1100
+                    ? getPercentageHeight(6, context)
+                    : getPercentageHeight(4, context),
+                backgroundColor: themeProvider.isDarkMode ? kDarkGrey : kWhite,
+                title: Text(
+                  inbox,
+                  style: textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-              actions: [
-                Padding(
-                  padding:
-                      EdgeInsets.only(right: getPercentageWidth(1, context)),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      key: _addArchiveButtonKey,
-                      icon: Icon(
-                        Icons.archive_outlined,
-                        size: getIconScale(7, context),
-                        color: kAccent,
-                      ),
-                      onPressed: () {
-                        _showDisabledChatsModal(context);
-                      },
+                pinned: true,
+                leading: Padding(
+                  padding: EdgeInsets.only(
+                    right: getPercentageWidth(2, context),
+                    left: getPercentageWidth(2.5, context),
+                  ),
+                  child: GestureDetector(
+                    onTap: () => Get.back(),
+                    child: IconCircleButton(
+                      isRemoveContainer: true,
+                      size: getIconScale(6, context),
                     ),
                   ),
                 ),
-                SizedBox(
-                    width: MediaQuery.of(context).size.height > 1100
-                        ? getPercentageWidth(5, context)
-                        : getPercentageWidth(1, context)),
-
-                Padding(
-                  padding:
-                      EdgeInsets.only(right: getPercentageWidth(4, context)),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      key: _addFriendButtonKey,
-                      icon: Icon(
-                        Icons.people_outlined,
-                        size: getIconScale(7, context),
-                        color: kAccent,
-                      ),
-                      onPressed: () {
-                        try {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const FriendScreen(),
-                          ),
-                        );
-                        } catch (e) {
-                          debugPrint('Error navigating to friend screen: $e');
-                          if (context.mounted) {
-                            showTastySnackbar(
-                              'Error',
-                              'Failed to open friends screen. Please try again.',
-                              context,
-                              backgroundColor: Colors.red,
-                            );
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                // Show tutorial for this button
-              ],
-            ),
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Message List
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                  Obx(() {
-                    final nonBuddyChats = chatController.userChats
-                        .where((chat) =>
-                            !(chat['participants'] as List).contains('buddy'))
-                        .toList();
-
-                    if (nonBuddyChats.isEmpty) {
-                      return noItemTastyWidget(
-                        "No messages yet.",
-                        "start a conversation with a friend.",
-                        context,
-                        false,
-                        'friend',
-                      );
-                    }
-
-                    return Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: ListView.builder(
-                        scrollDirection: Axis.vertical,
-                        physics: const NeverScrollableScrollPhysics(),
-                        shrinkWrap: true,
-                        itemCount: nonBuddyChats.length,
-                        itemBuilder: (context, index) {
-                          final chatSummary = nonBuddyChats[index];
-                          final participants = List<String>.from(
-                              chatSummary['participants'] ?? []);
-                          final friendId = participants.firstWhere(
-                            (id) => id != userService.userId,
-                            orElse: () => '',
-                          );
-                          final chatId = chatSummary['chatId'] as String;
-
-                          return Dismissible(
-                            key: Key(chatId),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: getPercentageWidth(2, context)),
-                              color: Colors.red,
-                              child:
-                                  const Icon(Icons.delete, color: Colors.white),
-                            ),
-                            onDismissed: (direction) async {
-                              try {
-                              await chatController.disableChats(chatId, false);
-                                // Update reactive list instead of modifying local list
-                              chatController.userChats.removeWhere(
-                                  (chat) => chat['chatId'] == chatId);
-                                if (mounted && context.mounted) {
-                              showTastySnackbar(
-                                'Chat Disabled',
-                                'You can enable it in archived chats',
-                                context,
-                              );
-                                }
-                              } catch (e) {
-                                debugPrint('Error disabling chat: $e');
-                                if (mounted && context.mounted) {
-                                  showTastySnackbar(
-                                    'Error',
-                                    'Failed to archive chat. Please try again.',
-                                    context,
-                                    backgroundColor: Colors.red,
-                                  );
-                                }
-                              }
-                            },
-                            child: MessageItem(
-                              dataSrc: chatSummary,
-                              friendId: friendId,
-                              press: () {
-                                _navigateToChat(
-                                      context,
-                                  chatSummary['chatId'],
-                                  friendId,
-                                        );
-                              },
-                            ),
-                          );
+                actions: [
+                  Padding(
+                    padding:
+                        EdgeInsets.only(right: getPercentageWidth(1, context)),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        key: _addArchiveButtonKey,
+                        icon: Icon(
+                          Icons.archive_outlined,
+                          size: getIconScale(7, context),
+                          color: kAccent,
+                        ),
+                        onPressed: () {
+                          _showDisabledChatsModal(context);
                         },
                       ),
-                    );
-                  }),
+                    ),
+                  ),
+                  SizedBox(
+                      width: MediaQuery.of(context).size.height > 1100
+                          ? getPercentageWidth(5, context)
+                          : getPercentageWidth(1, context)),
+
+                  Padding(
+                    padding:
+                        EdgeInsets.only(right: getPercentageWidth(4, context)),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        key: _addFriendButtonKey,
+                        icon: Icon(
+                          Icons.people_outlined,
+                          size: getIconScale(7, context),
+                          color: kAccent,
+                        ),
+                        onPressed: () {
+                          try {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const FriendScreen(),
+                              ),
+                            );
+                          } catch (e) {
+                            debugPrint('Error navigating to friend screen: $e');
+                            if (context.mounted) {
+                              showTastySnackbar(
+                                'Error',
+                                'Failed to open friends screen. Please try again.',
+                                context,
+                                backgroundColor: Colors.red,
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  // Show tutorial for this button
                 ],
               ),
-            ),
-          ],
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Message List
+                    SizedBox(height: getPercentageHeight(1, context)),
+
+                    Obx(() {
+                      final nonBuddyChats = chatController.userChats
+                          .where((chat) =>
+                              !(chat['participants'] as List).contains('buddy'))
+                          .toList();
+
+                      if (nonBuddyChats.isEmpty) {
+                        return noItemTastyWidget(
+                          "No messages yet.",
+                          "start a conversation with a friend.",
+                          context,
+                          false,
+                          'friend',
+                        );
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: ListView.builder(
+                          scrollDirection: Axis.vertical,
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: nonBuddyChats.length,
+                          itemBuilder: (context, index) {
+                            final chatSummary = nonBuddyChats[index];
+                            final participants = List<String>.from(
+                                chatSummary['participants'] ?? []);
+                            final friendId = participants.firstWhere(
+                              (id) => id != userService.userId,
+                              orElse: () => '',
+                            );
+                            final chatId = chatSummary['chatId'] as String;
+
+                            return Dismissible(
+                              key: Key(chatId),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: getPercentageWidth(2, context)),
+                                color: Colors.red,
+                                child: const Icon(Icons.delete,
+                                    color: Colors.white),
+                              ),
+                              onDismissed: (direction) async {
+                                try {
+                                  await chatController.disableChats(
+                                      chatId, false);
+                                  // Update reactive list instead of modifying local list
+                                  chatController.userChats.removeWhere(
+                                      (chat) => chat['chatId'] == chatId);
+                                  if (mounted && context.mounted) {
+                                    showTastySnackbar(
+                                      'Chat Disabled',
+                                      'You can enable it in archived chats',
+                                      context,
+                                    );
+                                  }
+                                } catch (e) {
+                                  debugPrint('Error disabling chat: $e');
+                                  if (mounted && context.mounted) {
+                                    showTastySnackbar(
+                                      'Error',
+                                      'Failed to archive chat. Please try again.',
+                                      context,
+                                      backgroundColor: Colors.red,
+                                    );
+                                  }
+                                }
+                              },
+                              child: MessageItem(
+                                dataSrc: chatSummary,
+                                friendId: friendId,
+                                press: () {
+                                  _navigateToChat(
+                                    context,
+                                    chatSummary['chatId'],
+                                    friendId,
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -595,7 +597,7 @@ class _MessageItemState extends State<MessageItem> {
       try {
         final friend = await friendController.getFriendData(widget.friendId);
         if (mounted) {
-      friendData.value = friend;
+          friendData.value = friend;
         }
       } catch (e) {
         debugPrint('Error loading friend data: $e');
