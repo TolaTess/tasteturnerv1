@@ -14,6 +14,7 @@ import '../service/tasty_popup_service.dart';
 import '../tabs_screen/shopping_tab.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/info_icon_widget.dart';
+import '../widgets/tutorial_blocker.dart';
 import 'safe_text_field.dart';
 import 'spin_stack.dart';
 
@@ -48,6 +49,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   bool _funMode = false;
 
   List<Map<String, dynamic>> _mealDietCategories = [];
+  // Pantry items
+  List<Map<String, dynamic>> pantryItems = [];
+  bool isLoadingPantry = false;
   final GlobalKey _addSpinButtonKey = GlobalKey();
   final GlobalKey _addSwitchButtonKey = GlobalKey();
   final GlobalKey _addAudioButtonKey = GlobalKey();
@@ -123,6 +127,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
 
     // Ensure meal list is populated for default category
     _updateMealListByType();
+    // Fetch pantry items
+    _fetchPantryItems();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _showAddSpinTutorial();
@@ -233,6 +239,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         if (!mounted || !context.mounted) return;
 
         try {
+          bool isFromPantry = false;
           final result = await showDialog<List<String>>(
             context: context,
             builder: (context) {
@@ -249,20 +256,58 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                   'What\'s in the Walk-in?',
                   style: textTheme.titleMedium?.copyWith(color: kAccent),
                 ),
-                content: SafeTextFormField(
-                  controller: modalController,
-                  style: textTheme.bodyMedium
-                      ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
-                  keyboardType: TextInputType.text,
-                  decoration: InputDecoration(
-                    labelText:
-                        "List available inventory (eggs, tuna, etc.) for the spin.",
-                    labelStyle: textTheme.bodySmall
-                        ?.copyWith(color: isDarkMode ? kLightGrey : kLightGrey),
-                    enabledBorder: outlineInputBorder(10),
-                    focusedBorder: outlineInputBorder(10),
-                    border: outlineInputBorder(10),
-                  ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SafeTextFormField(
+                      controller: modalController,
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+                      keyboardType: TextInputType.text,
+                      decoration: InputDecoration(
+                        labelText:
+                            "List available inventory (eggs, tuna, etc.) for the spin.",
+                        labelStyle: textTheme.bodySmall?.copyWith(
+                            color: isDarkMode ? kLightGrey : kLightGrey),
+                        enabledBorder: outlineInputBorder(10),
+                        focusedBorder: outlineInputBorder(10),
+                        border: outlineInputBorder(10),
+                      ),
+                    ),
+                    if (pantryItems.isNotEmpty) ...[
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      OutlinedButton.icon(
+                        onPressed: isLoadingPantry
+                            ? null
+                            : () async {
+                                final selectedItems =
+                                    await _showPantryIngredientSelector();
+                                if (selectedItems != null &&
+                                    selectedItems.isNotEmpty) {
+                                  isFromPantry = true;
+                                  Navigator.pop(context, selectedItems);
+                                }
+                              },
+                        icon: Icon(
+                          Icons.inventory_2,
+                          color: isLoadingPantry ? kLightGrey : kAccent,
+                        ),
+                        label: Text(
+                          isLoadingPantry
+                              ? 'Preparing...'
+                              : 'Add from Pantry (${pantryItems.length})',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: isLoadingPantry ? kLightGrey : kAccent,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: isLoadingPantry ? kLightGrey : kAccent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 actions: [
                   TextButton(
@@ -287,7 +332,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
                             .where((i) => i.isNotEmpty)
                             .toList();
                         if (items.isNotEmpty) {
-                          _funMode = true;
+                          isFromPantry = false;
                           Navigator.pop(context, items);
                         } else {
                           Navigator.pop(context, null);
@@ -309,6 +354,8 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           if (result != null && result.isNotEmpty && mounted) {
             setState(() {
               _ingredientList = result;
+              _funMode =
+                  !isFromPantry; // false if from pantry, true if manual input
             });
           }
         } catch (e) {
@@ -325,6 +372,210 @@ class _SpinWheelPopState extends State<SpinWheelPop>
       debugPrint('Error updating category ingredient data: $e');
       // Non-critical error, continue with defaults
     }
+  }
+
+  /// Fetch pantry items from Firestore
+  Future<void> _fetchPantryItems() async {
+    try {
+      final userId = userService.userId;
+      if (userId == null || userId.isEmpty) {
+        return;
+      }
+
+      setState(() {
+        isLoadingPantry = true;
+      });
+
+      final pantryRef =
+          firestore.collection('users').doc(userId).collection('pantry');
+
+      final snapshot = await pantryRef.get();
+
+      if (mounted) {
+        setState(() {
+          pantryItems = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'name': data['name'] as String? ?? '',
+              'type': data['type'] as String? ?? 'ingredient',
+              'calories': data['calories'] as int? ?? 0,
+              'protein': (data['protein'] as num?)?.toDouble() ?? 0.0,
+              'carbs': (data['carbs'] as num?)?.toDouble() ?? 0.0,
+              'fat': (data['fat'] as num?)?.toDouble() ?? 0.0,
+              'addedAt': data['addedAt'],
+              'updatedAt': data['updatedAt'],
+            };
+          }).toList();
+          isLoadingPantry = false;
+        });
+      }
+
+      debugPrint('Fetched ${pantryItems.length} pantry items');
+    } catch (e) {
+      debugPrint('Error fetching pantry items: $e');
+      if (mounted) {
+        setState(() {
+          isLoadingPantry = false;
+        });
+      }
+    }
+  }
+
+  /// Show pantry ingredient selector dialog
+  Future<List<String>?> _showPantryIngredientSelector() async {
+    if (pantryItems.isEmpty) {
+      showTastySnackbar(
+        'Empty Pantry, Chef',
+        'The pantry is empty. Stock ingredients in pantry mode first, Chef.',
+        context,
+        backgroundColor: Colors.orange,
+      );
+      return null;
+    }
+
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final Set<String> selectedIngredientIds = {};
+
+    final result = await showDialog<List<String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Add from Pantry',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+              if (pantryItems.length > 1)
+                TextButton(
+                  onPressed: () {
+                    setDialogState(() {
+                      if (selectedIngredientIds.length == pantryItems.length) {
+                        selectedIngredientIds.clear();
+                      } else {
+                        selectedIngredientIds.addAll(
+                          pantryItems.map((item) => item['id'] as String),
+                        );
+                      }
+                    });
+                  },
+                  child: Text(
+                    selectedIngredientIds.length == pantryItems.length
+                        ? 'Deselect All'
+                        : 'Select All',
+                    style: TextStyle(
+                      color: kAccent,
+                      fontSize: getTextScale(3, context),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          content: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            child: pantryItems.isEmpty
+                ? Center(
+                    child: Text(
+                      'No items in the pantry, Chef.',
+                      style: TextStyle(
+                        color: isDarkMode ? kLightGrey : kDarkGrey,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: pantryItems.length,
+                    itemBuilder: (context, index) {
+                      final item = pantryItems[index];
+                      final itemId = item['id'] as String;
+                      final itemName = item['name'] as String;
+                      final isSelected = selectedIngredientIds.contains(itemId);
+
+                      return CheckboxListTile(
+                        title: Text(
+                          capitalizeFirstLetter(itemName),
+                          style: TextStyle(
+                            color: isDarkMode ? kWhite : kBlack,
+                            fontSize: getTextScale(3.5, context),
+                          ),
+                        ),
+                        subtitle: item['calories'] != null &&
+                                item['calories'] > 0
+                            ? Text(
+                                '${item['calories']} kcal',
+                                style: TextStyle(
+                                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                                  fontSize: getTextScale(2.5, context),
+                                ),
+                              )
+                            : null,
+                        value: isSelected,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value == true) {
+                              selectedIngredientIds.add(itemId);
+                            } else {
+                              selectedIngredientIds.remove(itemId);
+                            }
+                          });
+                        },
+                        secondary: Icon(
+                          Icons.inventory_2,
+                          color: kAccent,
+                          size: getIconScale(5, context),
+                        ),
+                        activeColor: kAccent,
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDarkMode ? kWhite : kAccent,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: selectedIngredientIds.isEmpty
+                  ? null
+                  : () {
+                      final selectedItems = pantryItems
+                          .where((item) => selectedIngredientIds
+                              .contains(item['id'] as String))
+                          .map((item) => item['name'] as String)
+                          .toList();
+
+                      Navigator.pop(dialogContext, selectedItems);
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAccent,
+              ),
+              child: Text(
+                'Add Selected (${selectedIngredientIds.length})',
+                style: TextStyle(color: kWhite),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return result;
   }
 
   void _updateMealListByType() async {
@@ -389,7 +640,9 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         centerTitle: true,
         toolbarHeight:
             getPercentageHeight(10, context), // Control height with percentage
-        title: Text('Need a Menu Idea, Chef?', style: textTheme.displayMedium?.copyWith(fontSize: getTextScale(5.5, context))),
+        title: Text('Need a Menu Idea, Chef?',
+            style: textTheme.displayMedium
+                ?.copyWith(fontSize: getTextScale(5.5, context))),
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -408,7 +661,7 @@ class _SpinWheelPopState extends State<SpinWheelPop>
             ),
           ),
         ),
-        child: SingleChildScrollView(
+        child: BlockableSingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(
               minHeight: MediaQuery.of(context).size.height,

@@ -34,7 +34,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
     with TickerProviderStateMixin {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   final FirebaseAuth auth = FirebaseAuth.instance;
-  final ProgramService programService = Get.find<ProgramService>();
+  late ProgramService programService;
 
   bool isLoading = true;
   Map<String, dynamic>? programData;
@@ -71,6 +71,21 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
   @override
   void initState() {
     super.initState();
+
+    // Safely initialize ProgramService
+    try {
+      if (Get.isRegistered<ProgramService>()) {
+        programService = Get.find<ProgramService>();
+      } else {
+        // If not registered, ensure it's registered
+        programService = Get.put(ProgramService());
+      }
+    } catch (e) {
+      debugPrint('Error initializing ProgramService: $e');
+      // Fallback: ensure service is registered
+      programService = Get.put(ProgramService());
+    }
+
     if (widget.programId != null) {
       currentProgramId = widget.programId;
       _loadProgramData();
@@ -278,14 +293,6 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
 
       if (programDoc.exists) {
         programData = programDoc.data();
-
-        // Debug: Log program structure to help diagnose differences
-        debugPrint('Program loaded - Type: ${programData!['type']}, '
-            'Has routine: ${programData!.containsKey('routine')}, '
-            'Has benefits: ${programData!.containsKey('benefits')}, '
-            'Has requirements: ${programData!.containsKey('requirements')}, '
-            'Has recommendations: ${programData!.containsKey('recommendations')}, '
-            'Is enriched: ${programData!['isEnriched'] ?? false}');
 
         final routine = programData!['routine'] as List<dynamic>? ?? [];
         final isEnriched = programData!['isEnriched'] as bool? ?? false;

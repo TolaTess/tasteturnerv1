@@ -18,7 +18,7 @@ class _BadgesScreenState extends State<BadgesScreen>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  final BadgeService badgeService = Get.find<BadgeService>();
+  late BadgeService badgeService;
   final PlantDetectionService plantService = PlantDetectionService.instance;
 
   // Plant diversity state
@@ -37,6 +37,21 @@ class _BadgesScreenState extends State<BadgesScreen>
   @override
   void initState() {
     super.initState();
+
+    // Safely initialize BadgeService
+    try {
+      if (Get.isRegistered<BadgeService>()) {
+        badgeService = Get.find<BadgeService>();
+      } else {
+        // If not registered, ensure it's registered (lazy load will create it)
+        badgeService = Get.put(BadgeService());
+      }
+    } catch (e) {
+      debugPrint('Error initializing BadgeService: $e');
+      // Fallback: ensure service is registered
+      badgeService = Get.put(BadgeService());
+    }
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: animationDurationMs),
       vsync: this,

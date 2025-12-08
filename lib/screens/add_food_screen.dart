@@ -61,6 +61,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   final RxBool _isSearching = false.obs;
   final CalorieAdjustmentService _calorieAdjustmentService =
       Get.put(CalorieAdjustmentService());
+  Timer? _searchDebounceTimer;
 
   bool allDisabled = false;
 
@@ -100,10 +101,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   }
 
   // Helper method to retry operations with exponential backoff
+  // Optimized: Reduced retries and delays for faster failure
   Future<T> _retryOperation<T>(
     Future<T> Function() operation, {
-    int maxRetries = 3,
-    Duration initialDelay = const Duration(seconds: 1),
+    int maxRetries = 2, // Reduced from 3 to 2
+    Duration initialDelay =
+        const Duration(milliseconds: 300), // Reduced from 1s to 300ms
   }) async {
     int attempt = 0;
     Duration delay = initialDelay;
@@ -116,9 +119,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         if (attempt >= maxRetries) {
           rethrow;
         }
-        // Exponential backoff: 1s, 2s, 4s
+        // Exponential backoff: 300ms, 600ms (faster than before)
         await Future.delayed(delay);
-        delay = Duration(seconds: delay.inSeconds * 2);
+        delay = Duration(milliseconds: delay.inMilliseconds * 2);
         debugPrint('Retry attempt $attempt/$maxRetries after error: $e');
       }
     }
@@ -129,19 +132,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
   Future<void> _refreshMealData(String mealType) async {
     try {
       // Force a refresh of the daily data
+      // The reactive listeners will automatically update the UI, no need for setState
       dailyDataController.listenToDailyData(
         userId,
         widget.date ?? DateTime.now(),
       );
 
-      // Wait for the data to be updated
-      await Future.delayed(const Duration(milliseconds: 200));
-
       // Track when this meal type was last modified
       _lastMealModification[mealType] = DateTime.now();
 
-      // Force a rebuild of the UI
-      setState(() {});
+      // No need for setState - reactive updates will handle UI refresh
     } catch (e) {
       debugPrint('Error refreshing meal data: $e');
     }
@@ -257,6 +257,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
   @override
   void dispose() {
+    // Cancel debounce timer to prevent memory leaks
+    _searchDebounceTimer?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     // Clear pending items to prevent memory leaks
@@ -307,11 +309,34 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     _loadData();
   }
 
+  // Debounced search handler
+  void _onSearchChanged(String query) {
+    // Cancel previous timer if exists
+    _searchDebounceTimer?.cancel();
+
+    // If query is empty, clear results immediately
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+      });
+      _isSearching.value = false;
+      return;
+    }
+
+    // Debounce the actual search by 400ms
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        _filterSearchResults(query);
+      }
+    });
+  }
+
   void _filterSearchResults(String query) async {
     if (query.isEmpty) {
       setState(() {
         _searchResults = [];
       });
+      _isSearching.value = false;
       return;
     }
 
@@ -320,102 +345,98 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     // Track the latest query to avoid race conditions
     final String currentQuery = query;
 
-    // Search local meals
-    final meals = _allMeals
-        .where((meal) => meal.title.toLowerCase().contains(query.toLowerCase()))
-        .toList();
+    // Pre-compute lowercase query once for better performance
+    final queryLower = query.toLowerCase();
+
+    // Helper function to get title from item
+    String? _getItemTitle(dynamic item) {
+      if (item is Meal) return item.title;
+      if (item is MacroData) return item.title;
+      if (item is IngredientData) return item.title;
+      return null;
+    }
+
+    // Search local meals and ingredients in a single optimized pass
+    final localResults = <dynamic>[];
+
+    // Search meals
+    for (final meal in _allMeals) {
+      if (meal.title.toLowerCase().contains(queryLower)) {
+        localResults.add(meal);
+      }
+    }
 
     // Search ingredients
-    final ingredients = _allIngredients
-        .where((ingredient) =>
-            ingredient.title.toLowerCase().contains(query.toLowerCase()))
-        .toList();
+    for (final ingredient in _allIngredients) {
+      if (ingredient.title.toLowerCase().contains(queryLower)) {
+        localResults.add(ingredient);
+      }
+    }
 
-    // Combine and filter local results
-    final localResults = [
-      ...meals,
-      ...ingredients,
-    ].where((item) {
-      final title = item is Meal
-          ? item.title
-          : item is MacroData
-              ? item.title
-              : item is IngredientData
-                  ? item.title
-                  : null;
+    // Filter out 'Unknown' items
+    final filteredLocalResults = localResults.where((item) {
+      final title = _getItemTitle(item);
       return title != null && title != 'Unknown';
     }).toList();
 
-    // Show local results immediately
-    if (mounted) {
+    // Show local results immediately (single setState)
+    if (mounted && currentQuery == _searchController.text) {
       setState(() {
-        // Only keep items that match the current query
-        _searchResults = localResults;
+        _searchResults = filteredLocalResults;
       });
     }
 
     // Now fetch API results asynchronously and append them
     if (query.length >= 3) {
-      // Use retry logic for API calls
-      final apiMealsFuture = _retryOperation(() => _apiService.fetchMeals(
-            limit: 5, // Limit API results
-            searchQuery: query,
-          ));
-      final apiIngredientsFuture =
-          _retryOperation(() => _macroApiService.searchIngredients(query));
+      try {
+        // Use retry logic for API calls
+        final apiMealsFuture = _retryOperation(() => _apiService.fetchMeals(
+              limit: 5, // Limit API results
+              searchQuery: query,
+            ));
+        final apiIngredientsFuture =
+            _retryOperation(() => _macroApiService.searchIngredients(query));
 
-      // Wait for both API calls
-      final results = await Future.wait([
-        apiMealsFuture,
-        apiIngredientsFuture,
-      ]);
-      // Before updating, check if the query is still the latest and widget is mounted
-      if (!mounted || currentQuery != _searchController.text) {
-        // User has typed something else or widget is disposed, so don't update
-        _isSearching.value = false;
-        return;
-      }
-      List<Meal> apiMeals = results[0] as List<Meal>;
-      List<IngredientData> apiIngredients = results[1] as List<IngredientData>;
+        // Wait for both API calls
+        final results = await Future.wait([
+          apiMealsFuture,
+          apiIngredientsFuture,
+        ]);
 
-      // Filter API results
-      final apiResults = [
-        ...apiMeals,
-        ...apiIngredients,
-      ].where((item) {
-        final title = item is Meal
-            ? item.title
-            : item is MacroData
-                ? item.title
-                : item is IngredientData
-                    ? item.title
-                    : null;
-        return title != null &&
-            title != 'Unknown' &&
-            title.toLowerCase().contains(query.toLowerCase());
-      }).toList();
+        // Before updating, check if the query is still the latest and widget is mounted
+        if (!mounted || currentQuery != _searchController.text) {
+          // User has typed something else or widget is disposed, so don't update
+          _isSearching.value = false;
+          return;
+        }
 
-      // Append API results to the current search results, but only if they match the query
-      // Double-check mounted and query match before updating
-      if (mounted && currentQuery == _searchController.text) {
-        setState(() {
-          // Only keep items that match the current query
-          final filteredLocal = _searchResults.where((item) {
-            final title = item is Meal
-                ? item.title
-                : item is MacroData
-                    ? item.title
-                    : item is IngredientData
-                        ? item.title
-                        : null;
-            return title != null &&
-                title != 'Unknown' &&
-                title.toLowerCase().contains(query.toLowerCase());
-          }).toList();
-          _searchResults = [...filteredLocal, ...apiResults];
-        });
+        List<Meal> apiMeals = results[0] as List<Meal>;
+        List<IngredientData> apiIngredients =
+            results[1] as List<IngredientData>;
+
+        // Filter API results efficiently
+        final apiResults = <dynamic>[];
+        for (final item in [...apiMeals, ...apiIngredients]) {
+          final title = _getItemTitle(item);
+          if (title != null &&
+              title != 'Unknown' &&
+              title.toLowerCase().contains(queryLower)) {
+            apiResults.add(item);
+          }
+        }
+
+        // Append API results to local results (single setState)
+        if (mounted && currentQuery == _searchController.text) {
+          setState(() {
+            _searchResults = [...filteredLocalResults, ...apiResults];
+          });
+        }
+      } catch (e) {
+        debugPrint('Error fetching API search results: $e');
+        // Keep local results even if API fails
       }
     }
+
     if (mounted) {
       _isSearching.value = false;
     }
@@ -636,7 +657,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                           child: SearchButton2(
                             controller: _searchController,
                             onChanged: (query) {
-                              _filterSearchResults(query);
+                              _onSearchChanged(query);
                             },
                             kText: 'Check pantry or search ingredients',
                           ),
@@ -1613,15 +1634,31 @@ class _AddFoodScreenState extends State<AddFoodScreen>
             currentDate,
           ));
 
-      // Refresh data
+      // Refresh data (no setState needed - reactive updates handle it)
       await _refreshMealData(mealTypeResult);
 
+      // Check if points were already awarded for this meal type today
+      // BadgeService.checkMealLogged uses reason pattern: "[mealType] logged!"
+      final reason = "$mealTypeResult logged!";
+      final alreadyAwarded =
+          await badgeService.hasBeenAwardedToday(userService.userId!, reason);
+
       if (mounted) {
-        showTastySnackbar(
-          'Success',
-          'Logged ${item['name']} to $mealTypeResult, Chef',
-          context,
-        );
+        if (!alreadyAwarded) {
+          // Points will be awarded by BadgeService.checkMealLogged
+          showTastySnackbar(
+            'Success',
+            'Logged ${item['name']} to $mealTypeResult, Chef! +5 points',
+            context,
+          );
+        } else {
+          // Already awarded today, just show update confirmation
+          showTastySnackbar(
+            'Success',
+            'Logged ${item['name']} to $mealTypeResult, Chef!',
+            context,
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error adding suggested meal: $e');
@@ -2690,10 +2727,14 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       // Refresh the meal data to ensure UI shows current state
                       await _refreshMealData(mealType);
 
+                      // Points are awarded per meal type (5 points each)
+                      // If multiple items added to same meal type, still only 5 points total
+                      final pointsEarned = 5;
+
                       if (mounted && context.mounted) {
                         showTastySnackbar(
                           'Success',
-                          'Logged ${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'} to $mealType, Chef',
+                          'Logged ${_pendingMacroItems.length} ${_pendingMacroItems.length == 1 ? 'item' : 'items'} to $mealType, Chef! +$pointsEarned points',
                           context,
                         );
                       }
@@ -3251,8 +3292,60 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     // View Yesterday's Summary and Today's Action Items
                     if (isToday) ...[
                       SizedBox(height: getPercentageHeight(2, context)),
-                  
-                      // SizedBox(height: getPercentageHeight(2, context)),
+
+                      SizedBox(height: getPercentageHeight(2, context)),
+
+                      // Daily Summary Link
+                      Padding(
+                        key: _yesterdaySummaryKey,
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(4, context)),
+                        child: GestureDetector(
+                          onTap: () {
+                            final date = DateTime.now()
+                                .subtract(const Duration(days: 1));
+                            Get.to(() => DailySummaryScreen(date: date));
+                          },
+                          child: Container(
+                            padding:
+                                EdgeInsets.all(getPercentageWidth(3, context)),
+                            decoration: BoxDecoration(
+                              color: kAccentLight.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: kAccentLight.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Icon(
+                                  Icons.insights,
+                                  color: kAccentLight,
+                                  size: getIconScale(4, context),
+                                ),
+                                SizedBox(width: getPercentageWidth(2, context)),
+                                Text(
+                                  'View Yesterday\'s Service',
+                                  style: textTheme.titleMedium?.copyWith(
+                                    color: kAccentLight,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(width: getPercentageWidth(1, context)),
+                                Icon(
+                                  Icons.arrow_forward_ios,
+                                  color: kAccentLight,
+                                  size: getIconScale(3.5, context),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: getPercentageHeight(2, context)),
                       // Today's action items
                       Padding(
                         padding: EdgeInsets.symmetric(
@@ -3458,8 +3551,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                     children: [
                                       Expanded(
                                         child: Obx(() {
-                                          final settings = userService
-                                              .currentUser.value!.settings;
+                                          final currentUser =
+                                              userService.currentUser.value;
+                                          if (currentUser == null) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          final settings = currentUser.settings;
                                           final double waterTotal =
                                               double.tryParse(
                                                       settings['waterIntake']
@@ -3482,6 +3579,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                               // Not used with slider, but kept for compatibility
                                             },
                                             onValueChanged: (newValue) async {
+                                              final previousValue =
+                                                  dailyDataController
+                                                      .currentWater.value;
+
                                               await dailyDataController
                                                   .updateCurrentWater(
                                                       userService.userId!,
@@ -3495,6 +3596,40 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                           currentDate);
                                               dailyDataController.currentWater
                                                   .value = updatedValue;
+
+                                              // Award points if value actually changed
+                                              if (mounted &&
+                                                  context.mounted &&
+                                                  updatedValue !=
+                                                      previousValue &&
+                                                  updatedValue > 0) {
+                                                final alreadyAwarded =
+                                                    await badgeService
+                                                        .hasBeenAwardedToday(
+                                                  userService.userId!,
+                                                  "Water logged!",
+                                                );
+                                                if (!alreadyAwarded) {
+                                                  await badgeService
+                                                      .awardPoints(
+                                                    userService.userId!,
+                                                    10,
+                                                    reason: "Water logged!",
+                                                  );
+                                                  showTastySnackbar(
+                                                    'Success',
+                                                    'Water updated! +10 points',
+                                                    context,
+                                                  );
+                                                } else {
+                                                  // Already awarded today, just show update confirmation
+                                                  showTastySnackbar(
+                                                    'Success',
+                                                    'Water updated',
+                                                    context,
+                                                  );
+                                                }
+                                              }
                                             },
                                             iconColor: kBlue,
                                           );
@@ -3505,8 +3640,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                               getPercentageWidth(2, context)),
                                       Expanded(
                                         child: Obx(() {
-                                          final settings = userService
-                                              .currentUser.value!.settings;
+                                          final currentUser =
+                                              userService.currentUser.value;
+                                          if (currentUser == null) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          final settings = currentUser.settings;
                                           final double stepsTotal =
                                               double.tryParse(
                                                       settings['targetSteps']
@@ -3530,6 +3669,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                               // Not used with slider, but kept for compatibility
                                             },
                                             onValueChanged: (newValue) async {
+                                              final previousValue =
+                                                  dailyDataController
+                                                      .currentSteps.value;
+
                                               await dailyDataController
                                                   .updateCurrentSteps(
                                                       userService.userId!,
@@ -3543,6 +3686,40 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                           currentDate);
                                               dailyDataController.currentSteps
                                                   .value = updatedValue;
+
+                                              // Award points if value actually changed
+                                              if (mounted &&
+                                                  context.mounted &&
+                                                  updatedValue !=
+                                                      previousValue &&
+                                                  updatedValue > 0) {
+                                                final alreadyAwarded =
+                                                    await badgeService
+                                                        .hasBeenAwardedToday(
+                                                  userService.userId!,
+                                                  "Steps logged!",
+                                                );
+                                                if (!alreadyAwarded) {
+                                                  await badgeService
+                                                      .awardPoints(
+                                                    userService.userId!,
+                                                    10,
+                                                    reason: "Steps logged!",
+                                                  );
+                                                  showTastySnackbar(
+                                                    'Success',
+                                                    'Steps updated! +10 points',
+                                                    context,
+                                                  );
+                                                } else {
+                                                  // Already awarded today, just show update confirmation
+                                                  showTastySnackbar(
+                                                    'Success',
+                                                    'Steps updated',
+                                                    context,
+                                                  );
+                                                }
+                                              }
                                             },
                                             iconColor: kPurple,
                                           );

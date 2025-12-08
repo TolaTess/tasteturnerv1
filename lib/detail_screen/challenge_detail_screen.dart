@@ -637,7 +637,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
             SizedBox(width: getPercentageWidth(2, context)),
             InfoIconWidget(
               title: 'Post Details',
-              description: 'View and interact with posts and community content',
+              description: 'View, zoom by pinching and interact with posts and community content',
               details: [
                 {
                   'icon': Icons.favorite,

@@ -1354,7 +1354,7 @@ Future<void> handleCameraAction({
     List<XFile> pickedImages = [];
 
     final ImagePicker picker = ImagePicker();
-    
+
     if (selectedOption == 'photo') {
       // Take photo with camera
       final XFile? photo = await picker.pickImage(source: ImageSource.camera);

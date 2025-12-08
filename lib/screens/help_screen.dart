@@ -47,17 +47,17 @@ class HelpScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _buildFAQItem(
                 'How do I use Image Analysis?',
-                'To use image analysis, click on analyse my meal on the "Home" screen and add a photo of your meal. Select if you want to upload meal as a post and submit.',
+                'To use image analysis, click on analyse my meal on the "Kitchen" screen and add a photo of your meal. Select if you want to upload meal as a post and submit.',
                 textTheme),
             const SizedBox(height: 8),
             _buildFAQItem(
                 'How do I join a Program?',
-                'Navigate to the "Programs" screen to see available programs. Tap on any program to view details and join. You can track your progress and earn points.',
+                'Navigate to the "Menu" screen to see available menus. Tap on any menu to view details and join. You can track your progress and earn points.',
                 textTheme),
             const SizedBox(height: 8),
             _buildFAQItem(
                 'What is the Dine In?',
-                'The "Dine In" screen allows you to cook with what you have in your fridge and be creative and spontaneous.',
+                'The "Dine In" screen allows you to cook with what you have in your fridge or pantry and be creative and spontaneous.',
                 textTheme),
             SizedBox(height: getPercentageHeight(2, context)),
             InkWell(
