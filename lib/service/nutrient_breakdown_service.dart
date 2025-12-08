@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart' show debugPrint;
-import 'package:get/get.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/macro_data.dart';
 import '../constants.dart';
-import 'nutrition_controller.dart';
 import 'package:intl/intl.dart';
 
 /// Service to analyze nutrient contributors in recipes
 class NutrientBreakdownService {
   static final NutrientBreakdownService instance = NutrientBreakdownService._();
   NutrientBreakdownService._();
-
-  final nutritionController = Get.find<NutritionController>();
 
   /// Analyze nutrient contributors for a specific nutrient in a recipe
   /// Returns sorted list of contributors with percentages

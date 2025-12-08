@@ -154,16 +154,16 @@ class BadgeService extends GetxController {
 
       // Show notification if reason provided
       if (reason != null) {
-        await notificationService.showNotification(
-          id: 101,
-          title: "Points Earned! 🏆",
-          body: "$reason $points points awarded!",
-          payload: {
-            'type': 'points_earned',
-            'reason': reason,
-            'points': points,
-          },
-        );
+        // await notificationService.showNotification(
+        //   id: 101,
+        //   title: "Points Earned! 🏆",
+        //   body: "$reason $points points awarded!",
+        //   payload: {
+        //     'type': 'points_earned',
+        //     'reason': reason,
+        //     'points': points,
+        //   },
+        // );
 
         // Mark this award as given today
         await _markAwardGivenToday(userId, reason);
@@ -269,6 +269,11 @@ class BadgeService extends GetxController {
       debugPrint('Error getting today\'s awards: $e');
       return [];
     }
+  }
+
+  /// Check if a specific award has been given today (public method)
+  Future<bool> hasBeenAwardedToday(String userId, String reason) async {
+    return await _hasBeenAwardedToday(userId, reason);
   }
 
   /// Check and award goal-related points

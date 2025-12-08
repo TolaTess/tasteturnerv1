@@ -21,6 +21,11 @@ class AuthController extends GetxController {
 
   StreamSubscription? _userDataSubscription;
 
+  // Temporary storage for extracted display name from sign-in methods
+  // This helps bridge the gap between sign-in and _handleAuthState
+  String? _pendingDisplayName;
+  String? _pendingAuthProvider;
+
   // Shared Preferences key for login state
   final String _isLoggedInKey = 'isLoggedIn';
 
@@ -56,6 +61,7 @@ class AuthController extends GetxController {
         await _setLoggedIn(true);
 
         // Extract display name from provider data if user.displayName is null
+        // Try multiple sources to ensure we get the name
         String? displayName = user.displayName;
         String? authProvider;
 
@@ -65,16 +71,54 @@ class AuthController extends GetxController {
           debugPrint("Auth provider detected: $authProvider");
         }
 
+        // Priority 1: Check if we have a pending displayName from sign-in method
+        // This handles the case where updateDisplayName hasn't propagated yet
+        if ((displayName == null || displayName.isEmpty) &&
+            _pendingDisplayName != null &&
+            _pendingDisplayName!.isNotEmpty &&
+            _pendingAuthProvider == authProvider) {
+          displayName = _pendingDisplayName;
+          debugPrint(
+              "✅ Using pending displayName from sign-in method: '$displayName'");
+          // Clear pending name after using it
+          _pendingDisplayName = null;
+          _pendingAuthProvider = null;
+        }
+
+        // Priority 2: Use user.displayName (should be set by sign-in methods)
+        if (displayName == null || displayName.isEmpty) {
+          displayName = user.displayName;
+          if (displayName != null && displayName.isNotEmpty) {
+            debugPrint("✅ Using user.displayName: '$displayName'");
+          }
+        }
+
+        // Priority 3: Try to get from provider data
         if (displayName == null || displayName.isEmpty) {
           for (final providerData in user.providerData) {
             if (providerData.displayName != null &&
                 providerData.displayName!.isNotEmpty) {
               displayName = providerData.displayName;
-              debugPrint("Display Name from provider data: $displayName");
+              debugPrint("✅ Display Name from provider data: '$displayName'");
               break;
             }
           }
         }
+
+        // Priority 4: Reload user to ensure we have the latest displayName (in case it was just updated)
+        if ((displayName == null || displayName.isEmpty) &&
+            authProvider != 'password') {
+          try {
+            await user.reload();
+            displayName = user.displayName;
+            debugPrint("Display Name after reload: '$displayName'");
+          } catch (e) {
+            debugPrint("Error reloading user: $e");
+          }
+        }
+
+        debugPrint(
+            "Final displayName for onboarding: '$displayName' (provider: $authProvider)");
 
         Get.offAll(() => OnboardingScreen(
             userId: user.uid,
@@ -188,7 +232,8 @@ class AuthController extends GetxController {
 
           // Process settings - preserve Map types for nested objects like cycleTracking
           Map<String, dynamic> settingsMap = {};
-          if (userDataMap['settings'] != null && userDataMap['settings'] is Map) {
+          if (userDataMap['settings'] != null &&
+              userDataMap['settings'] is Map) {
             final settingsRaw = userDataMap['settings'] as Map;
             settingsRaw.forEach((key, value) {
               final keyStr = key.toString();
@@ -314,16 +359,18 @@ class AuthController extends GetxController {
       final userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
 
-      // Extract display name from Google UserCredential
+      // Extract display name from Google Sign-In
+      // Google always provides name information, so we should always be able to get it
       String? extractedDisplayName;
 
-      // First try to get display name from additionalUserInfo.profile
+      // Priority 1: Try to get display name from additionalUserInfo.profile (most reliable)
       final profile = userCredential.additionalUserInfo?.profile;
       if (profile != null) {
         // Try 'name' field first (full name)
         if (profile['name'] != null && profile['name'].toString().isNotEmpty) {
-          extractedDisplayName = profile['name'].toString();
-          debugPrint("Extracted Display Name 1: $extractedDisplayName");
+          extractedDisplayName = profile['name'].toString().trim();
+          debugPrint(
+              "Extracted Display Name Google from profile['name']: $extractedDisplayName");
         }
         // Fallback to combining given_name and family_name
         else if (profile['given_name'] != null ||
@@ -331,20 +378,63 @@ class AuthController extends GetxController {
           final givenName = profile['given_name']?.toString() ?? '';
           final familyName = profile['family_name']?.toString() ?? '';
           extractedDisplayName = '$givenName $familyName'.trim();
-          debugPrint("Extracted Display Name 2: $extractedDisplayName");
+          debugPrint(
+              "Extracted Display Name Google from profile given/family name: $extractedDisplayName");
         }
       }
 
-      // Fallback to googleUser.displayName if profile extraction failed
+      // Priority 2: Fallback to googleUser.displayName
       if (extractedDisplayName == null || extractedDisplayName.isEmpty) {
-        extractedDisplayName = googleUser.displayName;
-        debugPrint("Extracted Display Name 3: $extractedDisplayName");
+        if (googleUser.displayName != null &&
+            googleUser.displayName!.isNotEmpty) {
+          extractedDisplayName = googleUser.displayName!.trim();
+          debugPrint(
+              "Extracted Display Name Google from googleUser.displayName: $extractedDisplayName");
+        }
       }
 
-      // Always update display name for both new and existing users
+      // Priority 3: Try Firebase user's displayName (if already set)
+      if (extractedDisplayName == null || extractedDisplayName.isEmpty) {
+        if (userCredential.user?.displayName != null &&
+            userCredential.user!.displayName!.isNotEmpty) {
+          extractedDisplayName = userCredential.user!.displayName!.trim();
+          debugPrint(
+              "Extracted Display Name Google from user.displayName: $extractedDisplayName");
+        }
+      }
+
+      // Always update display name if we have one (for both new and existing users)
+      // This ensures the name is stored in Firebase Auth for future use
       if (extractedDisplayName != null && extractedDisplayName.isNotEmpty) {
-        debugPrint("Extracted Display Name 4: $extractedDisplayName");
-        await userCredential.user?.updateDisplayName(extractedDisplayName);
+        // Store the extracted name temporarily so _handleAuthState can use it
+        _pendingDisplayName = extractedDisplayName;
+        _pendingAuthProvider = 'google.com';
+        debugPrint(
+            "📝 Stored pending displayName: '$extractedDisplayName' for provider: google.com");
+
+        try {
+          await userCredential.user?.updateDisplayName(extractedDisplayName);
+          debugPrint(
+              "Updated Firebase Auth displayName for Google user: $extractedDisplayName");
+
+          // Reload user to get updated displayName
+          await userCredential.user?.reload();
+          final updatedDisplayName = userCredential.user?.displayName;
+          debugPrint(
+              "Reloaded user, displayName is now: '$updatedDisplayName'");
+
+          if (updatedDisplayName != null && updatedDisplayName.isNotEmpty) {
+            // If update worked, clear pending name
+            _pendingDisplayName = null;
+            _pendingAuthProvider = null;
+          }
+        } catch (e) {
+          debugPrint("Error updating displayName for Google user: $e");
+          // Continue anyway - name extraction is still successful
+        }
+      } else {
+        debugPrint(
+            "⚠️ Warning: Could not extract display name from Google Sign-In");
       }
 
       // The auth state listener will handle the rest via _handleAuthState
@@ -381,38 +471,108 @@ class AuthController extends GetxController {
       final userCredential =
           await FirebaseAuth.instance.signInWithCredential(oauthCredential);
 
-      // Extract display name from UserCredential provider data
+      // Log ALL Apple credential data - print entire object to see everything Apple returns
+      final identityTokenStr = appleCredential.identityToken;
+      final authCodeStr = appleCredential.authorizationCode;
+      debugPrint(
+          "  identityToken: ${identityTokenStr?.isNotEmpty == true ? 'Present (${identityTokenStr!.length} chars)' : 'Empty'}");
+      debugPrint(
+          "  authorizationCode: ${authCodeStr.isNotEmpty ? 'Present (${authCodeStr.length} chars)' : 'Empty'}");
+      debugPrint("==========================================");
+
+      // Log Firebase user data
+      debugPrint("=== FIREBASE USER DEBUG ===");
+      debugPrint("Firebase User - uid: ${userCredential.user?.uid}");
+      debugPrint(
+          "Firebase User - displayName: ${userCredential.user?.displayName}");
+      debugPrint("Firebase User - email: ${userCredential.user?.email}");
+      debugPrint(
+          "Firebase User - isNewUser: ${userCredential.additionalUserInfo?.isNewUser}");
+      debugPrint(
+          "Firebase User - providerId: ${userCredential.additionalUserInfo?.providerId}");
+      final providerDataList = userCredential.user?.providerData ?? [];
+      debugPrint(
+          "Firebase User - providerData count: ${providerDataList.length}");
+      for (var providerData in providerDataList) {
+        debugPrint(
+            "  - Provider: ${providerData.providerId}, DisplayName: ${providerData.displayName}, Email: ${providerData.email}");
+      }
+
+      // Extract display name from Apple Sign-In
+      // IMPORTANT: Apple only provides givenName/familyName on FIRST sign-in
+      // After that, these fields are null, so we must capture and store it immediately
       String? extractedDisplayName;
 
-      // First try to get display name from Apple provider data
-      for (final providerData in userCredential.user?.providerData ?? []) {
-        if (providerData.providerId == 'apple.com' &&
-            providerData.displayName != null) {
-          extractedDisplayName = providerData.displayName;
-          debugPrint("Extracted Display Name Apple 1: $extractedDisplayName");
-          break;
-        }
-        // Also check Google provider data (for linked accounts)
-        if (providerData.providerId == 'google.com' &&
-            providerData.displayName != null) {
-          extractedDisplayName = providerData.displayName;
-          debugPrint("Extracted Display Name Apple 3: $extractedDisplayName");
-          break;
-        }
+      // Priority 1: Try to get name from Apple credential (only available on first sign-in)
+      final givenName = appleCredential.givenName;
+      final familyName = appleCredential.familyName;
+
+      if ((givenName != null && givenName.isNotEmpty) ||
+          (familyName != null && familyName.isNotEmpty)) {
+        extractedDisplayName = '${givenName ?? ''} ${familyName ?? ''}'.trim();
+      } else {
+        debugPrint(
+            "❌ Apple credential does not contain givenName/familyName (this is normal for returning users)");
       }
 
-      // Fallback to Apple credential names if no display name found
+      // Priority 2: Try to get from Firebase user's displayName (if already set)
+      if ((extractedDisplayName == null || extractedDisplayName.isEmpty) &&
+          userCredential.user?.displayName != null &&
+          userCredential.user!.displayName!.isNotEmpty) {
+        extractedDisplayName = userCredential.user!.displayName;
+      } else {
+        debugPrint(
+            "❌ Firebase user.displayName is null or empty: '${userCredential.user?.displayName}'");
+      }
+
+      // Priority 3: Try to get from provider data
       if (extractedDisplayName == null || extractedDisplayName.isEmpty) {
-        extractedDisplayName =
-            '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'
-                .trim();
-        debugPrint("Extracted Display Name Apple 2: $extractedDisplayName");
+        for (final providerData in userCredential.user?.providerData ?? []) {
+          if (providerData.providerId == 'apple.com' &&
+              providerData.displayName != null &&
+              providerData.displayName!.isNotEmpty) {
+            extractedDisplayName = providerData.displayName;
+            break;
+          }
+          // Also check Google provider data (for linked accounts)
+          if (providerData.providerId == 'google.com' &&
+              providerData.displayName != null &&
+              providerData.displayName!.isNotEmpty) {
+            extractedDisplayName = providerData.displayName;
+            break;
+          }
+        }
+        if (extractedDisplayName == null || extractedDisplayName.isEmpty) {
+          debugPrint("❌ No display name found in provider data");
+        }
       }
 
-      // If this is a new user, update their profile with the extracted name
-      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
-        if (extractedDisplayName.isNotEmpty) {
+      // Always update display name if we have one (for both new and existing users)
+      // This ensures the name is stored in Firebase Auth for future use
+      if (extractedDisplayName != null && extractedDisplayName.isNotEmpty) {
+        // Store the extracted name temporarily so _handleAuthState can use it
+        // This is needed because updateDisplayName might not propagate immediately
+        _pendingDisplayName = extractedDisplayName;
+        _pendingAuthProvider = 'apple.com';
+
+        try {
           await userCredential.user?.updateDisplayName(extractedDisplayName);
+
+          // Reload user to get updated displayName
+          await userCredential.user?.reload();
+          final updatedDisplayName = userCredential.user?.displayName;
+
+          if (updatedDisplayName == null || updatedDisplayName.isEmpty) {
+          } else {
+            // If update worked, clear pending name
+            _pendingDisplayName = null;
+            _pendingAuthProvider = null;
+          }
+        } catch (e) {
+          debugPrint("❌ Error updating displayName for Apple user: $e");
+          debugPrint(
+              "   Will use pending displayName in _handleAuthState: '$_pendingDisplayName'");
+          // Continue anyway - name extraction is still successful
         }
       }
 
@@ -571,12 +731,15 @@ class AuthController extends GetxController {
 
   /// Verify purchase receipt with server and update premium status
   /// This method calls the cloud function to validate the receipt with Apple
+  /// [showSnackbar] - If true, shows success/error snackbars. Defaults to true.
+  ///                  Set to false when processing pending purchases silently.
   Future<void> verifyPurchaseWithServer(
     BuildContext context,
     String receiptData,
     String productId,
-    String plan,
-  ) async {
+    String plan, {
+    bool showSnackbar = true,
+  }) async {
     try {
       final userId = userService.userId;
       if (userId == null || userId.isEmpty) {
@@ -601,22 +764,26 @@ class AuthController extends GetxController {
         debugPrint("Purchase verified successfully on server");
         // The cloud function already updated the premium status in Firestore
         // The real-time listener will automatically update the UI
-        showTastySnackbar(
-          'Success',
-          'Purchase verified successfully!',
-          context,
-        );
+        if (showSnackbar) {
+          showTastySnackbar(
+            'Success',
+            'Purchase verified successfully!',
+            context,
+          );
+        }
       } else {
         throw Exception(response['message'] ?? 'Purchase verification failed');
       }
     } catch (e) {
       debugPrint("Error verifying purchase with server: $e");
-      showTastySnackbar(
-        'Please try again.',
-        'Failed to verify purchase: ${e.toString()}',
-        context,
-        backgroundColor: Colors.red,
-      );
+      if (showSnackbar) {
+        showTastySnackbar(
+          'Please try again.',
+          'Failed to verify purchase: ${e.toString()}',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
       rethrow;
     }
   }

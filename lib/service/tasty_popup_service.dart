@@ -54,28 +54,55 @@ class TutorialPopupService {
   bool _isShowingSequence = false;
 
   void removeCurrentOverlay() {
-    _currentOverlay?.remove();
-    _currentOverlay = null;
+    if (_currentOverlay != null) {
+      debugPrint('[TUTORIAL] 🗑️ Removing tutorial overlay');
+      _currentOverlay?.remove();
+      _currentOverlay = null;
+    }
   }
 
   Future<void> showSequentialTutorials({
     required BuildContext context,
     required List<TutorialStep> tutorials,
     required String sequenceKey,
-    Duration delayBetween = const Duration(seconds: 5),
+    Duration delayBetween = const Duration(seconds: 3),
   }) async {
-    if (_isShowingSequence) return;
-    if (!await isFirstTimeUser()) return;
-    if (await isSequenceComplete(sequenceKey)) return;
+    debugPrint(
+        '[TUTORIAL] showSequentialTutorials called for sequence: $sequenceKey');
 
+    if (_isShowingSequence) {
+      debugPrint('[TUTORIAL] ⚠️ Already showing sequence, skipping');
+      return;
+    }
+    if (!await isFirstTimeUser()) {
+      debugPrint('[TUTORIAL] ⚠️ Not first time user, skipping');
+      return;
+    }
+    if (await isSequenceComplete(sequenceKey)) {
+      debugPrint('[TUTORIAL] ⚠️ Sequence already complete: $sequenceKey');
+      return;
+    }
+
+    debugPrint(
+        '[TUTORIAL] ✅ Starting tutorial sequence: $sequenceKey (${tutorials.length} steps)');
     _isShowingSequence = true;
 
     for (int i = 0; i < tutorials.length; i++) {
       final tutorial = tutorials[i];
       if (!await hasShownTutorial(tutorial.tutorialId)) {
-        if (i > 0) await Future.delayed(delayBetween);
-        if (!_isShowingSequence) break;
+        if (i > 0) {
+          debugPrint(
+              '[TUTORIAL] ⏳ Waiting ${delayBetween.inSeconds}s before next tutorial...');
+          await Future.delayed(delayBetween);
+        }
+        if (!_isShowingSequence) {
+          debugPrint(
+              '[TUTORIAL] ⚠️ Sequence cancelled during delay, breaking loop');
+          break;
+        }
 
+        debugPrint(
+            '[TUTORIAL] 📍 Showing tutorial step ${i + 1}/${tutorials.length}: ${tutorial.tutorialId}');
         await showTutorialPopup(
           context: context,
           tutorialId: tutorial.tutorialId,
@@ -83,11 +110,17 @@ class TutorialPopupService {
           message: tutorial.message,
           targetKey: tutorial.targetKey,
           onComplete: () async {
+            debugPrint(
+                '[TUTORIAL] ✅ Tutorial step completed: ${tutorial.tutorialId}');
             tutorial.onComplete?.call();
             if (i == tutorials.length - 1) {
+              debugPrint(
+                  '[TUTORIAL] 🎉 Last tutorial step completed, finishing sequence');
               _isShowingSequence = false;
               await markSequenceComplete(sequenceKey);
               if (await areAllSequencesComplete()) {
+                debugPrint(
+                    '[TUTORIAL] 🏁 All sequences complete, marking tutorial as done');
                 await markTutorialComplete();
               }
             }
@@ -98,14 +131,80 @@ class TutorialPopupService {
           showProgress: tutorial.showProgress,
           autoCloseDuration: tutorial.autoCloseDuration,
         );
+      } else {
+        debugPrint(
+            '[TUTORIAL] ⏭️ Skipping already shown tutorial: ${tutorial.tutorialId}');
       }
     }
+
     _isShowingSequence = false;
+    debugPrint('[TUTORIAL] 📝 Sequence finished: $sequenceKey');
   }
 
   void cancelSequence() {
+    debugPrint('[TUTORIAL] 🚫 Cancelling tutorial sequence');
     _isShowingSequence = false;
     removeCurrentOverlay();
+  }
+
+  /// Scroll to make the target widget visible
+  Future<void> _scrollToWidget(GlobalKey targetKey) async {
+    final context = targetKey.currentContext;
+    if (context == null) {
+      debugPrint('[TUTORIAL] ⚠️ Cannot scroll: target context is null');
+      return;
+    }
+
+    // Find the nearest Scrollable ancestor
+    final scrollableState = Scrollable.maybeOf(context);
+    if (scrollableState == null) {
+      debugPrint('[TUTORIAL] ⚠️ Cannot scroll: no Scrollable ancestor found');
+      return;
+    }
+
+    final scrollController = scrollableState.widget.controller;
+    if (scrollController == null || !scrollController.hasClients) {
+      debugPrint(
+          '[TUTORIAL] ⚠️ Cannot scroll: ScrollController not available or not attached');
+      return;
+    }
+
+    // Get the target widget's position
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null) {
+      debugPrint('[TUTORIAL] ⚠️ Cannot scroll: target RenderBox is null');
+      return;
+    }
+
+    // Calculate the position relative to the scroll view
+    final targetPosition = renderBox.localToGlobal(Offset.zero);
+    final scrollPosition =
+        scrollableState.context.findRenderObject() as RenderBox?;
+    if (scrollPosition == null) {
+      debugPrint('[TUTORIAL] ⚠️ Cannot scroll: Scrollable RenderBox is null');
+      return;
+    }
+
+    final scrollGlobalPosition = scrollPosition.localToGlobal(Offset.zero);
+    final relativeY = targetPosition.dy - scrollGlobalPosition.dy;
+
+    // Add some padding to ensure the widget is fully visible
+    const padding = 20.0;
+    final targetScrollOffset = scrollController.offset + relativeY - padding;
+
+    debugPrint(
+        '[TUTORIAL] 📜 Scrolling to widget: current offset=${scrollController.offset}, target offset=$targetScrollOffset');
+
+    // Scroll to the target widget
+    await scrollController.animateTo(
+      targetScrollOffset.clamp(0.0, scrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+
+    // Wait a bit for the scroll animation to complete
+    await Future.delayed(const Duration(milliseconds: 350));
+    debugPrint('[TUTORIAL] ✅ Scroll completed');
   }
 
   Future<void> showTutorialPopup({
@@ -121,17 +220,30 @@ class TutorialPopupService {
     bool showProgress = false,
     Duration autoCloseDuration = Duration.zero,
   }) async {
+    debugPrint('[TUTORIAL] 🎯 showTutorialPopup called: $tutorialId');
+
     if (await hasShownTutorial(tutorialId)) {
+      debugPrint('[TUTORIAL] ⏭️ Tutorial already shown, skipping: $tutorialId');
       return;
     }
 
     // Remove any existing overlay
     removeCurrentOverlay();
 
+    // Scroll to the target widget first
+    debugPrint('[TUTORIAL] 📜 Scrolling to target widget: $tutorialId');
+    await _scrollToWidget(targetKey);
+
     // Get the target widget's position and size
     final RenderBox? renderBox =
         targetKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
+    if (renderBox == null) {
+      debugPrint('[TUTORIAL] ⚠️ Target widget not found for: $tutorialId');
+      return;
+    }
+
+    debugPrint(
+        '[TUTORIAL] ✅ Target widget found, creating overlay for: $tutorialId');
 
     final targetPosition = renderBox.localToGlobal(Offset.zero);
     final targetSize = renderBox.size;
@@ -240,12 +352,16 @@ class TutorialPopupService {
 
     _currentOverlay = overlayEntry;
     Overlay.of(context).insert(overlayEntry);
+    debugPrint('[TUTORIAL] 📌 Overlay inserted for tutorial: $tutorialId');
     await markTutorialShown(tutorialId);
 
     // Auto close after duration if specified
     if (autoCloseDuration != Duration.zero) {
+      debugPrint(
+          '[TUTORIAL] ⏰ Auto-close scheduled for ${autoCloseDuration.inSeconds}s: $tutorialId');
       Future.delayed(autoCloseDuration, () {
         if (_currentOverlay == overlayEntry) {
+          debugPrint('[TUTORIAL] ⏰ Auto-closing tutorial: $tutorialId');
           removeCurrentOverlay();
           onComplete();
         }
@@ -509,6 +625,7 @@ class TutorialPopupService {
                           TextButton(
                             onPressed: () {
                               removeCurrentOverlay();
+                              // Note: onSkip callback should handle setting _isTutorialActive if needed
                               onSkip();
                             },
                             child: Text(
@@ -633,17 +750,6 @@ class TutorialPopupService {
   }
 }
 
-class _PositionCandidate {
-  final Offset position;
-  final ArrowDirection arrowDirection;
-  final double score;
-
-  _PositionCandidate({
-    required this.position,
-    required this.arrowDirection,
-    required this.score,
-  });
-}
 
 class PopupPositionInfo {
   final Offset position;

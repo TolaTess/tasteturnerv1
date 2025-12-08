@@ -187,7 +187,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               style: textTheme.displayMedium?.copyWith(
                                 fontSize: getTextScale(6, context),
                                 fontWeight: FontWeight.w400,
-                                color: kBlack,
+                                color: isDarkMode ? kWhite : kBlack,
                               ),
                             ),
                           ),
@@ -313,7 +313,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       Text(
                         "Already have an account? ",
                         style: textTheme.titleMedium?.copyWith(
-                          color: kBlack,
+                          color: isDarkMode ? kWhite : kBlack,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -331,7 +331,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         child: Text(
                           "Log in",
                           style: textTheme.titleMedium?.copyWith(
-                            color: kBlack,
+                            color: isDarkMode ? kWhite : kBlack,
                             fontWeight: FontWeight.w400,
                             decoration: TextDecoration.underline,
                           ),

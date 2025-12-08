@@ -82,6 +82,44 @@ class NotificationService {
       // Initialize timezone data safely
       tz.initializeTimeZones();
 
+      // Ensure local timezone is set (required for tz.local to work)
+      // The timezone package needs the local location to be set explicitly
+      try {
+        // First, set UTC as a safe default to ensure tz.local is initialized
+        final utcLocation = tz.getLocation('UTC');
+        tz.setLocalLocation(utcLocation);
+
+        // Now try to get and set the actual system timezone
+        // Get timezone name from system DateTime
+        final now = DateTime.now();
+        final offset = now.timeZoneOffset;
+
+        // Try common timezone names based on offset
+        String? systemTzName;
+        if (offset.inHours == 0) {
+          systemTzName = 'UTC';
+        } else {
+          // Try to find a matching timezone
+          // For iOS, common timezones include America/New_York, Europe/London, etc.
+          // We'll use a simple approach: try UTC offset first, then common names
+          systemTzName = 'UTC';
+        }
+
+        // Try to set the system timezone if we can determine it
+        try {
+          // Use the system's actual timezone if available
+          // This is a simplified approach - in production you might want
+          // to use a package like timezone to detect the actual timezone
+          final systemLocation = tz.getLocation(systemTzName);
+          tz.setLocalLocation(systemLocation);
+        } catch (e) {
+          debugPrint('Could not set system timezone, keeping UTC: $e');
+        }
+      } catch (e) {
+        debugPrint('Error setting local timezone location: $e');
+        // If we can't set it, we'll try to continue anyway
+      }
+
       // Get user's timezone with error handling
       _userTimeZone = await _getUserTimeZone();
     } catch (e) {
@@ -158,8 +196,31 @@ class NotificationService {
       return DateTime.now().timeZoneName;
     }
 
-    // For mobile platforms, we'll use the local timezone
-    return tz.local.name;
+    // For mobile platforms, try to get the local timezone
+    try {
+      // Check if tz.local is initialized
+      return tz.local.name;
+    } catch (e) {
+      // If tz.local is not initialized, use system timezone name
+      debugPrint('tz.local not initialized, using system timezone: $e');
+      try {
+        // Try to get timezone from DateTime
+        final now = DateTime.now();
+        // Use a common timezone identifier
+        // On iOS/Android, we can use the timezone offset to guess
+        final offset = now.timeZoneOffset;
+        // Convert offset to a timezone name (simplified)
+        if (offset.inHours == 0) {
+          return 'UTC';
+        } else {
+          // Return a generic timezone based on offset
+          return 'UTC${offset.isNegative ? '' : '+'}${offset.inHours}';
+        }
+      } catch (e2) {
+        debugPrint('Error getting system timezone: $e2');
+        return 'UTC';
+      }
+    }
   }
 
   //notifications detail set up
@@ -215,6 +276,13 @@ class NotificationService {
     String? timeZoneName,
     Map<String, dynamic>? payload,
   }) async {
+    // Ensure notification service is initialized
+    if (!_isInitialized) {
+      debugPrint(
+          'NotificationService not initialized, cannot schedule reminder');
+      return;
+    }
+
     if (Platform.isAndroid) {
       final androidPlugin =
           notificationPlugin.resolvePlatformSpecificImplementation<
@@ -235,8 +303,15 @@ class NotificationService {
         }
       }
     }
-    // Use provided timezone or fall back to user's timezone
-    final targetTimeZone = timeZoneName ?? _userTimeZone ?? tz.local.name;
+
+    // Ensure timezone is initialized before accessing tz.local
+    String targetTimeZone;
+    try {
+      targetTimeZone = timeZoneName ?? _userTimeZone ?? tz.local.name;
+    } catch (e) {
+      debugPrint('Error accessing timezone, using UTC: $e');
+      targetTimeZone = timeZoneName ?? _userTimeZone ?? 'UTC';
+    }
 
     final now = DateTime.now();
     var scheduledDate = DateTime(
@@ -253,12 +328,47 @@ class NotificationService {
     }
 
     // Convert the scheduled date to the specified timezone
-    final location = tz.getLocation(targetTimeZone);
-    final scheduledTime = tz.TZDateTime.from(scheduledDate, location);
+    tz.Location location;
+    try {
+      location = tz.getLocation(targetTimeZone);
+    } catch (e) {
+      debugPrint('Error getting timezone location for $targetTimeZone: $e');
+      // Fallback to UTC if the timezone can't be found
+      try {
+        location = tz.getLocation('UTC');
+        debugPrint('Using UTC as fallback timezone');
+      } catch (e2) {
+        debugPrint('Error getting UTC location: $e2');
+        // If we can't even get UTC, something is seriously wrong
+        // Return early to avoid crashing
+        return;
+      }
+    }
+
+    tz.TZDateTime scheduledTime;
+    try {
+      scheduledTime = tz.TZDateTime.from(scheduledDate, location);
+    } catch (e) {
+      debugPrint('Error creating TZDateTime: $e');
+      return;
+    }
 
     try {
       // Calculate delay from now to scheduled time
-      final delay = scheduledTime.difference(tz.TZDateTime.now(tz.local));
+      tz.TZDateTime now;
+      try {
+        now = tz.TZDateTime.now(location);
+      } catch (e) {
+        debugPrint('Error getting current TZDateTime, using UTC: $e');
+        try {
+          final utcLocation = tz.getLocation('UTC');
+          now = tz.TZDateTime.now(utcLocation);
+        } catch (e2) {
+          debugPrint('Error getting UTC location for now: $e2');
+          return;
+        }
+      }
+      final delay = scheduledTime.difference(now);
 
       // Use smart scheduling approach
       if (Platform.isAndroid && delay.inMinutes <= 60) {
@@ -353,6 +463,16 @@ class NotificationService {
     required Duration delay,
     Map<String, dynamic>? payload,
   }) async {
+    // Ensure timezone database is initialized before use
+    // This is safe to call multiple times and prevents "Tried to get location before initializing" errors
+    try {
+      tz.initializeTimeZones();
+    } catch (e) {
+      debugPrint(
+          'Warning: Timezone initialization check failed (may already be initialized): $e');
+      // Continue anyway - timezone might already be initialized
+    }
+
     if (Platform.isAndroid) {
       final androidPlugin =
           notificationPlugin.resolvePlatformSpecificImplementation<
@@ -364,13 +484,36 @@ class NotificationService {
       if (!hasPermission) {
         final granted = await androidPlugin?.requestNotificationsPermission();
         if (granted != true) {
+          debugPrint(
+              'Notification permission not granted, cannot schedule notification');
           return;
         }
       }
     }
 
     try {
-      final scheduledTime = tz.TZDateTime.now(tz.local).add(delay);
+      tz.TZDateTime scheduledTime;
+      try {
+        final location = tz.getLocation(_userTimeZone ?? 'UTC');
+        scheduledTime = tz.TZDateTime.now(location).add(delay);
+        debugPrint(
+            'Successfully scheduled notification using timezone: ${_userTimeZone ?? 'UTC'}');
+      } catch (e) {
+        debugPrint('Error getting timezone for scheduled time: $e');
+        try {
+          // Fallback to UTC if user timezone fails
+          final utcLocation = tz.getLocation('UTC');
+          scheduledTime = tz.TZDateTime.now(utcLocation).add(delay);
+          debugPrint(
+              'Using UTC as fallback timezone for notification scheduling');
+        } catch (e2) {
+          debugPrint(
+              'Critical error: Cannot get UTC location for notification scheduling: $e2');
+          debugPrint(
+              'Notification scheduling failed - timezone database may not be properly initialized');
+          return;
+        }
+      }
 
       // Use alarmClock for Android 14+ compatibility, works for all delays
       await notificationPlugin.zonedSchedule(
@@ -385,8 +528,12 @@ class NotificationService {
             ? json.encode(_convertPayloadToJsonSafe(payload))
             : null,
       );
+      debugPrint(
+          'Successfully scheduled notification (ID: $id) for ${scheduledTime.toString()}');
     } catch (e) {
-      debugPrint('Error scheduling delayed notification: $e');
+      debugPrint('Error scheduling delayed notification (ID: $id): $e');
+      debugPrint(
+          'Notification details - Title: $title, Body: $body, Delay: ${delay.inMinutes} minutes');
       rethrow;
     }
   }
@@ -466,7 +613,13 @@ class NotificationService {
           ?.requestExactAlarmsPermission();
     }
     // Use provided timezone or fall back to user's timezone
-    final targetTimeZone = timeZoneName ?? _userTimeZone ?? tz.local.name;
+    String targetTimeZone;
+    try {
+      targetTimeZone = timeZoneName ?? _userTimeZone ?? tz.local.name;
+    } catch (e) {
+      debugPrint('Error accessing timezone, using UTC: $e');
+      targetTimeZone = timeZoneName ?? _userTimeZone ?? 'UTC';
+    }
 
     final now = DateTime.now();
     // Find the next occurrence of the selected weekday

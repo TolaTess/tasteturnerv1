@@ -11,7 +11,6 @@ import '../helper/utils.dart';
 import 'badge_service.dart';
 import 'cycle_adjustment_service.dart';
 import 'plant_detection_service.dart';
-import 'notification_service.dart';
 
 class NutritionController extends GetxController {
   static NutritionController instance = Get.find();
@@ -91,7 +90,13 @@ class NutritionController extends GetxController {
         _updateMealTypeCalories('Lunch', mealTotals['Lunch'] as int? ?? 0);
         _updateMealTypeCalories('Dinner', mealTotals['Dinner'] as int? ?? 0);
         _updateMealTypeCalories('Snacks', mealTotals['Snacks'] as int? ?? 0);
-        updateCalories(totalCalories.value.toDouble(), targetCalories.value);
+
+        // If "Add Food" is present, show target calories as eaten calories
+        final addFoodCalories = mealTotals['Add Food'] as int? ?? 0;
+        final caloriesToShow = addFoodCalories > 0
+            ? targetCalories.value.toDouble()
+            : totalCalories.value.toDouble();
+        updateCalories(caloriesToShow, targetCalories.value);
 
         // Check calorie goal achievement using BadgeService
         BadgeService.instance.checkGoalAchievement(userId, 'calories',
@@ -515,7 +520,7 @@ class NutritionController extends GetxController {
   Future<void> updateAllCalories(double newCalories, bool addCalories) async {
     final targetCalories = this.targetCalories.value;
     if (addCalories) {
-      newCalories = targetCalories - newCalories;
+      newCalories = newCalories;
 
       // Add "Add Food" meal to Firestore
       await addUserMeal(
@@ -529,6 +534,9 @@ class NutritionController extends GetxController {
             macros: {}, // Empty macros for placeholder meal
           ),
           DateTime.now());
+
+      // When "Add Food" is present, show target calories as eaten calories
+      updateCalories(targetCalories.toDouble(), targetCalories.toDouble());
     } else {
       final today = DateTime.now();
       final date =
@@ -544,9 +552,10 @@ class NutritionController extends GetxController {
       await userMealRef.update({
         'meals.Add Food': FieldValue.delete(),
       });
-    }
 
-    updateCalories(newCalories.toDouble(), targetCalories.toDouble());
+      // When "Add Food" is removed, show actual total calories
+      updateCalories(totalCalories.value.toDouble(), targetCalories.toDouble());
+    }
   }
 
   /// ✅ Update the correct meal type calories
@@ -755,37 +764,10 @@ class NutritionController extends GetxController {
         // Don't fail the meal logging if plant tracking fails
       }
 
-      // Schedule symptom check notification 1 hour after meal is logged
-      try {
-        final notificationService = NotificationService();
-        // Generate unique notification ID based on instanceId hash
-        final notificationId = meal.instanceId.hashCode.abs() %
-            2147483647; // Keep within int32 range
-
-        final dateId = DateFormat('yyyy-MM-dd').format(today);
-        final payload = {
-          'type': 'meal_symptom_check',
-          'mealId': meal.mealId,
-          'instanceId': meal.instanceId,
-          'mealName': meal.name,
-          'mealType': foodType,
-          'date': dateId,
-        };
-
-        await notificationService.scheduleDelayedNotification(
-          id: notificationId,
-          title: 'How are you feeling?',
-          body: 'Let us know how you\'re feeling after ${meal.name}',
-          delay: const Duration(hours: 1),
-          payload: payload,
-        );
-
-        debugPrint(
-            '📱 Scheduled symptom check notification for meal: ${meal.name} (ID: $notificationId)');
-      } catch (e) {
-        debugPrint('📱 Error scheduling symptom check notification: $e');
-        // Don't fail the meal logging if notification scheduling fails
-      }
+      // Notification scheduling removed - too many notifications were being sent
+      // Points are now shown in snackbars instead
+      debugPrint(
+          '✅ Meal logged: ${meal.name} to $foodType - No notification scheduled (removed to reduce notification spam)');
 
       fetchMealsForToday(userId, today);
     } catch (e) {

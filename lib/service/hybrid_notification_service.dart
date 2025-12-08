@@ -87,6 +87,10 @@ class HybridNotificationService extends GetxService {
       // Initialize local notification service
       _localNotificationService = NotificationService();
 
+      // Initialize the notification service before using it
+      // This sets up timezone data and other required initialization
+      await _localNotificationService!.initNotification();
+
       // Set up iOS notification preferences
       await _setupIOSNotificationPreferences();
 
@@ -250,6 +254,13 @@ class HybridNotificationService extends GetxService {
   /// Set up iOS notification preferences
   Future<void> _setupIOSNotificationPreferences() async {
     if (!Platform.isIOS || _localNotificationService == null) return;
+
+    // Ensure notification service is initialized before scheduling
+    if (!_localNotificationService!.isInitialized) {
+      debugPrint(
+          'NotificationService not initialized, skipping iOS notification setup');
+      return;
+    }
 
     try {
       // Set up meal plan reminder (9 PM daily)
