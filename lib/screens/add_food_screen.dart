@@ -1654,7 +1654,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
           // Points will be awarded by BadgeService.checkMealLogged
           showTastySnackbar(
             'Success',
-            'Logged ${item['name']} to $mealTypeResult, Chef! +5 points',
+            'Logged ${item['name']} to $mealTypeResult, Chef!',
             context,
           );
         } else {
@@ -3005,11 +3005,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                   Obx(() {
                     // Access userMealList to trigger reactivity
                     dailyDataController.userMealList;
+                    // Access targetCalories to trigger reactivity
+                    final targetCalories =
+                        dailyDataController.targetCalories.value;
 
-                    // Only show if at least one meal has been logged and eaten != totalCalories
+                    // Only show if at least one meal has been logged and eaten < targetCalories
+                    // (meaning there are still calories/macros remaining to fill)
                     if (!_hasAnyMealsLogged() ||
-                        dailyDataController.eatenCalories.value ==
-                            dailyDataController.totalCalories.value) {
+                        dailyDataController.eatenCalories.value >=
+                            targetCalories ||
+                        targetCalories <= 0) {
                       return const SizedBox.shrink();
                     }
 

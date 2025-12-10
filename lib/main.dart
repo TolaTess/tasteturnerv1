@@ -37,8 +37,6 @@ import 'service/symptom_analysis_service.dart';
 import 'data_models/message_screen_data.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
   // Set up global error handlers to catch unhandled errors
   // This helps identify what triggers __pthread_kill crashes
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -61,7 +59,9 @@ void main() async {
   };
 
   // Run app in error zone to catch all errors
+  // IMPORTANT: ensureInitialized() must be called in the same zone as runApp()
   runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,

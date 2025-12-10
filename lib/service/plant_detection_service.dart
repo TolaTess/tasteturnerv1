@@ -259,12 +259,113 @@ class PlantDetectionService extends GetxController {
     return false;
   }
 
+  /// Remove descriptive words from ingredient name (fresh, small, large, etc.)
+  /// Examples: "fresh parsley" -> "parsley", "small apple" -> "apple"
+  /// This ensures "fresh parsley" and "parsley" are treated as the same plant
+  String _cleanDescriptiveWords(String name) {
+    // List of descriptive words to remove (case-insensitive)
+    // Must match the list in symptom_analysis_service.dart for consistency
+    final descriptiveWords = [
+      'fresh',
+      'small',
+      'large',
+      'big',
+      'dried',
+      'frozen',
+      'raw',
+      'cooked',
+      'organic',
+      'whole',
+      'chopped',
+      'minced',
+      'sliced',
+      'diced',
+      'grated',
+      'crushed',
+      'smashed',
+      'peeled',
+      'deveined',
+      'boneless',
+      'skinless',
+      'half',
+      'quarter',
+      'baby',
+      'young',
+      'mature',
+      'ripe',
+      'unripe',
+      'green',
+      'red',
+      'yellow',
+      'orange',
+      'purple',
+      'white',
+      'black',
+      'brown',
+      'pink',
+      'wild',
+      'cultivated',
+      'local',
+      'imported',
+      'extra',
+      'virgin',
+      'pure',
+      'natural',
+      'artificial',
+      'loin',
+      'roast',
+      'roasted',
+      'roasting',
+      'loins',
+      'leaves',
+      'stalks',
+      'bulbs',
+      'cloves',
+      'heads',
+      'bunch',
+      'bunches',
+      'sprigs',
+      '(minced)',
+      'juice',
+      'juices',
+      'firm',
+    ];
+
+    String cleaned = name.trim();
+
+    // Remove descriptive words at the beginning
+    for (final word in descriptiveWords) {
+      final regex = RegExp('^$word\\s+', caseSensitive: false);
+      cleaned = cleaned.replaceFirst(regex, '');
+    }
+
+    // Remove descriptive words at the end
+    for (final word in descriptiveWords) {
+      final regex = RegExp('\\s+$word\$', caseSensitive: false);
+      cleaned = cleaned.replaceFirst(regex, '');
+    }
+
+    // Remove descriptive words in the middle (with spaces on both sides)
+    for (final word in descriptiveWords) {
+      final regex = RegExp('\\s+$word\\s+', caseSensitive: false);
+      cleaned = cleaned.replaceAll(regex, ' ');
+    }
+
+    // Clean up multiple spaces
+    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    return cleaned;
+  }
+
   /// Normalize ingredient name for comparison (handles plurals, spaces, etc.)
   /// Examples: "apples" -> "apple", "sesame oil" -> "sesameoil", "SesameOil" -> "sesameoil"
-  String _normalizeIngredientName(String name) {
+  /// This is public so it can be used for consistent normalization across the app
+  String normalizeIngredientName(String name) {
+    // First clean descriptive words, then normalize
+    final cleaned = _cleanDescriptiveWords(name);
     // Convert to lowercase and remove spaces
     String normalized =
-        name.toLowerCase().replaceAll(RegExp(r'\s+'), '').trim();
+        cleaned.toLowerCase().replaceAll(RegExp(r'\s+'), '').trim();
 
     // Remove common plural endings
     if (normalized.endsWith('ies')) {
@@ -311,7 +412,7 @@ class PlantDetectionService extends GetxController {
 
     for (final ingredientEntry in meal.ingredients.entries) {
       final ingredientName = ingredientEntry.key.toLowerCase().trim();
-      final normalizedName = _normalizeIngredientName(ingredientName);
+      final normalizedName = normalizeIngredientName(ingredientName);
 
       // Skip if excluded
       if (_isExcluded(ingredientName)) continue;
@@ -323,8 +424,12 @@ class PlantDetectionService extends GetxController {
       final category = _categorizeIngredient(ingredientName);
       if (category != null) {
         final points = category == PlantCategory.herbSpice ? 0.25 : 1.0;
+        // Clean descriptive words from the name before storing
+        final cleanedName = _cleanDescriptiveWords(ingredientEntry.key);
         plants.add(PlantIngredient(
-          name: ingredientEntry.key, // Keep original casing
+          name: cleanedName.isEmpty
+              ? ingredientEntry.key
+              : cleanedName, // Use cleaned name
           category: category,
           points: points,
           firstSeen: meal.createdAt,
@@ -347,7 +452,7 @@ class PlantDetectionService extends GetxController {
 
     for (final ingredientEntry in ingredients.entries) {
       final ingredientName = ingredientEntry.key.toLowerCase().trim();
-      final normalizedName = _normalizeIngredientName(ingredientName);
+      final normalizedName = normalizeIngredientName(ingredientName);
 
       // Skip if excluded
       if (_isExcluded(ingredientName)) continue;
@@ -359,8 +464,12 @@ class PlantDetectionService extends GetxController {
       final category = _categorizeIngredient(ingredientName);
       if (category != null) {
         final points = category == PlantCategory.herbSpice ? 0.25 : 1.0;
+        // Clean descriptive words from the name before storing
+        final cleanedName = _cleanDescriptiveWords(ingredientEntry.key);
         plants.add(PlantIngredient(
-          name: ingredientEntry.key, // Keep original casing
+          name: cleanedName.isEmpty
+              ? ingredientEntry.key
+              : cleanedName, // Use cleaned name
           category: category,
           points: points,
           firstSeen: date,
@@ -627,7 +736,7 @@ class PlantDetectionService extends GetxController {
             '🌱 Found ${existingList.length} existing plants in Firestore (from meal)');
 
         for (final plant in existingList) {
-          final normalizedKey = _normalizeIngredientName(plant.name);
+          final normalizedKey = normalizeIngredientName(plant.name);
           existingPlants[normalizedKey] = plant;
         }
       } else {
@@ -639,25 +748,28 @@ class PlantDetectionService extends GetxController {
       debugPrint(
           '🌱 New plants: ${detectedPlants.map((p) => p.name).join(", ")}');
 
-      // Add new plants (case-insensitive deduplication)
+      // Add new plants (normalized deduplication - handles "fresh parsley" vs "parsley")
       int newPlantsAdded = 0;
       int existingPlantsUpdated = 0;
       for (final plant in detectedPlants) {
-        final key = plant.name.toLowerCase();
-        if (!existingPlants.containsKey(key)) {
-          existingPlants[key] = plant;
+        // Use normalized name for deduplication to catch "fresh parsley" vs "parsley"
+        final normalizedKey = normalizeIngredientName(plant.name);
+        if (!existingPlants.containsKey(normalizedKey)) {
+          existingPlants[normalizedKey] = plant;
           newPlantsAdded++;
-          debugPrint('🌱 Adding new plant: ${plant.name}');
+          debugPrint(
+              '🌱 Adding new plant: ${plant.name} (normalized: $normalizedKey)');
         } else {
           // Update firstSeen if this is earlier
-          final existing = existingPlants[key]!;
+          final existing = existingPlants[normalizedKey]!;
           if (plant.firstSeen.isBefore(existing.firstSeen)) {
-            existingPlants[key] = plant;
+            existingPlants[normalizedKey] = plant;
             existingPlantsUpdated++;
             debugPrint(
-                '🌱 Updating firstSeen for existing plant: ${plant.name}');
+                '🌱 Updating firstSeen for existing plant: ${plant.name} (normalized: $normalizedKey)');
           } else {
-            debugPrint('🌱 Plant already exists (skipping): ${plant.name}');
+            debugPrint(
+                '🌱 Plant already exists (skipping): ${plant.name} (normalized: $normalizedKey matches ${existing.name})');
           }
         }
       }
@@ -676,9 +788,6 @@ class PlantDetectionService extends GetxController {
           newPlantsAdded; // Count before adding new ones
       final newCount = existingPlants.length;
 
-      debugPrint(
-          '🌱 Previous plant count: $previousCount, New count: $newCount');
-
       final previousLevel = _calculateLevel(previousCount);
       final newLevel = _calculateLevel(newCount);
 
@@ -687,10 +796,6 @@ class PlantDetectionService extends GetxController {
           existingPlants.values.map((p) => p.name).toList();
       final plantDetailsList =
           existingPlants.values.map((p) => p.toMap()).toList();
-
-      debugPrint(
-          '🌱 Saving ${uniquePlantsList.length} unique plants to Firestore (from meal)');
-      debugPrint('🌱 Plant names: ${uniquePlantsList.join(", ")}');
 
       // Save to Firestore - use set() with merge to ensure all fields are updated
       // Note: merge: true merges top-level fields, but replaces arrays (which is what we want)
@@ -703,9 +808,6 @@ class PlantDetectionService extends GetxController {
         'currentLevel': newLevel,
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
-      debugPrint(
-          '🌱 Successfully saved plant tracking data to Firestore (from meal)');
 
       // Check for milestone achievement and send notification
       if (newLevel > previousLevel && newLevel > 0) {
@@ -728,7 +830,6 @@ class PlantDetectionService extends GetxController {
       final detectedPlants = detectPlantsFromIngredients(ingredients, mealDate);
 
       if (detectedPlants.isEmpty) {
-        debugPrint('🌱 No plants detected from ingredients');
         return;
       }
 
@@ -748,50 +849,35 @@ class PlantDetectionService extends GetxController {
                 .toList() ??
             [];
 
-        debugPrint(
-            '🌱 Found ${existingList.length} existing plants in Firestore');
-
         for (final plant in existingList) {
-          final normalizedKey = _normalizeIngredientName(plant.name);
+          final normalizedKey = normalizeIngredientName(plant.name);
           existingPlants[normalizedKey] = plant;
         }
       } else {
         debugPrint(
-            '🌱 No existing plant tracking document found, creating new one');
+            '🌱 No existing plant tracking document found, creating new one (from ingredients)');
       }
-
-      debugPrint(
-          '🌱 Detected ${detectedPlants.length} new plants from ingredients');
-      debugPrint(
-          '🌱 New plants: ${detectedPlants.map((p) => p.name).join(", ")}');
 
       // Add new plants (normalized deduplication)
       int newPlantsAdded = 0;
       int existingPlantsUpdated = 0;
       for (final plant in detectedPlants) {
-        final normalizedKey = _normalizeIngredientName(plant.name);
+        final normalizedKey = normalizeIngredientName(plant.name);
         if (!existingPlants.containsKey(normalizedKey)) {
           existingPlants[normalizedKey] = plant;
           newPlantsAdded++;
-          debugPrint(
-              '🌱 Adding new plant: ${plant.name} (normalized: $normalizedKey)');
         } else {
           // Update firstSeen if this is earlier
           final existing = existingPlants[normalizedKey]!;
           if (plant.firstSeen.isBefore(existing.firstSeen)) {
             existingPlants[normalizedKey] = plant;
             existingPlantsUpdated++;
-            debugPrint(
-                '🌱 Updating firstSeen for existing plant: ${plant.name} (matched with: ${existing.name})');
           } else {
             debugPrint(
-                '🌱 Plant already exists (skipping): ${plant.name} (matched with: ${existing.name})');
+                '🌱 Plant already exists (skipping): ${plant.name} (from ingredients)');
           }
         }
       }
-
-      debugPrint(
-          '🌱 Total plants after merge: ${existingPlants.length} (Added: $newPlantsAdded, Updated: $existingPlantsUpdated)');
 
       // Calculate total points
       final totalPoints = existingPlants.values
@@ -804,9 +890,6 @@ class PlantDetectionService extends GetxController {
           newPlantsAdded; // Count before adding new ones
       final newCount = existingPlants.length;
 
-      debugPrint(
-          '🌱 Previous plant count: $previousCount, New count: $newCount');
-
       final previousLevel = _calculateLevel(previousCount);
       final newLevel = _calculateLevel(newCount);
 
@@ -815,10 +898,6 @@ class PlantDetectionService extends GetxController {
           existingPlants.values.map((p) => p.name).toList();
       final plantDetailsList =
           existingPlants.values.map((p) => p.toMap()).toList();
-
-      debugPrint(
-          '🌱 Saving ${uniquePlantsList.length} unique plants to Firestore');
-      debugPrint('🌱 Plant names: ${uniquePlantsList.join(", ")}');
 
       // Save to Firestore - use set() with merge to ensure all fields are updated
       // Note: merge: true merges top-level fields, but replaces arrays (which is what we want)
@@ -831,8 +910,6 @@ class PlantDetectionService extends GetxController {
         'currentLevel': newLevel,
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
-      debugPrint('🌱 Successfully saved plant tracking data to Firestore');
 
       // Check for milestone achievement and send notification
       if (newLevel > previousLevel && newLevel > 0) {
@@ -880,7 +957,6 @@ class PlantDetectionService extends GetxController {
 
       // If we've already notified for this level, skip
       if (notifiedLevels.contains(level)) {
-        debugPrint('🌱 Already notified for level $level this week');
         return;
       }
 
@@ -925,9 +1001,8 @@ class PlantDetectionService extends GetxController {
           body: message,
           payload: payload,
         );
-        debugPrint('🌱 Successfully sent notification for level $level');
       } catch (e) {
-        debugPrint('🌱 Error showing notification: $e');
+        debugPrint('Error sending milestone notification: $e');
         // Continue to mark as notified even if notification fails
       }
 
@@ -936,11 +1011,8 @@ class PlantDetectionService extends GetxController {
       await docRef.set({
         'notifiedLevels': notifiedLevels,
       }, SetOptions(merge: true));
-
-      debugPrint(
-          '🌱 Sent milestone notification for level $level ($levelName)');
     } catch (e) {
-      debugPrint('🌱 Error sending milestone notification: $e');
+      debugPrint('Error sending milestone notification: $e');
     }
   }
 

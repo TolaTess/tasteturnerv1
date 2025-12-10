@@ -824,7 +824,7 @@ class NutritionController extends GetxController {
               title: "How are you feeling? 🤔",
               body:
                   "How did ${meal.name} make you feel? Let's track your symptoms.",
-              delay: const Duration(minutes: 2),
+              delay: const Duration( hours: 1, minutes: 30),
               payload: {
                 'type': 'meal_symptom_check',
                 'mealId': meal.mealId,
@@ -835,7 +835,7 @@ class NutritionController extends GetxController {
               },
             );
             debugPrint(
-                '✅ Scheduled symptom check notification for ${meal.name} in 3 minutes');
+                '✅ Scheduled symptom check notification for ${meal.name} in 1 hours and 30 minutes');
           } else {
             debugPrint(
                 '⚠️ NotificationService still not initialized after attempt, skipping symptom check notification');

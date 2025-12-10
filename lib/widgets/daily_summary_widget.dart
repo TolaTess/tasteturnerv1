@@ -57,6 +57,8 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   String? _currentInstanceId;
   String? _currentMealName;
   String? _currentMealType;
+  // Pending meals that need symptom input
+  List<Map<String, dynamic>> _pendingMeals = [];
   // GlobalKey for scrolling to symptom section
   final GlobalKey _symptomSectionKey = GlobalKey();
 
@@ -98,12 +100,20 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     _loadSummaryData();
   }
 
-  void _scrollToSymptomSection() {
+  void _scrollToSymptomSection({int retryCount = 0}) {
     if (!mounted) return;
 
     if (widget.scrollController == null ||
         !widget.scrollController!.hasClients) {
       debugPrint('⚠️ ScrollController not available for scrolling');
+      // Retry if context might not be ready yet (max 3 retries)
+      if (retryCount < 3) {
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) {
+            _scrollToSymptomSection(retryCount: retryCount + 1);
+          }
+        });
+      }
       return;
     }
 
@@ -123,9 +133,25 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       } else {
         debugPrint(
             '⚠️ Symptom section context not available or widget not mounted');
+        // Retry if context might not be ready yet (max 3 retries)
+        if (retryCount < 3) {
+          Future.delayed(const Duration(milliseconds: 200), () {
+            if (mounted) {
+              _scrollToSymptomSection(retryCount: retryCount + 1);
+            }
+          });
+        }
       }
     } catch (e) {
       debugPrint('Error scrolling to symptom section: $e');
+      // Retry on error (max 3 retries)
+      if (retryCount < 3) {
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) {
+            _scrollToSymptomSection(retryCount: retryCount + 1);
+          }
+        });
+      }
     }
   }
 
@@ -192,6 +218,21 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       }
       if (!mounted) return;
 
+      // Load pending meals (meals without symptoms) for today
+      final isTodayForPending = DateFormat('yyyy-MM-dd').format(widget.date) ==
+          DateFormat('yyyy-MM-dd').format(DateTime.now());
+      if (isTodayForPending) {
+        try {
+          _pendingMeals = await _getPendingMeals(userId, widget.date);
+        } catch (e) {
+          debugPrint('Error loading pending meals: $e');
+          _pendingMeals = [];
+        }
+      } else {
+        _pendingMeals = [];
+      }
+      if (!mounted) return;
+
       // Load user goals (handle null user gracefully)
       final user = userService.currentUser.value;
       if (user != null) {
@@ -225,9 +266,15 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
 
       // Scroll to symptom section after data is loaded if instanceId is provided
       if (_currentInstanceId != null && _currentInstanceId!.isNotEmpty) {
+        // Use multiple post-frame callbacks to ensure widget is fully built
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            _scrollToSymptomSection();
+            // Add a small delay to ensure scroll controller and widget tree are ready
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted) {
+                _scrollToSymptomSection();
+              }
+            });
           }
         });
       }
@@ -1381,6 +1428,16 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
                           fontStyle: FontStyle.italic,
                         ),
                       ),
+                    ] else if (_pendingMeals.isNotEmpty &&
+                        _currentMealId == null) ...[
+                      SizedBox(height: getPercentageHeight(0.5, context)),
+                      Text(
+                        'Select a meal to log how you felt:',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: isDarkMode ? Colors.white70 : Colors.black87,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -1388,6 +1445,11 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             ],
           ),
           SizedBox(height: getPercentageHeight(1.5, context)),
+          // Show pending meals if no meal is currently selected
+          if (_pendingMeals.isNotEmpty && _currentMealId == null && isToday)
+            _buildPendingMealsList(context, isDarkMode, textTheme),
+          if (_pendingMeals.isNotEmpty && _currentMealId == null && isToday)
+            SizedBox(height: getPercentageHeight(1.5, context)),
           if (canLogSymptoms) ...[
             Wrap(
               spacing: getPercentageWidth(2, context),
@@ -1658,11 +1720,11 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       if (userId.isEmpty) return;
 
       // Check if viewing today or a past date
-      final isToday = DateFormat('yyyy-MM-dd').format(widget.date) ==
+      final isTodayCheck = DateFormat('yyyy-MM-dd').format(widget.date) ==
           DateFormat('yyyy-MM-dd').format(DateTime.now());
 
       // Allow logging symptoms for today or if meal context is provided (from notification)
-      if (!isToday && _currentMealId == null) {
+      if (!isTodayCheck && _currentMealId == null) {
         if (mounted) {
           showTastySnackbar(
             'Cannot Log Symptoms',
@@ -1675,7 +1737,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       }
 
       // If meal context is provided but date is not today, check if meal was logged within 24 hours
-      if (!isToday && _currentMealId != null) {
+      if (!isTodayCheck && _currentMealId != null) {
         final mealDate = widget.date;
         final now = DateTime.now();
         final hoursSinceMeal = now.difference(mealDate).inHours;
@@ -1746,9 +1808,21 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       // Reload symptoms to update UI
       final updatedSymptoms =
           await symptomService.getSymptomsForDate(userId, widget.date);
+      final isTodayForReload = DateFormat('yyyy-MM-dd').format(widget.date) ==
+          DateFormat('yyyy-MM-dd').format(DateTime.now());
       if (mounted) {
         setState(() {
           currentSymptoms = _filterSymptomsByDate(updatedSymptoms, widget.date);
+          // Reload pending meals to update the list
+          if (isTodayForReload) {
+            _getPendingMeals(userId, widget.date).then((pending) {
+              if (mounted) {
+                setState(() {
+                  _pendingMeals = pending;
+                });
+              }
+            });
+          }
         });
       }
 
@@ -2119,9 +2193,9 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: isNegative
           ? (severity >= 4
-              ? Colors.red.withValues(alpha: 0.9)
-              : Colors.orange.withValues(alpha: 0.9))
-          : Colors.green.withValues(alpha: 0.9),
+              ? Colors.red.withValues(alpha: 0.7)
+              : Colors.orange.withValues(alpha: 0.7))
+          : Colors.green.withValues(alpha: 0.7),
       colorText: kWhite,
       duration: const Duration(seconds: 4),
       margin: EdgeInsets.all(getPercentageWidth(3, context)),
@@ -2179,5 +2253,151 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     }
 
     return triggers;
+  }
+
+  /// Build list of pending meals that need symptom input
+  Widget _buildPendingMealsList(
+    BuildContext context,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    return Wrap(
+      spacing: getPercentageWidth(2, context),
+      runSpacing: getPercentageHeight(1, context),
+      children: _pendingMeals.map((meal) {
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _currentMealId = meal['mealId'] as String?;
+              _currentInstanceId = meal['instanceId'] as String?;
+              _currentMealName = meal['mealName'] as String?;
+              _currentMealType = meal['mealType'] as String?;
+            });
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: getPercentageWidth(3, context),
+              vertical: getPercentageHeight(0.8, context),
+            ),
+            decoration: BoxDecoration(
+              color: kAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: kAccent.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.restaurant,
+                  color: kAccent,
+                  size: getIconScale(3.5, context),
+                ),
+                SizedBox(width: getPercentageWidth(1.5, context)),
+                Flexible(
+                  child: Text(
+                    meal['mealName'] as String? ?? 'Meal',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+                SizedBox(width: getPercentageWidth(1, context)),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: kAccent,
+                  size: getIconScale(2.5, context),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Get meals that have been logged but don't have symptoms yet
+  Future<List<Map<String, dynamic>>> _getPendingMeals(
+      String userId, DateTime date) async {
+    try {
+      final dateString = DateFormat('yyyy-MM-dd').format(date);
+
+      // Get meals for today
+      final mealsDoc = await firestore
+          .collection('userMeals')
+          .doc(userId)
+          .collection('meals')
+          .doc(dateString)
+          .get();
+
+      if (!mealsDoc.exists) return [];
+
+      final data = mealsDoc.data()!;
+      final mealsMap = Map<String, dynamic>.from(data['meals'] ?? {});
+      final pendingMeals = <Map<String, dynamic>>[];
+
+      // Get all instanceIds and mealIds that have symptoms
+      final symptomInstanceIds = currentSymptoms
+          .where((s) => s.instanceId != null && s.instanceId!.isNotEmpty)
+          .map((s) => s.instanceId!)
+          .toSet();
+      final symptomMealIds = currentSymptoms
+          .where((s) => s.mealId != null && s.mealId!.isNotEmpty)
+          .map((s) => s.mealId!)
+          .toSet();
+
+      // Check each meal type (breakfast, lunch, dinner, snacks)
+      mealsMap.forEach((mealType, mealList) {
+        if (mealList is List) {
+          for (var mealData in mealList) {
+            final mealMap = Map<String, dynamic>.from(mealData);
+            final instanceId = mealMap['instanceId'] as String? ?? '';
+            final mealId = mealMap['mealId'] as String? ?? '';
+            final mealName = mealMap['name'] as String? ?? 'Unknown Meal';
+
+            // Skip if this meal already has symptoms logged
+            if (instanceId.isNotEmpty &&
+                symptomInstanceIds.contains(instanceId)) {
+              continue;
+            }
+            if (mealId.isNotEmpty && symptomMealIds.contains(mealId)) {
+              continue;
+            }
+
+            // Only include meals logged within the last 24 hours
+            final loggedAtStr = mealMap['loggedAt'] as String?;
+            if (loggedAtStr != null) {
+              final loggedAt = DateTime.tryParse(loggedAtStr);
+              if (loggedAt != null) {
+                final hoursSinceMeal =
+                    DateTime.now().difference(loggedAt).inHours;
+                if (hoursSinceMeal > 24) {
+                  continue; // Skip meals older than 24 hours
+                }
+              }
+            }
+
+            // Add to pending meals
+            pendingMeals.add({
+              'instanceId': instanceId,
+              'mealId': mealId,
+              'mealName': mealName,
+              'mealType': mealType,
+              'loggedAt': loggedAtStr,
+            });
+          }
+        }
+      });
+
+      return pendingMeals;
+    } catch (e) {
+      debugPrint('Error getting pending meals: $e');
+      return [];
+    }
   }
 }

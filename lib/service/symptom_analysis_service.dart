@@ -76,12 +76,26 @@ class SymptomAnalysisService extends GetxController {
     String ingredient,
   ) async {
     try {
+      // Clean descriptive words first, then normalize
+      final cleanedIngredient = _cleanDescriptiveWords(ingredient);
+      final ingredientLower = cleanedIngredient.toLowerCase().trim();
+
+      // Don't analyze excluded ingredients (water, salt, pepper, etc.)
+      if (_excludedIngredients.contains(ingredientLower)) {
+        return {
+          'ingredient': ingredient,
+          'occurrences': 0,
+          'correlation': 0.0,
+          'symptoms': {},
+          'message': 'This ingredient is not analyzed as a potential trigger.',
+        };
+      }
+
       final endDate = DateTime.now();
       final startDate = endDate.subtract(const Duration(days: 30));
 
       final allSymptoms =
           await _getSymptomsInDateRange(userId, startDate, endDate);
-      final ingredientLower = ingredient.toLowerCase();
 
       // Find symptoms that include this ingredient
       final relatedSymptoms = allSymptoms.where((symptom) {
@@ -260,7 +274,30 @@ class SymptomAnalysisService extends GetxController {
     // Count occurrences
     for (final symptom in symptoms) {
       for (final ingredient in symptom.ingredients) {
-        final ingLower = ingredient.toLowerCase();
+        // Clean descriptive words first, then normalize
+        final cleanedIngredient = _cleanDescriptiveWords(ingredient);
+        final ingLower = cleanedIngredient.toLowerCase().trim();
+
+        // Skip excluded ingredients (water, salt, pepper, etc.)
+        if (_excludedIngredients.contains(ingLower)) {
+          continue;
+        }
+
+        // Also check if ingredient contains excluded terms as standalone words
+        bool isExcluded = false;
+        for (final excluded in _excludedIngredients) {
+          if (ingLower == excluded ||
+              ingLower.startsWith('$excluded ') ||
+              ingLower.endsWith(' $excluded') ||
+              ingLower.contains(' $excluded ')) {
+            isExcluded = true;
+            break;
+          }
+        }
+        if (isExcluded) {
+          continue;
+        }
+
         ingredientOccurrences[ingLower] =
             (ingredientOccurrences[ingLower] ?? 0) + 1;
 
@@ -313,6 +350,122 @@ class SymptomAnalysisService extends GetxController {
     return frequency;
   }
 
+  /// Remove descriptive words from ingredient name (fresh, small, large, etc.)
+  /// Examples: "fresh parsley" -> "parsley", "small apple" -> "apple"
+  String _cleanDescriptiveWords(String name) {
+    // List of descriptive words to remove (case-insensitive)
+    final descriptiveWords = [
+      'fresh',
+      'small',
+      'large',
+      'big',
+      'dried',
+      'frozen',
+      'raw',
+      'cooked',
+      'organic',
+      'whole',
+      'chopped',
+      'minced',
+      'sliced',
+      'diced',
+      'grated',
+      'crushed',
+      'smashed',
+      'peeled',
+      'deveined',
+      'boneless',
+      'skinless',
+      'whole',
+      'half',
+      'quarter',
+      'baby',
+      'young',
+      'mature',
+      'ripe',
+      'unripe',
+      'green',
+      'red',
+      'yellow',
+      'orange',
+      'purple',
+      'white',
+      'black',
+      'brown',
+      'pink',
+      'wild',
+      'cultivated',
+      'local',
+      'imported',
+      'extra',
+      'virgin',
+      'pure',
+      'natural',
+      'artificial',
+      'loin',
+      'roast',
+      'roasted',
+      'roasting',
+      'roasted',
+      'loins',
+      'leaves',
+      'stalks',
+      'bulbs',
+      'cloves',
+      'heads',
+      'bunch',
+      'bunches',
+      'sprigs',
+      '(minced)',
+      'juice',
+      'juices',
+      'firm',
+    ];
+
+    String cleaned = name.trim();
+
+    // Remove descriptive words at the beginning
+    for (final word in descriptiveWords) {
+      final regex = RegExp('^$word\\s+', caseSensitive: false);
+      cleaned = cleaned.replaceFirst(regex, '');
+    }
+
+    // Remove descriptive words at the end
+    for (final word in descriptiveWords) {
+      final regex = RegExp('\\s+$word\$', caseSensitive: false);
+      cleaned = cleaned.replaceFirst(regex, '');
+    }
+
+    // Remove descriptive words in the middle (with spaces on both sides)
+    for (final word in descriptiveWords) {
+      final regex = RegExp('\\s+$word\\s+', caseSensitive: false);
+      cleaned = cleaned.replaceAll(regex, ' ');
+    }
+
+    // Clean up multiple spaces
+    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    return cleaned;
+  }
+
+  /// Common ingredients that should not be flagged as triggers
+  /// These are basic, non-reactive ingredients that are unlikely to cause symptoms
+  static const Set<String> _excludedIngredients = {
+    'water',
+    'salt',
+    'pepper',
+    'black pepper',
+    'sea salt',
+    'table salt',
+    'kosher salt',
+    'ice',
+    'ice water',
+    'tap water',
+    'mineral water',
+    'sparkling water',
+    'still water',
+  };
+
   /// Get top trigger ingredients sorted by correlation and severity
   List<Map<String, dynamic>> _getTopTriggers(
     Map<String, Map<String, dynamic>> correlations,
@@ -320,6 +473,32 @@ class SymptomAnalysisService extends GetxController {
     final triggers = <Map<String, dynamic>>[];
 
     for (final entry in correlations.entries) {
+      // Clean descriptive words first, then normalize
+      final cleanedIngredient = _cleanDescriptiveWords(entry.key);
+      final ingredient = cleanedIngredient.toLowerCase().trim();
+
+      // Skip excluded ingredients (water, salt, pepper, etc.)
+      if (_excludedIngredients.contains(ingredient)) {
+        continue;
+      }
+
+      // Also check if ingredient contains excluded terms (e.g., "water" in "coconut water")
+      // But allow if it's part of a compound ingredient (e.g., "coconut water" is fine)
+      bool isExcluded = false;
+      for (final excluded in _excludedIngredients) {
+        // Only exclude if ingredient is exactly the excluded term or starts with it followed by space
+        if (ingredient == excluded ||
+            ingredient.startsWith('$excluded ') ||
+            ingredient.endsWith(' $excluded') ||
+            ingredient.contains(' $excluded ')) {
+          isExcluded = true;
+          break;
+        }
+      }
+      if (isExcluded) {
+        continue;
+      }
+
       final data = entry.value;
       final isNegative = data['mostCommonSymptom'] != 'good' &&
           data['mostCommonSymptom'] != 'energy';

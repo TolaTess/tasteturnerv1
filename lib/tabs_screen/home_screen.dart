@@ -230,11 +230,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           debugPrint('🔔 [HomeScreen] onNotificationTapped callback triggered');
           debugPrint('   Payload: $payload');
           debugPrint('   Mounted: $mounted');
-          if (payload != null && mounted) {
-            _handleNotificationTap(payload);
+          if (payload != null) {
+            // Handle notification even if widget is not mounted (e.g., app in background)
+            // Get.context and navigation work without mounted state
+            // Schedule on the next frame to ensure we're in the correct zone
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              // Add a small delay to ensure app is fully initialized when opened from notification
+              Future.delayed(const Duration(milliseconds: 500), () {
+                _handleNotificationTap(payload);
+              });
+            });
           } else {
             debugPrint(
-                '⚠️ [HomeScreen] Skipping notification tap - payload: $payload, mounted: $mounted');
+                '⚠️ [HomeScreen] Skipping notification tap - payload is null');
           }
         },
       ).timeout(
@@ -273,15 +281,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _handleNotificationTap(String? payload) async {
-    if (!mounted || payload == null) {
+    if (payload == null) {
       debugPrint(
-          '⚠️ [HomeScreen] _handleNotificationTap skipped - mounted: $mounted, payload: $payload');
+          '⚠️ [HomeScreen] _handleNotificationTap skipped - payload is null');
       return;
     }
 
     try {
       debugPrint('🔔 [HomeScreen] _handleNotificationTap called');
       debugPrint('   Payload: $payload');
+      debugPrint('   Mounted: $mounted');
 
       // Try to parse as JSON first
       Map<String, dynamic>? parsedPayload;
@@ -297,21 +306,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final type = parsedPayload['type'] as String?;
 
         // Handle simple navigation cases that don't need complex handling
+        // Note: Get.to() works even when widget is not mounted
         if (type == 'meal_reminder') {
           // Navigate to add food screen for meal logging with the specific meal type
           final mealType = parsedPayload['mealType'] as String?;
-          if (mounted) {
-            Get.to(() => AddFoodScreen(
-                  date: DateTime.now(),
-                  initialMealType: mealType,
-                ));
-          }
+          Get.to(() => AddFoodScreen(
+                date: DateTime.now(),
+                initialMealType: mealType,
+              ));
           return;
         } else if (type == 'new_message') {
           // Navigate to message screen
-          if (mounted) {
-            Get.to(() => const MessageScreen());
-          }
+          Get.to(() => const MessageScreen());
           return;
         } else if (type == 'points_earned') {
           // Points earned - just show a snackbar or navigate to profile
@@ -324,69 +330,65 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         }
 
         // For complex payloads, use NotificationHandlerService
-        if (mounted) {
-          try {
-            debugPrint('🔔 [HomeScreen] Routing to NotificationHandlerService');
-            if (!Get.isRegistered<NotificationHandlerService>()) {
-              debugPrint(
-                  '⚠️ [HomeScreen] NotificationHandlerService not registered');
-              if (mounted && context.mounted) {
-                showTastySnackbar('Notification service unavailable',
-                    'Please try again later', context,
-                    backgroundColor: kRed);
-              }
-              return;
-            }
-            final handlerService = NotificationHandlerService.instance;
+        // Note: NotificationHandlerService uses Get.context which doesn't require mounted state
+        try {
+          debugPrint('🔔 [HomeScreen] Routing to NotificationHandlerService');
+          if (!Get.isRegistered<NotificationHandlerService>()) {
             debugPrint(
-                '✅ [HomeScreen] Calling NotificationHandlerService.handleNotificationPayload');
-            await handlerService.handleNotificationPayload(payload);
-            debugPrint('✅ [HomeScreen] NotificationHandlerService completed');
-          } catch (e, stackTrace) {
-            debugPrint(
-                '❌ [HomeScreen] Error handling notification via NotificationHandlerService: $e');
-            debugPrint('   Stack trace: $stackTrace');
-            if (mounted && context.mounted) {
-              showTastySnackbar(
-                  'Something went wrong', 'Please try again later', context,
+                '⚠️ [HomeScreen] NotificationHandlerService not registered');
+            final context = Get.context;
+            if (context != null && context.mounted) {
+              showTastySnackbar('Notification service unavailable',
+                  'Please try again later', context,
                   backgroundColor: kRed);
             }
+            return;
+          }
+          final handlerService = NotificationHandlerService.instance;
+          debugPrint(
+              '✅ [HomeScreen] Calling NotificationHandlerService.handleNotificationPayload');
+          await handlerService.handleNotificationPayload(payload);
+          debugPrint('✅ [HomeScreen] NotificationHandlerService completed');
+        } catch (e, stackTrace) {
+          debugPrint(
+              '❌ [HomeScreen] Error handling notification via NotificationHandlerService: $e');
+          debugPrint('   Stack trace: $stackTrace');
+          final context = Get.context;
+          if (context != null && context.mounted) {
+            showTastySnackbar(
+                'Something went wrong', 'Please try again later', context,
+                backgroundColor: kRed);
           }
         }
       } else {
         // Fallback for string-based payloads (backward compatibility)
+        // Note: Get.to() works even when widget is not mounted
         if (payload.contains('meal_plan_reminder')) {
-          if (mounted) {
-            Get.to(() => const BottomNavSec(selectedIndex: 4));
-          }
+          Get.to(() => const BottomNavSec(selectedIndex: 4));
         } else if (payload.contains('water_reminder')) {
-          if (mounted) {
-            Get.to(() => AddFoodScreen(date: DateTime.now()));
-          }
+          Get.to(() => AddFoodScreen(date: DateTime.now()));
         } else if (payload.contains('evening_review')) {
-          if (mounted) {
-            Get.to(() => AddFoodScreen(date: DateTime.now()));
-          }
+          Get.to(() => AddFoodScreen(date: DateTime.now()));
         } else {
           // Try NotificationHandlerService as fallback
-          if (mounted) {
-            try {
-              if (!Get.isRegistered<NotificationHandlerService>()) {
-                debugPrint('⚠️ NotificationHandlerService not registered');
-                return;
-              }
-              final handlerService = NotificationHandlerService.instance;
-              await handlerService.handleNotificationPayload(payload);
-            } catch (e, stackTrace) {
-              debugPrint('Error handling notification: $e');
-              debugPrint('Stack trace: $stackTrace');
+          // Note: NotificationHandlerService uses Get.context which doesn't require mounted state
+          try {
+            if (!Get.isRegistered<NotificationHandlerService>()) {
+              debugPrint('⚠️ NotificationHandlerService not registered');
+              return;
             }
+            final handlerService = NotificationHandlerService.instance;
+            await handlerService.handleNotificationPayload(payload);
+          } catch (e, stackTrace) {
+            debugPrint('Error handling notification: $e');
+            debugPrint('Stack trace: $stackTrace');
           }
         }
       }
     } catch (e) {
       debugPrint('Error handling notification tap: $e');
-      if (mounted && context.mounted) {
+      final context = Get.context;
+      if (context != null && context.mounted) {
         showTastySnackbar(
           'Error',
           'Failed to open notification. Please try again.',

@@ -601,7 +601,7 @@ class _SymptomInsightsScreenState extends State<SymptomInsightsScreen> {
                   ),
                   SizedBox(height: getPercentageHeight(1.5, context)),
                   Text(
-                    'Chef, to get personalized insights and identify food triggers, please make sure to log how you\'re feeling after each meal. This helps me track patterns and provide you with recommendations.',
+                    'Chef, to get personalized insights and identify food triggers, please make sure to log how you\'re feeling after each meal. This helps me track patterns and provide you with recommendations. \n\nDont worry, I will remind you to log your symptoms after each meal.',
                     style: textTheme.bodyMedium?.copyWith(
                       color: isDarkMode ? Colors.white70 : Colors.black87,
                     ),

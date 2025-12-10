@@ -298,11 +298,9 @@ class RoutineController extends GetxController {
           final alreadyAwarded = await badgeService.hasBeenAwardedToday(
               userId, "Meals routine completed!");
           if (!alreadyAwarded) {
-            await badgeService.awardPoints(userId, 10,
-                reason: "Meals routine completed!");
             Get.snackbar(
               'Success',
-              'Meals routine completed! +10 points',
+              'Meals routine completed!',
               snackPosition: SnackPosition.BOTTOM,
               backgroundColor: kAccentLight.withValues(alpha: 0.5),
             );

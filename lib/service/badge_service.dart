@@ -336,7 +336,7 @@ class BadgeService extends GetxController {
   Future<void> checkMealLogged(String userId, String mealType) async {
     try {
       // Award points for logging meals
-      await awardPoints(userId, 5, reason: "$mealType logged!");
+      // await awardPoints(userId, 5, reason: "$mealType logged!");
 
       // Check badges
       await checkBadgeProgress(userId, 'meals_logged');

@@ -379,29 +379,57 @@ class NotificationHandlerService extends GetxService {
       }
 
       // Navigate to daily summary screen with meal context
-      final context = Get.context;
+      // Wait for context to be available (app might be opening from notification)
+      int retryCount = 0;
+      BuildContext? context;
+      while (context == null && retryCount < 10) {
+        context = Get.context;
+        if (context == null) {
+          await Future.delayed(const Duration(milliseconds: 200));
+          retryCount++;
+        }
+      }
+
       if (context != null) {
         debugPrint('🍽️ Navigating to DailySummaryScreen with meal context');
         try {
-          await Get.to(() => DailySummaryScreen(
-                date: date,
-                mealId: mealId,
-                instanceId: instanceId,
-                mealName: mealName,
-                mealType: mealType,
-              ));
-          debugPrint('🍽️ Navigation completed');
+          // Schedule navigation on the next frame to ensure proper zone
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            try {
+              await Get.to(() => DailySummaryScreen(
+                    date: date,
+                    mealId: mealId,
+                    instanceId: instanceId,
+                    mealName: mealName,
+                    mealType: mealType,
+                  ));
+              debugPrint('🍽️ Navigation completed');
+            } catch (navError) {
+              debugPrint('Error during navigation: $navError');
+              final currentContext = Get.context;
+              if (currentContext != null && currentContext.mounted) {
+                showTastySnackbar(
+                  'Error',
+                  'Failed to open symptom check. Please try again.',
+                  currentContext,
+                  backgroundColor: kRed,
+                );
+              }
+            }
+          });
         } catch (navError) {
-          debugPrint('Error during navigation: $navError');
-          showTastySnackbar(
-            'Error',
-            'Failed to open symptom check. Please try again.',
-            context,
-            backgroundColor: kRed,
-          );
+          debugPrint('Error scheduling navigation: $navError');
+          if (context.mounted) {
+            showTastySnackbar(
+              'Error',
+              'Failed to open symptom check. Please try again.',
+              context,
+              backgroundColor: kRed,
+            );
+          }
         }
       } else {
-        debugPrint('Error: No context available for navigation');
+        debugPrint('Error: No context available for navigation after retries');
       }
     } catch (e) {
       debugPrint('Error handling meal symptom check: $e');

@@ -170,10 +170,18 @@ class _RainbowTrackerDetailScreenState
   }
 
   /// Check if a plant ingredient is a trigger
+  /// Uses normalized names to match "fresh parsley" with "parsley"
   bool _isTriggerIngredient(PlantIngredient plant) {
-    final plantNameLower = plant.name.toLowerCase();
-    return _triggerIngredients.any((trigger) =>
-        plantNameLower.contains(trigger) || trigger.contains(plantNameLower));
+    // Normalize both plant name and trigger ingredients for robust matching
+    final normalizedPlantName =
+        plantDetectionService.normalizeIngredientName(plant.name);
+    return _triggerIngredients.any((trigger) {
+      final normalizedTrigger =
+          plantDetectionService.normalizeIngredientName(trigger);
+      return normalizedPlantName == normalizedTrigger ||
+          normalizedPlantName.contains(normalizedTrigger) ||
+          normalizedTrigger.contains(normalizedPlantName);
+    });
   }
 
   @override
@@ -521,7 +529,8 @@ class _RainbowTrackerDetailScreenState
                                       : Colors.orange.withValues(alpha: 0.1))
                                   : (isDarkMode
                                       ? kDarkGrey.withValues(alpha: 0.5)
-                                      : kBackgroundColor.withValues(alpha: 0.1)),
+                                      : kBackgroundColor.withValues(
+                                          alpha: 0.1)),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isTrigger
