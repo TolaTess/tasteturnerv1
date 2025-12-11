@@ -778,75 +778,81 @@ class NutritionController extends GetxController {
           '✅ Meal logged: ${meal.name} to $foodType - Points notification handled by BadgeService');
 
       // Schedule symptom check notification (30 minutes after meal)
-      try {
-        if (Get.isRegistered<NotificationService>()) {
-          final notificationService = Get.find<NotificationService>();
+      // Skip notification for "Add Food" meals
+      if (meal.name == 'Add Food') {
+        debugPrint(
+            '⏭️ Skipping symptom check notification for "Add Food" meal');
+      } else {
+        try {
+          if (Get.isRegistered<NotificationService>()) {
+            final notificationService = Get.find<NotificationService>();
 
-          // Initialize service if not already initialized
-          if (!notificationService.isInitialized) {
-            debugPrint(
-                '🔧 [NutritionController] NotificationService not initialized, initializing now for symptom check...');
-            try {
-              // Initialize with callback that routes to NotificationHandlerService
-              await notificationService.initNotification(
-                onNotificationTapped: (String? payload) async {
-                  debugPrint(
-                      '🔔 [NutritionController] Symptom check notification tapped: $payload');
-                  if (payload != null &&
-                      Get.isRegistered<NotificationHandlerService>()) {
-                    try {
-                      final handlerService =
-                          NotificationHandlerService.instance;
-                      await handlerService.handleNotificationPayload(payload);
-                    } catch (e) {
-                      debugPrint(
-                          'Error handling symptom check notification: $e');
+            // Initialize service if not already initialized
+            if (!notificationService.isInitialized) {
+              debugPrint(
+                  '🔧 [NutritionController] NotificationService not initialized, initializing now for symptom check...');
+              try {
+                // Initialize with callback that routes to NotificationHandlerService
+                await notificationService.initNotification(
+                  onNotificationTapped: (String? payload) async {
+                    debugPrint(
+                        '🔔 [NutritionController] Symptom check notification tapped: $payload');
+                    if (payload != null &&
+                        Get.isRegistered<NotificationHandlerService>()) {
+                      try {
+                        final handlerService =
+                            NotificationHandlerService.instance;
+                        await handlerService.handleNotificationPayload(payload);
+                      } catch (e) {
+                        debugPrint(
+                            'Error handling symptom check notification: $e');
+                      }
                     }
-                  }
+                  },
+                );
+                debugPrint(
+                    '✅ [NutritionController] NotificationService initialized for symptom check');
+              } catch (initError) {
+                debugPrint(
+                    '❌ [NutritionController] Failed to initialize NotificationService: $initError');
+                // Continue anyway - might still work if partially initialized
+              }
+            }
+
+            if (notificationService.isInitialized) {
+              // Generate unique notification ID based on instanceId and timestamp
+              final notificationId = (meal.instanceId.hashCode % 100000).abs();
+
+              // Schedule notification 30 minutes after meal
+              await notificationService.scheduleDelayedNotification(
+                id: notificationId,
+                title: "How are you feeling? 🤔",
+                body:
+                    "How did ${meal.name} make you feel? Let's track your symptoms.",
+                delay: const Duration(hours: 1, minutes: 30),
+                payload: {
+                  'type': 'meal_symptom_check',
+                  'mealId': meal.mealId,
+                  'instanceId': meal.instanceId,
+                  'mealName': meal.name,
+                  'mealType': foodType,
+                  'date': dateId,
                 },
               );
               debugPrint(
-                  '✅ [NutritionController] NotificationService initialized for symptom check');
-            } catch (initError) {
+                  '✅ Scheduled symptom check notification for ${meal.name} in 1 hours and 30 minutes');
+            } else {
               debugPrint(
-                  '❌ [NutritionController] Failed to initialize NotificationService: $initError');
-              // Continue anyway - might still work if partially initialized
+                  '⚠️ NotificationService still not initialized after attempt, skipping symptom check notification');
             }
-          }
-
-          if (notificationService.isInitialized) {
-            // Generate unique notification ID based on instanceId and timestamp
-            final notificationId = (meal.instanceId.hashCode % 100000).abs();
-
-            // Schedule notification 30 minutes after meal
-            await notificationService.scheduleDelayedNotification(
-              id: notificationId,
-              title: "How are you feeling? 🤔",
-              body:
-                  "How did ${meal.name} make you feel? Let's track your symptoms.",
-              delay: const Duration( hours: 1, minutes: 30),
-              payload: {
-                'type': 'meal_symptom_check',
-                'mealId': meal.mealId,
-                'instanceId': meal.instanceId,
-                'mealName': meal.name,
-                'mealType': foodType,
-                'date': dateId,
-              },
-            );
-            debugPrint(
-                '✅ Scheduled symptom check notification for ${meal.name} in 1 hours and 30 minutes');
           } else {
             debugPrint(
-                '⚠️ NotificationService still not initialized after attempt, skipping symptom check notification');
+                '⚠️ NotificationService not registered, skipping symptom check notification');
           }
-        } else {
-          debugPrint(
-              '⚠️ NotificationService not registered, skipping symptom check notification');
+        } catch (e) {
+          debugPrint('Error scheduling symptom check notification: $e');
+          // Don't fail meal logging if notification scheduling fails
         }
-      } catch (e) {
-        debugPrint('Error scheduling symptom check notification: $e');
-        // Don't fail meal logging if notification scheduling fails
       }
 
       fetchMealsForToday(userId, today);

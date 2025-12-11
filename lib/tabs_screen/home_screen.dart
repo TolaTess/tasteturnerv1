@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlobalKey _addShoppingButtonKey = GlobalKey();
   final GlobalKey _addRecipeButtonKey = GlobalKey();
   final GlobalKey _addMessageButtonKey = GlobalKey();
-  final GlobalKey _yesterdaySummaryKey = GlobalKey();
+  final GlobalKey _todaySummaryKey = GlobalKey();
   String? _shoppingDay;
   int selectedUserIndex = 0;
   bool hasMealPlan = true;
@@ -1894,13 +1894,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     SizedBox(height: getPercentageHeight(1, context)),
                     // Daily Summary Link
                     Padding(
-                      key: _yesterdaySummaryKey,
+                      key: _todaySummaryKey,
                       padding: EdgeInsets.symmetric(
                           horizontal: getPercentageWidth(4, context)),
                       child: GestureDetector(
                         onTap: () {
-                          final date =
-                              DateTime.now().subtract(const Duration(days: 1));
+                          final date = DateTime.now();
                           Get.to(() => DailySummaryScreen(date: date));
                         },
                         child: Container(
@@ -1924,7 +1923,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                               SizedBox(width: getPercentageWidth(2, context)),
                               Text(
-                                'View Yesterday\'s Service',
+                                'View Today\'s Service',
                                 style: textTheme.titleMedium?.copyWith(
                                   color: kAccentLight,
                                   fontWeight: FontWeight.w600,

@@ -4,6 +4,7 @@ import '../constants.dart';
 import '../helper/utils.dart';
 import '../widgets/bottom_nav.dart';
 import 'signup_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SplashScreen extends StatefulWidget {
   final bool isUser;
@@ -53,24 +54,56 @@ class _SplashScreenState extends State<SplashScreen>
     // Add a status listener to navigate to the onboarding screen after the animation finishes
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
-        if (widget.isUser) {
-          _navigateToMainApp();
-        } else {
-          _navigateToOnboarding();
-        }
+        _checkAuthAndNavigate();
       }
     });
+  }
+
+  void _checkAuthAndNavigate() async {
+    if (!mounted) return;
+
+    // Check if user is authenticated
+    final currentUser = firebaseAuth.currentUser;
+
+    if (currentUser != null) {
+      // User is authenticated - let AuthController handle navigation
+      // AuthController will check if user doc exists and navigate accordingly
+      // Wait a moment for AuthController to initialize and handle navigation
+      debugPrint(
+          'User is authenticated (${currentUser.uid}), waiting for AuthController to handle navigation');
+
+      // Give AuthController a moment to process and navigate
+      // If it doesn't navigate within 2 seconds, we'll navigate ourselves as fallback
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (mounted) {
+        // If we're still on splash screen after waiting, AuthController might not have navigated
+        // This shouldn't happen, but as a safety fallback, navigate to home
+        debugPrint(
+            'AuthController did not navigate, navigating to home as fallback');
+        _navigateToMainApp();
+      }
+      return;
+    }
+
+    // User is not authenticated - navigate to signup
+    // Also check widget.isUser as fallback for manual override
+    if (widget.isUser) {
+      _navigateToMainApp();
+    } else {
+      _navigateToOnboarding();
+    }
   }
 
   void _navigateToOnboarding() {
     if (!mounted) return;
     try {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const SignupScreen(),
-      ),
-    );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SignupScreen(),
+        ),
+      );
     } catch (e) {
       debugPrint('Error navigating to signup: $e');
     }
@@ -101,7 +134,7 @@ class _SplashScreenState extends State<SplashScreen>
     final isDarkMode = getThemeProvider(context).isDarkMode;
     return Scaffold(
       body: Container(
-       decoration: BoxDecoration(
+        decoration: BoxDecoration(
           image: DecorationImage(
             image: AssetImage(
               isDarkMode
@@ -111,7 +144,7 @@ class _SplashScreenState extends State<SplashScreen>
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
               isDarkMode
-                  ? Colors.black.withOpacity(0.5) 
+                  ? Colors.black.withOpacity(0.5)
                   : Colors.white.withOpacity(0.5),
               isDarkMode ? BlendMode.darken : BlendMode.lighten,
             ),

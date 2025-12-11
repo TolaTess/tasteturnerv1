@@ -357,7 +357,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
         child: Icon(
           Icons.camera_alt,
           color: kWhite,
-          size: getIconScale(8, context),
+          size: MediaQuery.of(context).size.width > 800 ? getIconScale(6, context) : getIconScale(8, context),
         ),
       ),
     );

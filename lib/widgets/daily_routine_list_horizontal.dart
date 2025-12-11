@@ -286,8 +286,9 @@ class RoutineController extends GetxController {
             dailyDataController.eatenCalories.value.toDouble();
         debugPrint(
             '🔄 Routine Meals Toggle ON - currentCalories: $currentCalories, setting to: $currentCalories');
-        final double caloriesToAdd =
-            targetCalories > currentCalories ? targetCalories - currentCalories : 0.0;
+        final double caloriesToAdd = targetCalories > currentCalories
+            ? targetCalories - currentCalories
+            : 0.0;
         debugPrint(
             '🔄 Routine Meals Toggle ON - caloriesToAdd: $caloriesToAdd, setting to: $caloriesToAdd');
 
@@ -444,6 +445,8 @@ class _DailyRoutineListHorizontalState
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   item.title == 'Water Intake'
@@ -463,8 +466,9 @@ class _DailyRoutineListHorizontalState
                       ),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-                SizedBox(height: getPercentageHeight(0.5, context)),
+                SizedBox(height: getPercentageHeight(0.4, context)),
                 Text(
                   value,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -476,6 +480,9 @@ class _DailyRoutineListHorizontalState
                                 ? kBlack
                                 : kBlack.withValues(alpha: 0.5),
                       ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ],
             ),
@@ -545,34 +552,43 @@ class _DailyRoutineListHorizontalState
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          item.title == 'Water Intake'
-                              ? 'Water'
-                              : item.title == 'Nutrition Goal'
-                                  ? 'Meals'
-                                  : capitalizeFirstLetter(item.title),
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                        Flexible(
+                          child: Text(
+                            item.title == 'Water Intake'
+                                ? 'Water'
+                                : item.title == 'Nutrition Goal'
+                                    ? 'Meals'
+                                    : capitalizeFirstLetter(item.title),
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
                         ),
                         if (isCompleted)
                           const Icon(
                             Icons.check_circle,
                             color: kAccent,
+                            size: 20,
                           )
                       ],
                     ),
-                    SizedBox(height: getPercentageHeight(1, context)),
+                    SizedBox(height: getPercentageHeight(0.8, context)),
                     Text(
                       value,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ],
                 ),

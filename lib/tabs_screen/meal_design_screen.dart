@@ -1592,12 +1592,34 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
-                                style: textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: isTablet
-                                      ? getPercentageWidth(1, context)
-                                      : getPercentageWidth(3, context),
-                                ),
+                                style: () {
+                                  final mediaQuery = MediaQuery.of(context);
+                                  final shortestSide =
+                                      mediaQuery.size.shortestSide;
+                                  final bool isTablet = shortestSide >= 600;
+                                  final bool isLargeHeight =
+                                      mediaQuery.size.height > 1100;
+
+                                  if (isTablet) {
+                                    // Smaller text for iPad/tablet
+                                    return textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize:
+                                          textTheme.bodySmall?.fontSize != null
+                                              ? textTheme.bodySmall!.fontSize! *
+                                                  0.85
+                                              : null,
+                                    );
+                                  } else if (isLargeHeight) {
+                                    return textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w100,
+                                    );
+                                  } else {
+                                    return textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w400,
+                                    );
+                                  }
+                                }(),
                               ),
                             ),
                           ),

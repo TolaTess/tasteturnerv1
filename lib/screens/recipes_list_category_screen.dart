@@ -480,7 +480,7 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                   }),
                   SizedBox(height: getPercentageHeight(1, context)),
                   Text(
-                    'Chef, please ensure to remove the ingredients that have caused symptoms when cooking.',
+                    'Chef, when cooking, please ensure to remove any ingredient that have caused symptoms in the past.',
                     style: textTheme.bodyMedium?.copyWith(
                       color: isDarkMode ? Colors.white70 : Colors.black87,
                     ),

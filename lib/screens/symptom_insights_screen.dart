@@ -381,7 +381,7 @@ class _SymptomInsightsScreenState extends State<SymptomInsightsScreen> {
                   ),
                   SizedBox(width: getPercentageWidth(2, context)),
                   Text(
-                    'View in Rainbow Tracker',
+                    'View Rainbow Tracker',
                     style: textTheme.bodyMedium?.copyWith(
                       color: Colors.orange[700],
                       fontWeight: FontWeight.w600,

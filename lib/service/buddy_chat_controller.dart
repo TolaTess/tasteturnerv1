@@ -1398,92 +1398,71 @@ Instructions:
 
   // Filter out system instructions from AI responses
   // Made static so it can be used in other places to ensure no AI instructions leak through
+  // Only filters out actual instruction text that might leak through, not legitimate AI responses
   static String filterSystemInstructions(String response) {
     String cleaned = response;
 
-    // Remove common system instruction patterns using simple string replacement first
+    // Remove actual system instruction phrases that might leak through
+    // These are exact matches of instruction text, not generic phrases
     final instructionPhrases = [
-      'Greet the user as "Chef" and offer guidance',
-      "Greet the user as 'Chef' and offer guidance",
-      'Greet the user as Chef and offer guidance',
-      'Remember: You are Sous Chef Turner',
-      'Be professional, solution-oriented',
-      'Address the user as "Chef" throughout',
-      'offer guidance based on',
+      // Exact instruction phrases from buddyAiRole that should not appear in responses
+      'You are Turner, a professional Sous Chef assisting the Head Chef',
+      'Your role is to anticipate the Head Chef\'s needs',
+      'You are the user\'s trusted Sous Chef who helps them stay on track',
+      'PERSONALITY:',
+      'COMMUNICATION STYLE:',
+      'Address the user as "Chef" naturally in conversation',
+      'Use kitchen terminology when appropriate',
+      'Be encouraging and solution-focused',
+      'Provide practical tips and guidance',
+      'Respond warmly to casual conversation while maintaining your professional Sous Chef persona',
+      // Generic instruction patterns that might leak
       'create instruction for ai',
       'create instruction for AI',
       'Create instruction for AI',
       'create instruction',
       'instruction for ai',
       'instruction for AI',
-      'You are Turner',
-      'You are a professional Sous Chef',
+      'Remember: You are',
       'Your role is to',
-      'PERSONALITY:',
-      'COMMUNICATION STYLE:',
-      'Address the user as',
-      'Use kitchen terminology',
-      'Be encouraging',
-      'Provide practical tips',
-      'Respond warmly',
-      'Yes, Chef',
-      'mise en place',
-      '86\'d',
-      'in the weeds',
-      'the pass',
-      'Head Chef',
-      'Sous Chef Turner',
-      'anticipate the Head Chef\'s needs',
-      'organize the station',
-      'fix problems before they happen',
-      'trusted Sous Chef',
-      'stay on track',
-      'nutrition and meal goals',
-      'Crisp, professional, encouraging',
-      'solution-oriented',
-      'Not Robotic',
-      'Not Judgmental',
-      'High Competence',
-      'Focus on logistics',
-      'problem-solving',
-      'Catchphrase',
-      'Use this sparingly',
-      'acknowledging important decisions',
-      'confirming critical actions',
     ];
 
     // Remove instruction phrases (case-insensitive)
+    // Match as complete phrases/sentences, not partial matches
     for (final phrase in instructionPhrases) {
+      // Escape special regex characters
       final escaped = phrase.replaceAllMapped(
           RegExp(r'[.*+?^${}()|[\]\\]'), (m) => '\\${m[0]}');
-      final regex = RegExp(escaped, caseSensitive: false);
-      cleaned = cleaned.replaceAll(regex, '');
+      // Match the phrase as a complete sentence or standalone phrase
+      // This prevents removing legitimate uses of these words in context
+      final regex = RegExp('(?:^|\\n|\\s)$escaped(?:\\.|\\n|\\s|\$)',
+          caseSensitive: false, multiLine: true);
+      cleaned = cleaned.replaceAll(regex, ' ');
     }
 
-    // Remove patterns that might appear in multi-line instruction blocks
+    // Remove patterns that match multi-line instruction blocks
     final patterns = [
       // Pattern for instruction-like text at the start with context info
       RegExp(
           r'^.*?(?:address them as|based on:|Username:|Goal:|create instruction|instruction for).*?\n',
           caseSensitive: false,
           dotAll: true),
-      // Pattern for "Greet the user" followed by context
-      RegExp(r'Greet\s+the\s+user.*?Address\s+the\s+user.*?throughout',
-          caseSensitive: false, dotAll: true),
-      // Pattern for role definitions
+      // Pattern for role definition blocks (matches "You are X. Your role is..." structure)
       RegExp(
-          r'You\s+are\s+[^.]*?\.\s*(?:Your\s+role|PERSONALITY|COMMUNICATION)',
+          r'You\s+are\s+[^.]*?\.\s*(?:Your\s+role\s+is|PERSONALITY|COMMUNICATION\s+STYLE)',
           caseSensitive: false,
           dotAll: true),
       // Pattern for instruction blocks starting with "create instruction"
       RegExp(r'create\s+instruction\s+for\s+ai[^.]*',
           caseSensitive: false, dotAll: true),
-      // Pattern for system prompts that leak through
+      // Pattern for system prompts that leak through (e.g., "[Mode] IMPORTANT:")
       RegExp(r'\[.*?Mode.*?\]\s*IMPORTANT:.*?\n',
           caseSensitive: false, dotAll: true),
-      // Pattern for instruction-like blocks
-      RegExp(r'(?:PERSONALITY|COMMUNICATION STYLE|ROLE|INSTRUCTIONS?):.*?\n',
-          caseSensitive: false, dotAll: true),
+      // Pattern for instruction section headers followed by content
+      RegExp(
+          r'(?:PERSONALITY|COMMUNICATION\s+STYLE|ROLE|INSTRUCTIONS?):\s*[^\n]*\n',
+          caseSensitive: false,
+          dotAll: true),
     ];
 
     for (final pattern in patterns) {

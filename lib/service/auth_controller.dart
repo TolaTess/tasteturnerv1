@@ -40,6 +40,22 @@ class AuthController extends GetxController {
 
     // Listen for auth state changes
     ever(authState, _handleAuthState);
+
+    // Check initial auth state immediately (in case user is already logged in)
+    // This handles the case where authStateChanges() hasn't emitted yet
+    final currentUser = firebaseAuth.currentUser;
+    if (currentUser != null) {
+      debugPrint(
+          'Initial auth check: User is already authenticated (${currentUser.uid})');
+      // Trigger the handler with the current user
+      // This will check Firestore and navigate to home or onboarding accordingly
+      _handleAuthState(currentUser);
+    } else {
+      debugPrint(
+          'Initial auth check: No user authenticated - SplashScreen will handle navigation');
+      // Don't navigate here - SplashScreen will handle navigation to signup
+      // The authStateChanges() stream will handle future auth state changes
+    }
   }
 
   void _handleAuthState(User? user) async {
