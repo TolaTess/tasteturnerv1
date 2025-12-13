@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../service/plant_detection_service.dart';
+import '../service/symptom_analysis_service.dart';
 
 class RainbowTrackerDetailScreen extends StatefulWidget {
   final DateTime weekStart;
@@ -19,10 +20,13 @@ class RainbowTrackerDetailScreen extends StatefulWidget {
 class _RainbowTrackerDetailScreenState
     extends State<RainbowTrackerDetailScreen> {
   final plantDetectionService = PlantDetectionService.instance;
+  final symptomAnalysisService = SymptomAnalysisService.instance;
   PlantDiversityScore? _diversityScore;
   List<PlantIngredient> _plants = [];
   bool _isLoading = true;
   PlantCategory? _selectedCategory; // Track selected category filter
+  List<String> _triggerIngredients =
+      []; // List of trigger ingredient names (lowercase)
 
   @override
   void initState() {
@@ -49,6 +53,7 @@ class _RainbowTrackerDetailScreenState
         return;
       }
 
+      // Load plant data and trigger ingredients in parallel
       final score = await plantDetectionService.getPlantDiversityScore(
         userId,
         widget.weekStart,
@@ -58,10 +63,29 @@ class _RainbowTrackerDetailScreenState
         widget.weekStart,
       );
 
+      // Load trigger ingredients from symptom analysis
+      List<String> triggerIngredients = [];
+      try {
+        final topTriggers = await symptomAnalysisService.getTopTriggers(
+          userId,
+          limit: 20,
+          days: 30,
+        );
+        triggerIngredients = topTriggers
+            .map((trigger) =>
+                (trigger['ingredient'] as String? ?? '').toLowerCase())
+            .where((ingredient) => ingredient.isNotEmpty)
+            .toList();
+      } catch (e) {
+        debugPrint('Error loading trigger ingredients: $e');
+        // Continue without triggers if there's an error
+      }
+
       if (mounted) {
         setState(() {
           _diversityScore = score;
           _plants = plants;
+          _triggerIngredients = triggerIngredients;
           _isLoading = false;
         });
       }
@@ -143,6 +167,13 @@ class _RainbowTrackerDetailScreenState
       case PlantCategory.herbSpice:
         return Icons.local_florist;
     }
+  }
+
+  /// Check if a plant ingredient is a trigger
+  bool _isTriggerIngredient(PlantIngredient plant) {
+    final plantNameLower = plant.name.toLowerCase();
+    return _triggerIngredients.any((trigger) =>
+        plantNameLower.contains(trigger) || trigger.contains(plantNameLower));
   }
 
   @override
@@ -477,19 +508,26 @@ class _RainbowTrackerDetailScreenState
                         )
                       else
                         ..._getFilteredPlants().map((plant) {
+                          final isTrigger = _isTriggerIngredient(plant);
                           return Container(
                             margin: EdgeInsets.only(
                                 bottom: getPercentageHeight(1, context)),
                             padding:
                                 EdgeInsets.all(getPercentageWidth(3, context)),
                             decoration: BoxDecoration(
-                              color: isDarkMode
-                                  ? kDarkGrey.withValues(alpha: 0.5)
-                                  : kAccentLight.withValues(alpha: 0.1),
+                              color: isTrigger
+                                  ? (isDarkMode
+                                      ? Colors.orange.withValues(alpha: 0.2)
+                                      : Colors.orange.withValues(alpha: 0.1))
+                                  : (isDarkMode
+                                      ? kDarkGrey.withValues(alpha: 0.5)
+                                      : kBackgroundColor.withValues(alpha: 0.1)),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: kAccent.withValues(alpha: 0.2),
-                                width: 1,
+                                color: isTrigger
+                                    ? Colors.orange.withValues(alpha: 0.6)
+                                    : kAccent.withValues(alpha: 0.2),
+                                width: isTrigger ? 2 : 1,
                               ),
                             ),
                             child: Row(
@@ -498,12 +536,14 @@ class _RainbowTrackerDetailScreenState
                                   padding: EdgeInsets.all(
                                       getPercentageWidth(2, context)),
                                   decoration: BoxDecoration(
-                                    color: kAccent.withValues(alpha: 0.1),
+                                    color: isTrigger
+                                        ? Colors.orange.withValues(alpha: 0.2)
+                                        : kAccent.withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
                                     _getCategoryIcon(plant.category),
-                                    color: kAccent,
+                                    color: isTrigger ? Colors.orange : kAccent,
                                     size: getIconScale(4, context),
                                   ),
                                 ),
@@ -513,21 +553,61 @@ class _RainbowTrackerDetailScreenState
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        capitalizeFirstLetter(plant.name),
-                                        style: textTheme.bodyLarge?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: isDarkMode ? kWhite : kBlack,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              capitalizeFirstLetter(plant.name),
+                                              style:
+                                                  textTheme.bodyLarge?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                                color: isDarkMode
+                                                    ? kWhite
+                                                    : kBlack,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isTrigger)
+                                            Padding(
+                                              padding: EdgeInsets.only(
+                                                  left: getPercentageWidth(
+                                                      2, context)),
+                                              child: Icon(
+                                                Icons.warning_amber_rounded,
+                                                color: Colors.orange,
+                                                size: getIconScale(4, context),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                       SizedBox(
                                           height: getPercentageHeight(
                                               0.3, context)),
-                                      Text(
-                                        _getCategoryName(plant.category),
-                                        style: textTheme.bodySmall?.copyWith(
-                                          color: kAccent,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            _getCategoryName(plant.category),
+                                            style:
+                                                textTheme.bodySmall?.copyWith(
+                                              color: isTrigger
+                                                  ? Colors.orange
+                                                  : kAccent,
+                                            ),
+                                          ),
+                                          if (isTrigger) ...[
+                                            SizedBox(
+                                                width: getPercentageWidth(
+                                                    2, context)),
+                                            Text(
+                                              '• Trigger',
+                                              style:
+                                                  textTheme.bodySmall?.copyWith(
+                                                color: Colors.orange,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ],
                                   ),

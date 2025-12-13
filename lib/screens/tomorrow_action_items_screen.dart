@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../service/routine_service.dart';
+import '../service/symptom_analysis_service.dart';
+import '../service/symptom_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/primary_button.dart';
 
@@ -59,6 +61,10 @@ class TomorrowActionItemsScreen extends StatefulWidget {
 
 class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
   late DateTime tomorrowDate;
+  SymptomAnalysisService? _symptomAnalysisService;
+  Map<String, dynamic>? _yesterdaySymptomAnalysis;
+  List<Map<String, dynamic>>? _yesterdayTopTriggers;
+  bool _loadingSymptoms = false;
 
   @override
   void initState() {
@@ -77,6 +83,8 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
 
     // Load routine completion data if not already present
     _loadRoutineCompletionData();
+    // Load yesterday's symptoms for symptom-based action items
+    _loadYesterdaySymptoms();
   }
 
   Future<void> _loadRoutineCompletionData() async {
@@ -97,6 +105,79 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       }
     } catch (e) {
       debugPrint('Error loading routine completion data: $e');
+    }
+  }
+
+  /// Load yesterday's symptoms and analyze patterns
+  Future<void> _loadYesterdaySymptoms() async {
+    try {
+      if (!mounted) return;
+      setState(() => _loadingSymptoms = true);
+
+      final userId = userService.userId ?? '';
+      if (userId.isEmpty) {
+        if (mounted) {
+          setState(() => _loadingSymptoms = false);
+        }
+        return;
+      }
+
+      _symptomAnalysisService = SymptomAnalysisService.instance;
+
+      // Get yesterday's date
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final yesterdayStr = DateFormat('yyyy-MM-dd').format(yesterday);
+
+      // Get yesterday's symptoms
+      final symptomService = SymptomService.instance;
+      final yesterdaySymptoms =
+          await symptomService.getSymptomsForDate(userId, yesterday);
+
+      // Only analyze if there were symptoms yesterday
+      if (yesterdaySymptoms.isNotEmpty) {
+        // Analyze patterns including yesterday (use 7 days for better context)
+        final analysis = await _symptomAnalysisService!
+            .analyzeSymptomPatterns(userId, days: 7);
+
+        if (mounted && analysis['hasData'] == true) {
+          final topTriggers = analysis['topTriggers'] as List<dynamic>?;
+          setState(() {
+            _yesterdayTopTriggers = topTriggers
+                ?.cast<Map<String, dynamic>>()
+                .where((t) => t.isNotEmpty)
+                .toList();
+            _yesterdaySymptomAnalysis = analysis;
+          });
+        } else if (mounted) {
+          // No data available, set to empty
+          setState(() {
+            _yesterdayTopTriggers = [];
+            _yesterdaySymptomAnalysis = null;
+          });
+        }
+      } else {
+        // No symptoms yesterday, set to empty
+        if (mounted) {
+          setState(() {
+            _yesterdayTopTriggers = [];
+            _yesterdaySymptomAnalysis = null;
+            _loadingSymptoms = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading yesterday symptoms: $e');
+      // On error, set to empty so prep list still works
+      if (mounted) {
+        setState(() {
+          _yesterdayTopTriggers = [];
+          _yesterdaySymptomAnalysis = null;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingSymptoms = false);
+      }
     }
   }
 
@@ -277,6 +358,11 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       });
     }
 
+    // Symptom-based action items (only for tomorrow's prep list based on yesterday's data)
+    if (isTomorrow && _yesterdaySymptomAnalysis != null) {
+      _addSymptomActionItems(actionItems, isTomorrow: isTomorrow);
+    }
+
     // Meal planning suggestions
     if (!widget.hasMealPlan) {
       actionItems.add({
@@ -369,6 +455,93 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
     if (value is double) return value;
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
+  }
+
+  /// Add symptom-based action items to the prep list
+  void _addSymptomActionItems(
+    List<Map<String, dynamic>> actionItems, {
+    required bool isTomorrow,
+  }) {
+    // Only show symptom items when viewing tomorrow's prep list (based on yesterday's data)
+    if (!isTomorrow) return;
+
+    // Check if we have symptom analysis data
+    if (_yesterdaySymptomAnalysis == null ||
+        _yesterdaySymptomAnalysis!['hasData'] != true) {
+      return;
+    }
+
+    // Add trigger avoidance action item if triggers exist
+    if (_yesterdayTopTriggers != null && _yesterdayTopTriggers!.isNotEmpty) {
+      // Get top 3 triggers, filter out any invalid entries
+      final topTriggers = _yesterdayTopTriggers!
+          .where((t) =>
+              t['ingredient'] != null &&
+              t['mostCommonSymptom'] != null &&
+              t['occurrences'] != null)
+          .take(3)
+          .toList();
+
+      if (topTriggers.isNotEmpty) {
+        try {
+          final triggerNames = topTriggers
+              .map((t) => (t['ingredient'] as String).toLowerCase())
+              .join(', ');
+
+          final mostCommonSymptom =
+              topTriggers.first['mostCommonSymptom'] as String? ?? 'symptoms';
+          final occurrences = topTriggers.first['occurrences'] as int? ?? 0;
+
+          if (triggerNames.isNotEmpty && occurrences > 0) {
+            actionItems.add({
+              'title': 'Avoid Trigger Ingredients',
+              'description':
+                  'Yesterday, $triggerNames caused $mostCommonSymptom $occurrences time(s). Consider avoiding these ingredients in today\'s meals, Chef.',
+              'icon': Icons.warning_amber_rounded,
+              'color': Colors.orange,
+              'priority': 'high',
+              'triggers': topTriggers, // Store for potential detail view
+            });
+          }
+        } catch (e) {
+          debugPrint('Error formatting trigger action item: $e');
+        }
+      }
+    }
+
+    // Check for positive patterns (ingredients that correlate with "good" or "energy")
+    try {
+      final symptomFrequency = _yesterdaySymptomAnalysis?['symptomFrequency']
+          as Map<String, dynamic>?;
+      if (symptomFrequency != null) {
+        final goodCount = (symptomFrequency['good'] is int
+                ? symptomFrequency['good'] as int
+                : (symptomFrequency['good'] is String
+                    ? int.tryParse(symptomFrequency['good'] as String) ?? 0
+                    : 0)) ??
+            0;
+        final energyCount = (symptomFrequency['energy'] is int
+                ? symptomFrequency['energy'] as int
+                : (symptomFrequency['energy'] is String
+                    ? int.tryParse(symptomFrequency['energy'] as String) ?? 0
+                    : 0)) ??
+            0;
+        final goodSymptoms = goodCount + energyCount;
+
+        if (goodSymptoms > 0) {
+          actionItems.add({
+            'title': 'Continue Positive Patterns',
+            'description':
+                'You felt good or energetic $goodSymptoms time(s) yesterday. Keep including ingredients from those meals in today\'s plan, Chef.',
+            'icon': Icons.thumb_up,
+            'color': kGreen,
+            'priority': 'medium',
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error processing positive patterns: $e');
+    }
   }
 
   Color _getPriorityColor(String priority) {

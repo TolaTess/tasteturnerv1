@@ -13,6 +13,7 @@ import 'search_results_screen.dart';
 import '../data_models/meal_model.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../widgets/card_overlap.dart';
+import '../service/symptom_analysis_service.dart';
 
 class RecipeListCategory extends StatefulWidget {
   final String searchIngredient;
@@ -269,6 +270,12 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
       return;
     }
 
+    // Check for symptom triggers before adding meals
+    final shouldProceed = await _checkSymptomTriggers(selectedMealIds);
+    if (!shouldProceed) {
+      return; // User cancelled
+    }
+
     try {
       final userId = userService.userId!;
       final docRef = widget.isSharedCalendar
@@ -326,6 +333,185 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
     } catch (e) {
       debugPrint('Error adding meals to meal plan: $e');
     }
+  }
+
+  /// Check if selected meals contain ingredients that have caused symptoms
+  Future<bool> _checkSymptomTriggers(List<String> mealIds) async {
+    try {
+      final userId = userService.userId ?? '';
+      if (userId.isEmpty) return true; // No user, skip check
+
+      // Get top triggers from symptom analysis
+      final symptomAnalysisService = SymptomAnalysisService.instance;
+      final topTriggers = await symptomAnalysisService.getTopTriggers(userId,
+          limit: 5, days: 30);
+
+      if (topTriggers.isEmpty) {
+        return true; // No triggers found, proceed
+      }
+
+      // Get ingredients from selected meals
+      final allMealIngredients = <String>[];
+      for (final mealId in mealIds) {
+        // Clean meal ID (remove meal type suffix if present)
+        final cleanMealId = mealId.split('/').first;
+        try {
+          final mealDoc =
+              await firestore.collection('meals').doc(cleanMealId).get();
+          if (mealDoc.exists) {
+            final mealData = mealDoc.data()!;
+            final ingredients =
+                mealData['ingredients'] as Map<String, dynamic>? ?? {};
+            allMealIngredients
+                .addAll(ingredients.keys.map((k) => k.toLowerCase()));
+          }
+        } catch (e) {
+          debugPrint('Error fetching meal ingredients: $e');
+        }
+      }
+
+      // Check for matches
+      final matchedTriggers = <Map<String, dynamic>>[];
+      for (final trigger in topTriggers) {
+        final triggerIngredient =
+            (trigger['ingredient'] as String).toLowerCase();
+        if (allMealIngredients.any((ing) =>
+            ing.contains(triggerIngredient) ||
+            triggerIngredient.contains(ing))) {
+          matchedTriggers.add(trigger);
+        }
+      }
+
+      if (matchedTriggers.isEmpty) {
+        return true; // No matches, proceed
+      }
+
+      // Show warning dialog
+      return await _showSymptomWarningDialog(matchedTriggers);
+    } catch (e) {
+      debugPrint('Error checking symptom triggers: $e');
+      return true; // On error, proceed anyway
+    }
+  }
+
+  /// Show warning dialog about symptom triggers
+  Future<bool> _showSymptomWarningDialog(
+      List<Map<String, dynamic>> triggers) async {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            title: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    color: Colors.orange, size: getIconScale(6, context)),
+                SizedBox(width: getPercentageWidth(2, context)),
+                Expanded(
+                  child: Text(
+                    'Symptom Trigger Warning',
+                    style: textTheme.titleLarge?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'These meals contain ingredients that have caused symptoms in the past:',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? Colors.white70 : Colors.black87,
+                    ),
+                  ),
+                  SizedBox(height: getPercentageHeight(1.5, context)),
+                  ...triggers.map((trigger) {
+                    final ingredient = trigger['ingredient'] as String;
+                    final symptom = trigger['mostCommonSymptom'] as String;
+                    final occurrences = trigger['occurrences'] as int;
+                    final avgSeverity = trigger['averageSeverity'] as double;
+
+                    return Padding(
+                      padding: EdgeInsets.only(
+                          bottom: getPercentageHeight(1, context)),
+                      child: Container(
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.orange.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              capitalizeFirstLetter(ingredient),
+                              style: textTheme.titleSmall?.copyWith(
+                                color: Colors.orange[700],
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: getPercentageHeight(0.5, context)),
+                            Text(
+                              'Has caused $symptom $occurrences time(s) with average severity ${avgSeverity.toStringAsFixed(1)}/5',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  Text(
+                    'Chef, please ensure to remove the ingredients that have caused symptoms when cooking.',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode ? Colors.white70 : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(
+                  'Understood',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   @override
@@ -530,7 +716,11 @@ class _RecipeListCategoryState extends State<RecipeListCategory> {
                                                 final meal = meals[index];
                                                 return OverlappingCard(
                                                   title: meal.title,
-                                                  subtitle: (meal.description?.isNotEmpty == true && meal.description != 'unknown description')
+                                                  subtitle: (meal.description
+                                                                  ?.isNotEmpty ==
+                                                              true &&
+                                                          meal.description !=
+                                                              'unknown description')
                                                       ? meal.description!
                                                       : '${meal.calories} kcal • ${meal.serveQty} servings',
                                                   color: colors[

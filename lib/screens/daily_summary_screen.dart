@@ -27,6 +27,7 @@ class DailySummaryScreen extends StatefulWidget {
 
 class _DailySummaryScreenState extends State<DailySummaryScreen> {
   late DateTime selectedDate;
+  final ScrollController _scrollController = ScrollController();
 
   // Constants
   static const int maxDaysBack = 365;
@@ -80,6 +81,12 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
   void initState() {
     super.initState();
     selectedDate = widget.date ?? DateTime.now();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -201,6 +208,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
             // Daily Summary Widget
             Expanded(
               child: SingleChildScrollView(
+                controller: _scrollController,
                 child: DailySummaryWidget(
                   key: ValueKey(_formatDateForFirestore(
                       selectedDate)), // Force rebuild when date changes
@@ -210,6 +218,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                   instanceId: widget.instanceId,
                   mealName: widget.mealName,
                   mealType: widget.mealType,
+                  scrollController: _scrollController,
                 ),
               ),
             ),

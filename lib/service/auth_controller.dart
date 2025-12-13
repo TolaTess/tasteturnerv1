@@ -17,7 +17,9 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'badge_service.dart';
 
 class AuthController extends GetxController {
-  static AuthController instance = Get.find();
+  static AuthController get instance {
+    return Get.find<AuthController>(); // Always registered in main.dart
+  }
 
   StreamSubscription? _userDataSubscription;
 

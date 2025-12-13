@@ -133,12 +133,15 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
       }, SetOptions(merge: true));
     } catch (e) {
       if (mounted) {
-        showTastySnackbar(
-          'Error',
-          'Failed to remove item from shopping list: please try again',
-          Get.context!,
-          backgroundColor: Colors.red,
-        );
+        final context = Get.context;
+        if (context != null) {
+          showTastySnackbar(
+            'Error',
+            'Failed to remove item from shopping list: please try again',
+            context,
+            backgroundColor: Colors.red,
+          );
+        }
       }
       throw Exception("Failed to remove item from shopping list");
     }
@@ -175,12 +178,15 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
       return {};
     } catch (e) {
       if (mounted) {
-        showTastySnackbar(
-          'Error',
-          'Failed to fetch shopping list for week $week: please try again',
-          Get.context!,
-          backgroundColor: Colors.red,
-        );
+        final context = Get.context;
+        if (context != null) {
+          showTastySnackbar(
+            'Error',
+            'Failed to fetch shopping list for week $week: please try again',
+            context,
+            backgroundColor: Colors.red,
+          );
+        }
       }
       return {};
     }

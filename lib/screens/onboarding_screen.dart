@@ -62,6 +62,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool _umpConsentRequested = false;
   // Track if UMP consent has been obtained (required to proceed)
   bool _umpConsentObtained = false;
+  // Track if there was an error showing the consent form (to show fallback button)
+  bool _umpConsentFormError = false;
+  // Track if a form is currently being shown/loaded to prevent concurrent calls
+  bool _isFormLoading = false;
 
   // List<Map<String, String>> familyMembers = [];
 
@@ -715,10 +719,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           (!skipNamePage && value == 6);
                       if (isUMPPage) {
                         _umpConsentObtained = false;
+                        _umpConsentFormError = false; // Reset error state
+                        // Auto-trigger consent form when slide appears
+                        // Use a small delay to ensure slide is fully rendered
+                        Future.delayed(const Duration(milliseconds: 500), () {
+                          if (mounted && _currentPage == value) {
+                            _requestUMPConsentFromSlide();
+                          }
+                        });
                       }
                       _validateInputs();
-                      // UMP consent is now triggered by button click on the slide
-                      // No automatic call here - user must click the button
                     },
                     children: _buildPageViewChildren(),
                   ),
@@ -1147,7 +1157,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
             SizedBox(height: getPercentageHeight(2, context)),
             Text(
-              "Please review our privacy policy and terms. Click the button below to see the consent form.",
+              _umpConsentObtained && !_umpConsentFormError
+                  ? "Thank you for reviewing and accepting our privacy policy and terms! You can now continue with the onboarding."
+                  : "We need your consent to:\n• Provide personalized content and recommendations\n• Show relevant ads to support the app\n• Improve your experience with analytics\n\nThe consent form will open automatically. Please review and accept to continue.",
               style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: getTextScale(3.5, context),
@@ -1155,28 +1167,31 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               textAlign: TextAlign.center,
             ),
             SizedBox(height: getPercentageHeight(3, context)),
-            ElevatedButton(
-              onPressed: () => _requestUMPConsentFromSlide(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: kAccentLight,
-                padding: EdgeInsets.symmetric(
-                  horizontal: getPercentageWidth(8, context),
-                  vertical: getPercentageHeight(1.5, context),
+            // Only show button if there was an error or form hasn't been shown yet
+            if (_umpConsentFormError ||
+                (!_umpConsentObtained && _umpConsentRequested))
+              ElevatedButton(
+                onPressed: () => _requestUMPConsentFromSlide(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: kAccentLight,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: getPercentageWidth(8, context),
+                    vertical: getPercentageHeight(1.5, context),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  elevation: 5,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
+                child: Text(
+                  'Open Consent Form',
+                  style: TextStyle(
+                    fontSize: getTextScale(4, context),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                elevation: 5,
               ),
-              child: Text(
-                'Review Privacy Policy',
-                style: TextStyle(
-                  fontSize: getTextScale(4, context),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
             SizedBox(height: getPercentageHeight(2, context)),
           ],
         ),
@@ -1488,11 +1503,49 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
           // If consent hasn't been obtained, show the initial consent form
           if (!canRequest) {
+            if (_isFormLoading) {
+              debugPrint('Form already loading, waiting for it to show...');
+              // Wait a bit and retry if form is loading
+              Future.delayed(const Duration(milliseconds: 1000), () {
+                if (mounted && !_umpConsentObtained) {
+                  debugPrint('Retrying consent form after delay...');
+                  _requestUMPConsentFromSlide();
+                }
+              });
+              return;
+            }
             debugPrint('Consent not obtained, showing initial consent form...');
+            _isFormLoading = true;
             ConsentForm.loadAndShowConsentFormIfRequired((formError) {
+              _isFormLoading = false;
               if (formError != null) {
-                debugPrint('UMP Consent form error: $formError');
-                _setFirebaseConsent();
+                debugPrint('=== UMP Consent form error ===');
+                debugPrint('Error code: ${formError.errorCode}');
+                debugPrint('Error message: ${formError.message}');
+                debugPrint('Full error: $formError');
+                debugPrint('================================');
+
+                // Error code 7 means form is already being loaded
+                // Retry after a delay to let the form show
+                if (formError.errorCode == 7) {
+                  debugPrint(
+                      'Form already loading (error 7), retrying after delay...');
+                  Future.delayed(const Duration(milliseconds: 1500), () {
+                    if (mounted && !_umpConsentObtained) {
+                      _requestUMPConsentFromSlide();
+                    }
+                  });
+                } else {
+                  // Form error occurred, show fallback button
+                  _setFirebaseConsent();
+                  if (mounted) {
+                    setState(() {
+                      _umpConsentRequested = true;
+                      _umpConsentFormError = true;
+                    });
+                    _validateInputs();
+                  }
+                }
               } else {
                 debugPrint('UMP Consent form processed successfully');
                 _setFirebaseConsent();
@@ -1501,6 +1554,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   setState(() {
                     _umpConsentRequested = true;
                     _umpConsentObtained = true;
+                    _umpConsentFormError =
+                        false; // Clear error state on success
                   });
                   // Re-validate to enable next button
                   _validateInputs();
@@ -1511,11 +1566,50 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               PrivacyOptionsRequirementStatus.required) {
             // If consent was already obtained but privacy options are required,
             // show the privacy options form
+            if (_isFormLoading) {
+              debugPrint(
+                  'Privacy options form already loading, waiting for it to show...');
+              // Wait a bit and retry if form is loading
+              Future.delayed(const Duration(milliseconds: 1000), () {
+                if (mounted && !_umpConsentObtained) {
+                  debugPrint('Retrying privacy options form after delay...');
+                  _requestUMPConsentFromSlide();
+                }
+              });
+              return;
+            }
             debugPrint('Showing privacy options form...');
+            _isFormLoading = true;
             ConsentForm.showPrivacyOptionsForm((formError) {
+              _isFormLoading = false;
               if (formError != null) {
-                debugPrint('Privacy options form error: $formError');
-                _setFirebaseConsent();
+                debugPrint('=== Privacy options form error ===');
+                debugPrint('Error code: ${formError.errorCode}');
+                debugPrint('Error message: ${formError.message}');
+                debugPrint('Full error: $formError');
+                debugPrint('===================================');
+
+                // Error code 7 means form is already being loaded
+                // Retry after a delay to let the form show
+                if (formError.errorCode == 7) {
+                  debugPrint(
+                      'Form already loading (error 7), retrying after delay...');
+                  Future.delayed(const Duration(milliseconds: 1500), () {
+                    if (mounted && !_umpConsentObtained) {
+                      _requestUMPConsentFromSlide();
+                    }
+                  });
+                } else {
+                  // Form error occurred, show fallback button
+                  _setFirebaseConsent();
+                  if (mounted) {
+                    setState(() {
+                      _umpConsentRequested = true;
+                      _umpConsentFormError = true;
+                    });
+                    _validateInputs();
+                  }
+                }
               } else {
                 debugPrint('Privacy options form processed successfully');
                 _setFirebaseConsent();
@@ -1524,6 +1618,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   setState(() {
                     _umpConsentRequested = true;
                     _umpConsentObtained = true;
+                    _umpConsentFormError =
+                        false; // Clear error state on success
                   });
                   // Re-validate to enable next button
                   _validateInputs();
@@ -1532,14 +1628,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             });
           } else {
             // Consent already obtained and privacy options not required
-            // Still require user to click the button to acknowledge
             debugPrint('Consent already obtained, no form needed');
             _setFirebaseConsent();
             if (mounted) {
               setState(() {
                 _umpConsentRequested = true;
-                // Set consent obtained since user clicked the button and consent is already there
                 _umpConsentObtained = true;
+                _umpConsentFormError = false; // No error, consent already there
               });
               // Re-validate to enable next button
               _validateInputs();
@@ -1548,7 +1643,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         },
         (FormError error) {
           // Handle the error updating consent info
-          debugPrint('UMP Consent info update error: $error');
+          debugPrint('=== UMP Consent info update error ===');
+          debugPrint('Error code: ${error.errorCode}');
+          debugPrint('Error message: ${error.message}');
+          debugPrint('Full error: $error');
+          debugPrint('=====================================');
           _setFirebaseConsent();
         },
       );

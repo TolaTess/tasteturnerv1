@@ -63,6 +63,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       Get.put(CalorieAdjustmentService());
   Timer? _searchDebounceTimer;
 
+  // Debounce timers for snackbars to prevent repeated displays during slider dragging
+  Timer? _waterSnackbarDebounceTimer;
+  Timer? _stepsSnackbarDebounceTimer;
+
   bool allDisabled = false;
 
   // Add this as a class field at the top of the class
@@ -257,8 +261,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
   @override
   void dispose() {
-    // Cancel debounce timer to prevent memory leaks
+    // Cancel debounce timers to prevent memory leaks
     _searchDebounceTimer?.cancel();
+    _waterSnackbarDebounceTimer?.cancel();
+    _stepsSnackbarDebounceTimer?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     // Clear pending items to prevent memory leaks
@@ -2980,7 +2986,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                 SizedBox(height: getPercentageHeight(2, context)),
                 // Date navigation - always shown
                 _buildDateNavigation(context, isDarkMode, textTheme),
-                SizedBox(height: getPercentageHeight(1, context)),
                 if (widget.notAllowedMealType != null &&
                     widget.notAllowedMealType != '')
                   Center(
@@ -3001,8 +3006,10 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     // Access userMealList to trigger reactivity
                     dailyDataController.userMealList;
 
-                    // Only show if at least one meal has been logged
-                    if (!_hasAnyMealsLogged()) {
+                    // Only show if at least one meal has been logged and eaten != totalCalories
+                    if (!_hasAnyMealsLogged() ||
+                        dailyDataController.eatenCalories.value ==
+                            dailyDataController.totalCalories.value) {
                       return const SizedBox.shrink();
                     }
 
@@ -3291,8 +3298,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                     }),
                     // View Yesterday's Summary and Today's Action Items
                     if (isToday) ...[
-                      SizedBox(height: getPercentageHeight(2, context)),
-
                       SizedBox(height: getPercentageHeight(2, context)),
 
                       // Daily Summary Link
@@ -3598,37 +3603,54 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                   .value = updatedValue;
 
                                               // Award points if value actually changed
+                                              // Use debounce to prevent multiple snackbars during dragging
                                               if (mounted &&
                                                   context.mounted &&
                                                   updatedValue !=
                                                       previousValue &&
                                                   updatedValue > 0) {
-                                                final alreadyAwarded =
-                                                    await badgeService
-                                                        .hasBeenAwardedToday(
-                                                  userService.userId!,
-                                                  "Water logged!",
+                                                // Cancel any pending snackbar
+                                                _waterSnackbarDebounceTimer
+                                                    ?.cancel();
+
+                                                // Set a debounced snackbar that will show after user stops dragging
+                                                _waterSnackbarDebounceTimer =
+                                                    Timer(
+                                                  const Duration(
+                                                      milliseconds: 500),
+                                                  () async {
+                                                    if (!mounted ||
+                                                        !context.mounted)
+                                                      return;
+
+                                                    final alreadyAwarded =
+                                                        await badgeService
+                                                            .hasBeenAwardedToday(
+                                                      userService.userId!,
+                                                      "Water logged!",
+                                                    );
+                                                    if (!alreadyAwarded) {
+                                                      await badgeService
+                                                          .awardPoints(
+                                                        userService.userId!,
+                                                        10,
+                                                        reason: "Water logged!",
+                                                      );
+                                                      showTastySnackbar(
+                                                        'Success',
+                                                        'Water updated! +10 points',
+                                                        context,
+                                                      );
+                                                    } else {
+                                                      // Already awarded today, just show update confirmation
+                                                      showTastySnackbar(
+                                                        'Success',
+                                                        'Water updated',
+                                                        context,
+                                                      );
+                                                    }
+                                                  },
                                                 );
-                                                if (!alreadyAwarded) {
-                                                  await badgeService
-                                                      .awardPoints(
-                                                    userService.userId!,
-                                                    10,
-                                                    reason: "Water logged!",
-                                                  );
-                                                  showTastySnackbar(
-                                                    'Success',
-                                                    'Water updated! +10 points',
-                                                    context,
-                                                  );
-                                                } else {
-                                                  // Already awarded today, just show update confirmation
-                                                  showTastySnackbar(
-                                                    'Success',
-                                                    'Water updated',
-                                                    context,
-                                                  );
-                                                }
                                               }
                                             },
                                             iconColor: kBlue,
@@ -3688,37 +3710,54 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                                   .value = updatedValue;
 
                                               // Award points if value actually changed
+                                              // Use debounce to prevent multiple snackbars during dragging
                                               if (mounted &&
                                                   context.mounted &&
                                                   updatedValue !=
                                                       previousValue &&
                                                   updatedValue > 0) {
-                                                final alreadyAwarded =
-                                                    await badgeService
-                                                        .hasBeenAwardedToday(
-                                                  userService.userId!,
-                                                  "Steps logged!",
+                                                // Cancel any pending snackbar
+                                                _stepsSnackbarDebounceTimer
+                                                    ?.cancel();
+
+                                                // Set a debounced snackbar that will show after user stops dragging
+                                                _stepsSnackbarDebounceTimer =
+                                                    Timer(
+                                                  const Duration(
+                                                      milliseconds: 500),
+                                                  () async {
+                                                    if (!mounted ||
+                                                        !context.mounted)
+                                                      return;
+
+                                                    final alreadyAwarded =
+                                                        await badgeService
+                                                            .hasBeenAwardedToday(
+                                                      userService.userId!,
+                                                      "Steps logged!",
+                                                    );
+                                                    if (!alreadyAwarded) {
+                                                      await badgeService
+                                                          .awardPoints(
+                                                        userService.userId!,
+                                                        10,
+                                                        reason: "Steps logged!",
+                                                      );
+                                                      showTastySnackbar(
+                                                        'Success',
+                                                        'Steps updated! +10 points',
+                                                        context,
+                                                      );
+                                                    } else {
+                                                      // Already awarded today, just show update confirmation
+                                                      showTastySnackbar(
+                                                        'Success',
+                                                        'Steps updated',
+                                                        context,
+                                                      );
+                                                    }
+                                                  },
                                                 );
-                                                if (!alreadyAwarded) {
-                                                  await badgeService
-                                                      .awardPoints(
-                                                    userService.userId!,
-                                                    10,
-                                                    reason: "Steps logged!",
-                                                  );
-                                                  showTastySnackbar(
-                                                    'Success',
-                                                    'Steps updated! +10 points',
-                                                    context,
-                                                  );
-                                                } else {
-                                                  // Already awarded today, just show update confirmation
-                                                  showTastySnackbar(
-                                                    'Success',
-                                                    'Steps updated',
-                                                    context,
-                                                  );
-                                                }
                                               }
                                             },
                                             iconColor: kPurple,

@@ -15,7 +15,6 @@ import '../widgets/title_section.dart';
 import '../service/post_service.dart';
 import '../service/badge_service.dart';
 import '../data_models/badge_system_model.dart' as BadgeModel;
-import 'badges_screen.dart';
 import 'chat_screen.dart';
 import '../data_models/meal_model.dart';
 import '../widgets/user_profile_meal_card.dart';
@@ -62,7 +61,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   bool get isShrink {
     return _scrollController.hasClients &&
-        _scrollController.offset > (UserProfileConstants.scrollShrinkThreshold - kToolbarHeight);
+        _scrollController.offset >
+            (UserProfileConstants.scrollShrinkThreshold - kToolbarHeight);
   }
 
   @override
@@ -415,10 +415,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       // Badges Slider
                       if (userBadges.isNotEmpty)
                         SizedBox(
-                          height: getPercentageHeight(UserProfileConstants.badgeSliderHeight, context),
+                          height: getPercentageHeight(
+                              UserProfileConstants.badgeSliderHeight, context),
                           child: ListView.builder(
                             key: ValueKey('badges_list_${widget.userId}'),
-                            itemCount: userBadges.length > UserProfileConstants.maxBadgesDisplay
+                            itemCount: userBadges.length >
+                                    UserProfileConstants.maxBadgesDisplay
                                 ? UserProfileConstants.maxBadgesDisplay
                                 : userBadges.length,
                             padding: EdgeInsets.only(
@@ -470,8 +472,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     vertical: getPercentageHeight(1.2, context),
                                   ),
                                   decoration: BoxDecoration(
-                                    color:
-                                        !showMeals ? kAccent : Colors.transparent,
+                                    color: !showMeals
+                                        ? kAccent
+                                        : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
@@ -508,8 +511,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     vertical: getPercentageHeight(1.2, context),
                                   ),
                                   decoration: BoxDecoration(
-                                    color:
-                                        showMeals ? kAccent : Colors.transparent,
+                                    color: showMeals
+                                        ? kAccent
+                                        : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
@@ -540,7 +544,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             // Show meals
                             final itemCount = showAll
                                 ? userMeals.length
-                                : (userMeals.length > UserProfileConstants.maxItemsBeforeShowAll
+                                : (userMeals.length >
+                                        UserProfileConstants
+                                            .maxItemsBeforeShowAll
                                     ? UserProfileConstants.maxItemsBeforeShowAll
                                     : userMeals.length);
 
@@ -563,8 +569,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                           style: textTheme.bodyMedium?.copyWith(
                                             color: themeProvider.isDarkMode
                                                 ? kWhite.withValues(alpha: 0.7)
-                                                : kDarkGrey
-                                                    .withValues(alpha: 0.7),
+                                                : kDarkGrey.withValues(
+                                                    alpha: 0.7),
                                           ),
                                         ),
                                       ],
@@ -589,7 +595,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     shrinkWrap: true,
                                     gridDelegate:
                                         SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: UserProfileConstants.gridCrossAxisCount,
+                                      crossAxisCount: UserProfileConstants
+                                          .gridCrossAxisCount,
                                       mainAxisSpacing:
                                           getPercentageWidth(0.5, context),
                                       crossAxisSpacing:
@@ -604,13 +611,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                       final meal = userMeals[index];
                                       return UserProfileMealCard(
                                         meal: meal,
-                                        height: UserProfileConstants.mealCardHeight,
-                                        width: UserProfileConstants.mealCardWidth,
+                                        height:
+                                            UserProfileConstants.mealCardHeight,
+                                        width:
+                                            UserProfileConstants.mealCardWidth,
                                       );
                                     },
                                   ),
                                 if (userMeals.isNotEmpty &&
-                                    userMeals.length > UserProfileConstants.maxItemsBeforeShowAll)
+                                    userMeals.length >
+                                        UserProfileConstants
+                                            .maxItemsBeforeShowAll)
                                   GestureDetector(
                                     onTap: () {
                                       setState(() {
@@ -619,8 +630,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     },
                                     child: Padding(
                                       padding: EdgeInsets.symmetric(
-                                          vertical: getPercentageHeight(
-                                              1, context)),
+                                          vertical:
+                                              getPercentageHeight(1, context)),
                                       child: Icon(
                                         showAll
                                             ? Icons.keyboard_arrow_up
@@ -636,7 +647,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             // Show posts (existing code)
                             final itemCount = showAll
                                 ? searchContentDatas.length
-                                : (searchContentDatas.length > UserProfileConstants.maxItemsBeforeShowAll
+                                : (searchContentDatas.length >
+                                        UserProfileConstants
+                                            .maxItemsBeforeShowAll
                                     ? UserProfileConstants.maxItemsBeforeShowAll
                                     : searchContentDatas.length);
 
@@ -710,7 +723,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     shrinkWrap: true,
                                     gridDelegate:
                                         SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: UserProfileConstants.gridCrossAxisCount,
+                                      crossAxisCount: UserProfileConstants
+                                          .gridCrossAxisCount,
                                       mainAxisSpacing:
                                           getPercentageWidth(0.5, context),
                                       crossAxisSpacing:
@@ -749,7 +763,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     },
                                   ),
                                 if (searchContentDatas.isNotEmpty &&
-                                    searchContentDatas.length > UserProfileConstants.maxItemsBeforeShowAll)
+                                    searchContentDatas.length >
+                                        UserProfileConstants
+                                            .maxItemsBeforeShowAll)
                                   GestureDetector(
                                     key: ValueKey(
                                         'show_all_toggle_${widget.userId}'),
@@ -760,8 +776,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     },
                                     child: Padding(
                                       padding: EdgeInsets.symmetric(
-                                          vertical: getPercentageHeight(
-                                              1, context)),
+                                          vertical:
+                                              getPercentageHeight(1, context)),
                                       child: Icon(
                                         showAll
                                             ? Icons.keyboard_arrow_up
@@ -786,5 +802,4 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       }),
     );
   }
-
 }
