@@ -730,8 +730,11 @@ Give 3-4 practical tips. Be encouraging!
           role: buddyAiRole,
         );
 
+        // Filter out any AI instructions that may have leaked through
+        final cleanedResponse = filterSystemInstructions(response);
+
         final message = ChatScreenData(
-          messageContent: response,
+          messageContent: cleanedResponse,
           senderId: 'buddy',
           timestamp: Timestamp.now(),
           imageUrls: [],
@@ -741,7 +744,7 @@ Give 3-4 practical tips. Be encouraging!
 
         await saveMessageToMode(
           mode: currentMode.value,
-          content: response,
+          content: cleanedResponse,
           senderId: 'buddy',
         );
       } catch (e) {
@@ -853,7 +856,7 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
         }
 
         // Filter out system instructions from the response
-        final cleanedResponse = _filterSystemInstructions(response);
+        final cleanedResponse = filterSystemInstructions(response);
 
         final aiResponseMessage = ChatScreenData(
           messageContent: cleanedResponse,
@@ -906,6 +909,7 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
   // Handle meal plan quick action selection
   void handleMealPlanQuickAction(String action) {
     String prompt;
+    String displayMessage;
     int? mealCount;
     Map<String, int>? distribution;
     switch (action) {
@@ -913,6 +917,9 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
         prompt = familyMemberName.value != null
             ? 'Create a 7-day meal plan for ${familyMemberName.value} with exactly 3 breakfasts, 3 lunches, 3 dinners, and 2 snacks. Distribute these meals across the 7 days.'
             : 'Create a 7-day meal plan with exactly 3 breakfasts, 3 lunches, 3 dinners, and 2 snacks. Distribute these meals across the 7 days.';
+        displayMessage = familyMemberName.value != null
+            ? 'Chef, creating a 7-day meal plan for ${familyMemberName.value}'
+            : 'Chef, creating a 7-day meal plan';
         mealCount = 11; // 3 breakfasts + 3 lunches + 3 dinners + 2 snacks
         distribution = {
           'breakfast': 3,
@@ -925,6 +932,9 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
         prompt = familyMemberName.value != null
             ? 'Suggest a single healthy meal for ${familyMemberName.value}'
             : 'Suggest a single healthy meal';
+        displayMessage = familyMemberName.value != null
+            ? 'Chef, suggesting a meal for ${familyMemberName.value}'
+            : 'Chef, suggesting a meal';
         mealCount = 1;
         break;
       case 'remix':
@@ -934,6 +944,7 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
       case 'quick':
         prompt =
             'Suggest 3 quick and easy meal ideas I can make in under 30 minutes';
+        displayMessage = 'Chef, suggesting 3 quick and easy meal ideas';
         mealCount = 3;
         break;
       case 'custom':
@@ -944,8 +955,11 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
     }
 
     // Send the prompt through the chat with mealCount and distribution
+    // Pass displayMessage to show user-friendly text in chat UI
     handleMealPlanModeMessage(prompt,
-        mealCount: mealCount, distribution: distribution);
+        mealCount: mealCount,
+        distribution: distribution,
+        displayMessage: displayMessage);
   }
 
   // Handle meal plan mode messages
@@ -955,7 +969,8 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
       String? familyMemberName,
       String? familyMemberKcal,
       String? familyMemberGoal,
-      String? familyMemberType}) async {
+      String? familyMemberType,
+      String? displayMessage}) async {
     if (chatId.isEmpty || !canUseAI()) return;
 
     final currentUserId = userService.userId!;
@@ -988,9 +1003,12 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
       // Default to 10 if not specified
     }
 
+    // Use displayMessage for chat UI, but keep userInput for AI prompt
+    final messageToDisplay = displayMessage ?? userInput;
+
     // Add user message to UI
     final userMessage = ChatScreenData(
-      messageContent: userInput,
+      messageContent: messageToDisplay,
       senderId: currentUserId,
       timestamp: Timestamp.now(),
       imageUrls: [],
@@ -1001,7 +1019,7 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
 
     await saveMessageToMode(
       mode: currentMode.value,
-      content: userInput,
+      content: messageToDisplay,
       senderId: currentUserId,
     );
 
@@ -1024,11 +1042,16 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
 
       if (result['success'] == true) {
         final meals = result['meals'] as List<dynamic>? ?? [];
-        var mealIds = result['mealIds'] as List<dynamic>? ?? [];
+        final newMealIds = result['mealIds'] as List<dynamic>? ?? [];
+        final existingMealIds =
+            result['existingMealIds'] as List<dynamic>? ?? [];
         final resultFamilyMemberName = result['familyMemberName'] as String?;
 
-        // If mealIds is empty but meals exist, extract IDs from meals array
-        if (mealIds.isEmpty && meals.isNotEmpty) {
+        // Extract ALL meal IDs from meals array (includes both existing and new meals)
+        // The cloud function returns minimalMeals which contains all meals (existing + new)
+        // This ensures we save all meals to buddy collection, not just new ones
+        var mealIds = <String>[];
+        if (meals.isNotEmpty) {
           mealIds = meals
               .map((meal) {
                 if (meal is Map<String, dynamic>) {
@@ -1042,13 +1065,12 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
               .toList();
         }
 
-        // Also check existingMealIds if available
+        // Fallback: combine existingMealIds and newMealIds if meals array extraction failed
         if (mealIds.isEmpty) {
-          final existingMealIds =
-              result['existingMealIds'] as List<dynamic>? ?? [];
-          if (existingMealIds.isNotEmpty) {
-            mealIds = existingMealIds.map((id) => id.toString()).toList();
-          }
+          mealIds = [
+            ...existingMealIds.map((id) => id.toString()),
+            ...newMealIds.map((id) => id.toString()),
+          ];
         }
 
         if (meals.isNotEmpty) {
@@ -1251,11 +1273,16 @@ Instructions:
 
       if (result['success'] == true) {
         final meals = result['meals'] as List<dynamic>? ?? [];
-        var mealIds = result['mealIds'] as List<dynamic>? ?? [];
+        final newMealIds = result['mealIds'] as List<dynamic>? ?? [];
+        final existingMealIds =
+            result['existingMealIds'] as List<dynamic>? ?? [];
         final resultFamilyMemberName = result['familyMemberName'] as String?;
 
-        // If mealIds is empty but meals exist, extract IDs from meals array
-        if (mealIds.isEmpty && meals.isNotEmpty) {
+        // Extract ALL meal IDs from meals array (includes both existing and new meals)
+        // The cloud function returns minimalMeals which contains all meals (existing + new)
+        // This ensures we save all meals to buddy collection, not just new ones
+        var mealIds = <String>[];
+        if (meals.isNotEmpty) {
           mealIds = meals
               .map((meal) {
                 if (meal is Map<String, dynamic>) {
@@ -1269,13 +1296,12 @@ Instructions:
               .toList();
         }
 
-        // Also check existingMealIds if available
+        // Fallback: combine existingMealIds and newMealIds if meals array extraction failed
         if (mealIds.isEmpty) {
-          final existingMealIds =
-              result['existingMealIds'] as List<dynamic>? ?? [];
-          if (existingMealIds.isNotEmpty) {
-            mealIds = existingMealIds.map((id) => id.toString()).toList();
-          }
+          mealIds = [
+            ...existingMealIds.map((id) => id.toString()),
+            ...newMealIds.map((id) => id.toString()),
+          ];
         }
 
         if (meals.isNotEmpty && mealIds.isNotEmpty) {
@@ -1371,7 +1397,8 @@ Instructions:
   }
 
   // Filter out system instructions from AI responses
-  String _filterSystemInstructions(String response) {
+  // Made static so it can be used in other places to ensure no AI instructions leak through
+  static String filterSystemInstructions(String response) {
     String cleaned = response;
 
     // Remove common system instruction patterns using simple string replacement first
@@ -1383,6 +1410,46 @@ Instructions:
       'Be professional, solution-oriented',
       'Address the user as "Chef" throughout',
       'offer guidance based on',
+      'create instruction for ai',
+      'create instruction for AI',
+      'Create instruction for AI',
+      'create instruction',
+      'instruction for ai',
+      'instruction for AI',
+      'You are Turner',
+      'You are a professional Sous Chef',
+      'Your role is to',
+      'PERSONALITY:',
+      'COMMUNICATION STYLE:',
+      'Address the user as',
+      'Use kitchen terminology',
+      'Be encouraging',
+      'Provide practical tips',
+      'Respond warmly',
+      'Yes, Chef',
+      'mise en place',
+      '86\'d',
+      'in the weeds',
+      'the pass',
+      'Head Chef',
+      'Sous Chef Turner',
+      'anticipate the Head Chef\'s needs',
+      'organize the station',
+      'fix problems before they happen',
+      'trusted Sous Chef',
+      'stay on track',
+      'nutrition and meal goals',
+      'Crisp, professional, encouraging',
+      'solution-oriented',
+      'Not Robotic',
+      'Not Judgmental',
+      'High Competence',
+      'Focus on logistics',
+      'problem-solving',
+      'Catchphrase',
+      'Use this sparingly',
+      'acknowledging important decisions',
+      'confirming critical actions',
     ];
 
     // Remove instruction phrases (case-insensitive)
@@ -1396,10 +1463,26 @@ Instructions:
     // Remove patterns that might appear in multi-line instruction blocks
     final patterns = [
       // Pattern for instruction-like text at the start with context info
-      RegExp(r'^.*?(?:address them as|based on:|Username:|Goal:).*?\n',
-          caseSensitive: false, dotAll: true),
+      RegExp(
+          r'^.*?(?:address them as|based on:|Username:|Goal:|create instruction|instruction for).*?\n',
+          caseSensitive: false,
+          dotAll: true),
       // Pattern for "Greet the user" followed by context
       RegExp(r'Greet\s+the\s+user.*?Address\s+the\s+user.*?throughout',
+          caseSensitive: false, dotAll: true),
+      // Pattern for role definitions
+      RegExp(
+          r'You\s+are\s+[^.]*?\.\s*(?:Your\s+role|PERSONALITY|COMMUNICATION)',
+          caseSensitive: false,
+          dotAll: true),
+      // Pattern for instruction blocks starting with "create instruction"
+      RegExp(r'create\s+instruction\s+for\s+ai[^.]*',
+          caseSensitive: false, dotAll: true),
+      // Pattern for system prompts that leak through
+      RegExp(r'\[.*?Mode.*?\]\s*IMPORTANT:.*?\n',
+          caseSensitive: false, dotAll: true),
+      // Pattern for instruction-like blocks
+      RegExp(r'(?:PERSONALITY|COMMUNICATION STYLE|ROLE|INSTRUCTIONS?):.*?\n',
           caseSensitive: false, dotAll: true),
     ];
 
@@ -1407,12 +1490,30 @@ Instructions:
       cleaned = cleaned.replaceAll(pattern, '');
     }
 
+    // Remove lines that are clearly instructions (start with common instruction keywords)
+    final instructionLinePattern = RegExp(
+        r'^(?:create|generate|provide|give|make|build|write|design|develop|construct|formulate|compose|craft|prepare|produce|deliver|send|return|output|display|show|present|include|exclude|use|apply|follow|adhere|comply|obey|execute|perform|implement|carry out|do|ensure|make sure|remember|note|important|critical|essential|required|must|should|shall|will|can|could|may|might)\s+(?:instruction|prompt|command|directive|guideline|rule|policy|procedure|process|step|action|task|job|work|assignment|project|plan|strategy|approach|method|technique|way|means|manner|mode|style|format|template|example|sample|instance|case|scenario|situation|context|background|information|data|details|facts|truth|reality|truth|fact|evidence|proof|support|backup|confirmation|verification|validation|check|test|trial|experiment|study|research|investigation|analysis|examination|review|evaluation|assessment|appraisal|judgment|opinion|view|perspective|angle|aspect|facet|side|part|component|element|factor|feature|characteristic|attribute|property|quality|trait|mark|sign|indication|signal|hint|clue|tip|pointer|suggestion|recommendation|advice|counsel|guidance|direction|instruction|order|command|directive|mandate|decree|edict|ordinance|law|regulation|rule|statute|act|bill|measure|proposal|proposition|suggestion|recommendation|motion|resolution|decision|determination|judgment|verdict|sentence|ruling|finding|conclusion|result|outcome|effect|consequence|impact|influence|power|force|strength|might|potency|vigor|energy|drive|motivation|inspiration|stimulus|incentive|encouragement|support|backing|endorsement|approval|acceptance|agreement|consent|assent|acquiescence|compliance|conformity|adherence|observance|respect|regard|consideration|attention|notice|heed|care|concern|interest|curiosity|wonder|amazement|surprise|astonishment|shock|stun|daze|bewilder|confuse|puzzle|perplex|baffle|mystify|confound|nonplus|disconcert|discomfit|embarrass|abash|discompose|ruffle|fluster|agitate|disturb|perturb|upset|trouble|worry|bother|annoy|irritate|vex|provoke|exasperate|infuriate|enrage|anger|incense|madden|inflame|arouse|rouse|stir|excite|stimulate|animate|enliven|quicken|accelerate|hasten|speed|rush|hurry|dash|sprint|race|run|jog|trot|gallop|canter|lope|bound|leap|jump|spring|hop|skip|dance|prance|frisk|frolic|gambol|cavort|romp|play|sport|revel|carouse|roister|riot|revelry|merrymaking|festivity|celebration|party|gathering|assembly|meeting|conference|convention|congress|council|committee|board|panel|jury|tribunal|court|bench|bar|forum|platform|stage|podium|rostrum|dais|pulpit|lectern|desk|table|counter|bar|stand|booth|stall|kiosk|shop|store|market|bazaar|fair|exhibition|show|display|exposition|demonstration|presentation|performance|show|spectacle|pageant|parade|procession|cavalcade|train|cortege|retinue|suite|entourage|escort|guard|bodyguard|protector|defender|champion|advocate|supporter|backer|patron|sponsor|benefactor|donor|contributor|giver|provider|supplier|furnisher|purveyor|vendor|seller|merchant|trader|dealer|broker|agent|representative|proxy|deputy|substitute|surrogate|stand-in|replacement|successor|heir|inheritor|legatee|beneficiary|recipient|receiver|acceptor|taker|getter|obtainer|acquirer|procure|secure|gain|win|earn|merit|deserve|qualify|entitle|authorize|empower|enable|permit|allow|let|grant|give|bestow|confer|award|present|offer|proffer|tender|extend|hold out|reach|stretch|outstretch|spread|expand|enlarge|increase|grow|develop|evolve|progress|advance|proceed|move|go|travel|journey|voyage|trip|excursion|outing|jaunt|stroll|walk|hike|trek|march|parade|procession|march|parade|procession|march|parade|procession).*$',
+        caseSensitive: false,
+        multiLine: true);
+    cleaned = cleaned.replaceAll(instructionLinePattern, '');
+
     // Clean up multiple consecutive newlines
     cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    // Remove leading/trailing whitespace from each line
+    cleaned = cleaned
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .join('\n');
     // Trim whitespace
     cleaned = cleaned.trim();
 
-    return cleaned.isEmpty ? response : cleaned;
+    // If after cleaning the response is empty or too short, return original (but still filtered)
+    if (cleaned.isEmpty || cleaned.length < 10) {
+      return response.trim();
+    }
+
+    return cleaned;
   }
 
   /// Save meals to buddy collection for display in buddy tab

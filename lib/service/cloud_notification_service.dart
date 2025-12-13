@@ -11,8 +11,14 @@ import 'notification_service.dart';
 import 'notification_handler_service.dart';
 
 class CloudNotificationService extends GetxService {
-  static CloudNotificationService get instance =>
-      Get.find<CloudNotificationService>();
+  static CloudNotificationService get instance {
+    try {
+      return Get.find<CloudNotificationService>();
+    } catch (e) {
+      debugPrint('⚠️ CloudNotificationService not found, creating instance');
+      return Get.put(CloudNotificationService());
+    }
+  }
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FirebaseFunctions functions = FirebaseFunctions.instance;
@@ -256,22 +262,25 @@ class CloudNotificationService extends GetxService {
 
     // Show local notification with payload when app is in foreground
     try {
+      if (!Get.isRegistered<NotificationService>()) {
+        debugPrint('⚠️ NotificationService not registered');
+        return;
+      }
+
       final notificationService = Get.find<NotificationService>();
       final title = message.notification?.title ?? 'Taste Turner';
       final body = message.notification?.body ?? 'You have a new notification';
 
-      // Convert FCM data to JSON string for payload
-      final payload =
-          message.data.isNotEmpty ? json.encode(message.data) : null;
-
+      // Pass FCM data directly to showNotification (it expects Map<String, dynamic>?)
       await notificationService.showNotification(
         id: DateTime.now().millisecondsSinceEpoch % 100000,
         title: title,
         body: body,
-        payload: payload != null ? json.decode(payload) : null,
+        payload: message.data.isNotEmpty ? message.data : null,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Error showing foreground notification: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
   }
 
@@ -285,13 +294,34 @@ class CloudNotificationService extends GetxService {
 
     // Convert FCM data to JSON format for NotificationHandlerService
     try {
+      if (!Get.isRegistered<NotificationHandlerService>()) {
+        debugPrint('⚠️ NotificationHandlerService not registered');
+        // Fallback to simple navigation
+        _handleFallbackNavigation(type, data);
+        return;
+      }
+
       final payloadJson = json.encode(data);
       final handlerService = Get.find<NotificationHandlerService>();
       await handlerService.handleNotificationPayload(payloadJson);
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint(
           'Error handling notification via NotificationHandlerService: $e');
+      debugPrint('Stack trace: $stackTrace');
       // Fallback to simple navigation for basic types
+      _handleFallbackNavigation(type, data);
+    }
+  }
+
+  /// Handle fallback navigation when NotificationHandlerService is unavailable
+  void _handleFallbackNavigation(dynamic type, Map<String, dynamic> data) {
+    try {
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('⚠️ No context available for fallback navigation');
+        return;
+      }
+
       switch (type) {
         case 'meal_plan_reminder':
           _navigateToMealPlanning(data);
@@ -305,12 +335,19 @@ class CloudNotificationService extends GetxService {
         default:
           debugPrint('Unknown notification type: $type');
       }
+    } catch (e) {
+      debugPrint('Error in fallback navigation: $e');
     }
   }
 
   /// Navigate to meal planning screen
   void _navigateToMealPlanning(Map<String, dynamic> data) {
     try {
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('⚠️ No context available for navigation');
+        return;
+      }
       // Navigate to meal design screen (tab 4 in bottom nav)
       Get.to(() => const BottomNavSec(selectedIndex: 4));
     } catch (e) {
@@ -321,6 +358,11 @@ class CloudNotificationService extends GetxService {
   /// Navigate to water tracking screen
   void _navigateToWaterTracking(Map<String, dynamic> data) {
     try {
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('⚠️ No context available for navigation');
+        return;
+      }
       // Navigate to home screen where water tracking is available
       Get.to(() => const BottomNavSec(selectedIndex: 0));
     } catch (e) {
@@ -331,6 +373,11 @@ class CloudNotificationService extends GetxService {
   /// Navigate to evening review screen
   void _navigateToEveningReview(Map<String, dynamic> data) {
     try {
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('⚠️ No context available for navigation');
+        return;
+      }
       // Navigate to home screen where evening review is available
       Get.to(() => const BottomNavSec(selectedIndex: 0));
     } catch (e) {

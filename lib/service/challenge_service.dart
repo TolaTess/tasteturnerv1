@@ -1,11 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:get/get.dart';
-
-import '../constants.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class ChallengeService extends GetxService {
-  static ChallengeService get instance => Get.find<ChallengeService>();
+  static ChallengeService get instance {
+    try {
+      return Get.find<ChallengeService>();
+    } catch (e) {
+      debugPrint('⚠️ ChallengeService not found, creating instance');
+      return Get.put(ChallengeService());
+    }
+  }
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
@@ -40,7 +46,6 @@ class ChallengeService extends GetxService {
         currentLeaderboard.value =
             List<Map<String, dynamic>>.from(data['currentLeaderboard'] ?? []);
         lastResults.value = data['lastResults'] ?? {};
-
       } else {
         print('Error loading challenge data: ${data['error']}');
         // Fallback to Firestore if function fails
@@ -121,7 +126,9 @@ class ChallengeService extends GetxService {
       // Battle feature removed - return empty snapshot
       final snapshot = await _firestore
           .collection('posts')
-          .where('isBattle', isEqualTo: false) // This will return no results since battles are removed
+          .where('isBattle',
+              isEqualTo:
+                  false) // This will return no results since battles are removed
           .limit(0)
           .get();
 

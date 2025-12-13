@@ -5,7 +5,9 @@ import 'package:get/get.dart';
 import '../constants.dart';
 
 class HelperController extends GetxController {
-  static HelperController instance = Get.find();
+  static HelperController get instance {
+    return Get.find<HelperController>(); // Always registered in main.dart
+  }
 
   final RxList<Map<String, dynamic>> plans = RxList<Map<String, dynamic>>([]);
   final RxList<Map<String, dynamic>> category =
@@ -379,7 +381,7 @@ class HelperController extends GetxController {
         }
       }, SetOptions(merge: true));
     } catch (e) {
-        throw Exception('Failed to save winners: $e');
+      throw Exception('Failed to save winners: $e');
     }
   }
 

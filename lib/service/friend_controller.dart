@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../constants.dart';
 import '../data_models/user_data_model.dart';
@@ -8,7 +9,14 @@ import '../helper/utils.dart';
 import 'chat_controller.dart';
 
 class FriendController extends GetxController {
-  static FriendController instance = Get.find();
+  static FriendController get instance {
+    if (!Get.isRegistered<FriendController>()) {
+      debugPrint('⚠️ FriendController not registered, registering now');
+      return Get.put(FriendController());
+    }
+    return Get.find<FriendController>();
+  }
+
   final RxSet<String> followingList = <String>{}.obs;
 
   var friendsMap = <String, UserModel>{}.obs;
@@ -59,8 +67,7 @@ class FriendController extends GetxController {
           ...?data,
         });
       }
-    } catch (e) {
-    }
+    } catch (e) {}
     return null;
   }
 
@@ -139,10 +146,7 @@ class FriendController extends GetxController {
       if (friendUserId != tastyId) {
         sendFriendRequest(currentUserId, friendUserId, friendName, context);
       } else {
-        await firestore
-            .collection('friends')
-            .doc(currentUserId)
-            .set({
+        await firestore.collection('friends').doc(currentUserId).set({
           'following': FieldValue.arrayUnion([friendUserId])
         }, SetOptions(merge: true));
       }
@@ -163,10 +167,8 @@ class FriendController extends GetxController {
         userProfileData.value = user;
 
         // Save fetched data to SharedPreferences
-      } else {
-      }
-    } catch (e) {
-    }
+      } else {}
+    } catch (e) {}
   }
 
   Future<void> updateUserData(String userId) async {
@@ -202,8 +204,7 @@ class FriendController extends GetxController {
           userProfileData.value = user;
         }
       }
-    } catch (e) { 
-    }
+    } catch (e) {}
   }
 
   /// Unfollow a friend

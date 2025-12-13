@@ -3,11 +3,20 @@ import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/meal_plan_model.dart';
 import '../data_models/user_meal.dart';
-import 'package:intl/intl.dart';  
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart' show debugPrint;
 
 class CalendarSharingService extends GetxController {
-  static CalendarSharingService instance = Get.find();
+  static CalendarSharingService get instance {
+    try {
+      // Get.find() will automatically trigger lazy initialization if registered with Get.lazyPut()
+      return Get.find<CalendarSharingService>();
+    } catch (e) {
+      debugPrint('⚠️ CalendarSharingService not registered: $e');
+      throw Exception('CalendarSharingService not registered');
+    }
+  }
+
   // Observable lists for real-time updates
   final RxList<ShareRequest> shareRequests = <ShareRequest>[].obs;
   final RxList<SharedCalendar> sharedCalendars = <SharedCalendar>[].obs;

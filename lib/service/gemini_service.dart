@@ -3206,7 +3206,6 @@ class GeminiService {
           final partialData =
               _extractPartialDataFromMalformedJson(extractedJson);
           if (partialData.isNotEmpty) {
-            debugPrint('Successfully extracted partial data: $partialData');
             return partialData;
           }
 
@@ -3539,8 +3538,6 @@ class GeminiService {
       extractedData['mealPlan'] = mealPlan;
       extractedData['distribution'] = distribution;
 
-      debugPrint(
-          'Successfully extracted ${mealPlan.length} meals from malformed JSON');
     } catch (e) {
       debugPrint('Error extracting partial data: $e');
     }
@@ -3658,9 +3655,12 @@ class GeminiService {
           } else {}
         } else if (meal != null) {}
       } catch (e) {
-        showTastySnackbar(
-            'Something went wrong', 'Please try again later', Get.context!,
-            backgroundColor: kRed);
+        final context = Get.context;
+        if (context != null) {
+          showTastySnackbar(
+              'Something went wrong', 'Please try again later', context,
+              backgroundColor: kRed);
+        }
       }
     }
 
@@ -4828,16 +4828,164 @@ Important guidelines:
       }
     } catch (e) {
       debugPrint('analyzeFridgeImage failed with error: $e');
-      // Show snackbar to user
-      Get.snackbar(
-        'Image Analysis Failed',
-        'Please try again later',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: Duration(seconds: 3),
+      rethrow;
+    }
+  }
+
+  /// Analyze symptom patterns using AI to provide personalized insights
+  ///
+  /// Takes a list of recent symptoms and analyzes them to provide:
+  /// - Potential food intolerances
+  /// - Meal timing insights
+  /// - Dietary recommendations
+  /// - Pattern identification
+  Future<Map<String, dynamic>> analyzeSymptomPatternsAI(
+    String userId,
+    List<dynamic> recentSymptoms,
+  ) async {
+    try {
+      // Initialize model if not already done
+      if (_activeModel == null) {
+        final initialized = await initializeModel();
+        if (!initialized) {
+          throw Exception('No suitable AI model available');
+        }
+      }
+
+      // Get user context
+      final aiContext = await _buildAIContext();
+      final userContext = await _getUserContext();
+
+      // Format symptoms for analysis
+      final symptomsText = recentSymptoms.map((symptom) {
+        if (symptom is Map<String, dynamic>) {
+          final type = symptom['type'] ?? 'unknown';
+          final severity = symptom['severity'] ?? 0;
+          final ingredients =
+              (symptom['ingredients'] as List<dynamic>?)?.join(', ') ??
+                  'unknown';
+          final mealName = symptom['mealName'] ?? 'unknown meal';
+          final mealType = symptom['mealType'] ?? 'unknown';
+          final timestamp = symptom['timestamp'] ?? 'unknown time';
+
+          return '- $type (severity: $severity/5) after $mealName ($mealType) containing: $ingredients at $timestamp';
+        }
+        return '- ${symptom.toString()}';
+      }).join('\n');
+
+      final prompt = '''
+You are a nutrition and wellness AI assistant helping a user identify food triggers and patterns from their symptom logs.
+
+User Context:
+$userContext
+
+Recent Symptoms (last 30 days):
+$symptomsText
+
+Please analyze these symptoms and provide:
+1. **Potential Food Triggers**: Identify ingredients that frequently appear with negative symptoms
+2. **Patterns**: Notice any patterns in meal timing, meal types, or ingredient combinations
+3. **Recommendations**: Provide 3-5 actionable dietary recommendations
+4. **Insights**: Share any observations about potential food intolerances or sensitivities
+
+Format your response as JSON with this structure:
+{
+  "triggers": ["ingredient1", "ingredient2"],
+  "patterns": "Brief description of patterns observed",
+  "recommendations": ["recommendation1", "recommendation2", "recommendation3"],
+  "insights": "Overall insights about potential food sensitivities or dietary patterns",
+  "confidence": "high|medium|low"
+}
+
+Be concise but helpful. Focus on actionable advice.
+''';
+
+      final response = await _makeApiCallWithRetry(
+        endpoint: '${_activeModel}:generateContent',
+        body: {
+          "contents": [
+            {
+              "parts": [
+                {"text": '$aiContext\n\n$prompt'}
+              ]
+            }
+          ],
+          "generationConfig": {
+            "temperature": 0.3,
+            "topK": 20,
+            "topP": 0.8,
+            "maxOutputTokens": 2000,
+          },
+        },
+        operation: 'analyze symptom patterns',
       );
-      throw Exception('Failed to analyze fridge image: $e');
+
+      if (response.containsKey('candidates') &&
+          response['candidates'] is List &&
+          response['candidates'].isNotEmpty) {
+        final candidate = response['candidates'][0];
+
+        if (candidate.containsKey('content') && candidate['content'] is Map) {
+          final content = candidate['content'] as Map<String, dynamic>;
+          final parts = content['parts'] as List<dynamic>?;
+
+          if (parts != null && parts.isNotEmpty) {
+            final text = parts[0]['text'] as String?;
+
+            if (text != null && text.isNotEmpty) {
+              try {
+                // Try to extract JSON from the response
+                final jsonMatch =
+                    RegExp(r'\{[^{}]*\}', multiLine: true).firstMatch(text);
+                if (jsonMatch != null) {
+                  final jsonStr = jsonMatch.group(0)!;
+                  final result = json.decode(jsonStr) as Map<String, dynamic>;
+                  return {
+                    'success': true,
+                    'analysis': result,
+                    'rawResponse': text,
+                  };
+                } else {
+                  // If no JSON found, return the text as insights
+                  return {
+                    'success': true,
+                    'analysis': {
+                      'insights': text,
+                      'recommendations': [],
+                    },
+                    'rawResponse': text,
+                  };
+                }
+              } catch (e) {
+                debugPrint('Error parsing AI symptom analysis: $e');
+                // Return text as insights if JSON parsing fails
+                return {
+                  'success': true,
+                  'analysis': {
+                    'insights': text,
+                    'recommendations': [],
+                  },
+                  'rawResponse': text,
+                };
+              }
+            } else {
+              throw Exception('No text content in Gemini response');
+            }
+          } else {
+            throw Exception('No parts in Gemini response content');
+          }
+        } else {
+          throw Exception('No content in Gemini response candidate');
+        }
+      } else {
+        throw Exception('No candidates in Gemini response');
+      }
+    } catch (e) {
+      debugPrint('analyzeSymptomPatternsAI failed with error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
     }
   }
 
@@ -6668,4 +6816,5 @@ Generate completely new and different meal ideas using the same ingredients.
 }
 
 // Global instance for easy access throughout the app
-final geminiService = GeminiService.instance;
+// Use lazy getter to prevent initialization during Dart VM startup
+GeminiService get geminiService => GeminiService.instance;

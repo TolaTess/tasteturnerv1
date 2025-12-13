@@ -8,7 +8,13 @@ import '../helper/utils.dart';
 import '../service/chat_utilities.dart';
 
 class ChatController extends GetxController {
-  static ChatController instance = Get.find();
+  static ChatController get instance {
+    if (!Get.isRegistered<ChatController>()) {
+      debugPrint('⚠️ ChatController not registered, registering now');
+      return Get.put(ChatController());
+    }
+    return Get.find<ChatController>();
+  }
 
   var userChats = <Map<String, dynamic>>[].obs;
   var messages = <ChatScreenData>[].obs;
@@ -19,13 +25,15 @@ class ChatController extends GetxController {
 
   // Initialize friend chat (simple messages collection, no modes)
   Future<void> initializeFriendChat(String friendId) async {
-    debugPrint('ChatController.initializeFriendChat called with friendId: $friendId');
+    debugPrint(
+        'ChatController.initializeFriendChat called with friendId: $friendId');
     if (friendId.isEmpty) {
       debugPrint("Cannot initialize friend chat: friendId is empty");
       return;
     }
     final currentUserId = userService.userId ?? '';
-    debugPrint('ChatController.initializeFriendChat - currentUserId: $currentUserId');
+    debugPrint(
+        'ChatController.initializeFriendChat - currentUserId: $currentUserId');
     if (currentUserId.isEmpty) {
       debugPrint("Cannot initialize friend chat: userId is empty");
       return;
@@ -34,13 +42,15 @@ class ChatController extends GetxController {
     // Cancel existing subscription if any
     _messagesSubscription?.cancel();
 
-    debugPrint('ChatController.initializeFriendChat - Calling getOrCreateChatId($currentUserId, $friendId)');
+    debugPrint(
+        'ChatController.initializeFriendChat - Calling getOrCreateChatId($currentUserId, $friendId)');
     chatId = await ChatUtilities.getOrCreateChatId(currentUserId, friendId);
     debugPrint('ChatController.initializeFriendChat - Got chatId: $chatId');
 
     // Listen to simple messages collection (no modes)
     listenToFriendMessages();
-    debugPrint('ChatController.initializeFriendChat - listenToFriendMessages called');
+    debugPrint(
+        'ChatController.initializeFriendChat - listenToFriendMessages called');
   }
 
   // Listen to simple messages collection for friend chats
@@ -397,11 +407,14 @@ class ChatController extends GetxController {
     final recipientId = friendRequest['recipientId'];
 
     if (senderId == userService.userId) {
-      showTastySnackbar(
-        'Cannot Accept Friend Request',
-        'You cannot accept your own friend request.',
-        Get.context!,
-      );
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+          'Cannot Accept Friend Request',
+          'You cannot accept your own friend request.',
+          context,
+        );
+      }
       return;
     }
     // Update message status

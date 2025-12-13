@@ -84,12 +84,28 @@ class HybridNotificationService extends GetxService {
   /// Initialize iOS notifications (Local)
   Future<void> _initializeIOSNotifications() async {
     try {
-      // Initialize local notification service
-      _localNotificationService = NotificationService();
+      // Use existing NotificationService instance from GetX
+      // This ensures we use the same instance that was initialized with the callback
+      if (!Get.isRegistered<NotificationService>()) {
+        debugPrint(
+            '⚠️ NotificationService not registered, cannot initialize iOS notifications');
+        return;
+      }
 
-      // Initialize the notification service before using it
-      // This sets up timezone data and other required initialization
-      await _localNotificationService!.initNotification();
+      _localNotificationService = Get.find<NotificationService>();
+
+      // Check if notification service is already initialized
+      // It should be initialized in home_screen.dart with the onNotificationTapped callback
+      if (!_localNotificationService!.isInitialized) {
+        debugPrint(
+            '⚠️ NotificationService not initialized yet, waiting for initialization in home_screen');
+        // Don't call initNotification() here as it would overwrite the callback
+        // The service should be initialized in home_screen.dart with the callback
+        return;
+      }
+
+      debugPrint(
+          '✅ Using existing NotificationService instance with callback preserved');
 
       // Set up iOS notification preferences
       await _setupIOSNotificationPreferences();
@@ -170,14 +186,18 @@ class HybridNotificationService extends GetxService {
 
     // Handle notification taps
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('Notification tapped: ${message.notification?.title}');
+      debugPrint(
+          '🔔 [Android FCM] Notification tapped (app in background): ${message.notification?.title}');
+      debugPrint('   Message data: ${message.data}');
       _handleNotificationTap(message);
     });
 
     // Handle notification tap when app is terminated
     _messaging.getInitialMessage().then((RemoteMessage? message) {
       if (message != null) {
-        debugPrint('App opened from terminated state via notification');
+        debugPrint(
+            '🔔 [Android FCM] App opened from terminated state via notification');
+        debugPrint('   Message data: ${message.data}');
         _handleNotificationTap(message);
       }
     });
@@ -193,18 +213,47 @@ class HybridNotificationService extends GetxService {
     final data = message.data;
     final type = data['type'];
 
-    debugPrint('Handling notification tap: $type');
-    debugPrint('Notification data: $data');
+    debugPrint('🔔 [Android FCM] Handling notification tap');
+    debugPrint('   Type: $type');
+    debugPrint('   Data: $data');
+    debugPrint('   Has data: ${data.isNotEmpty}');
 
     // Convert FCM data to JSON format for NotificationHandlerService
     try {
+      if (!Get.isRegistered<NotificationHandlerService>()) {
+        debugPrint(
+            '⚠️ [Android FCM] NotificationHandlerService not registered');
+        // Fallback to simple navigation
+        _handleFallbackNavigation(type, data);
+        return;
+      }
+
       final payloadJson = json.encode(data);
+      debugPrint('📦 [Android FCM] Payload JSON: $payloadJson');
+
       final handlerService = Get.find<NotificationHandlerService>();
-      await handlerService.handleNotificationPayload(payloadJson);
-    } catch (e) {
       debugPrint(
-          'Error handling notification via NotificationHandlerService: $e');
+          '✅ [Android FCM] Calling NotificationHandlerService.handleNotificationPayload');
+      await handlerService.handleNotificationPayload(payloadJson);
+      debugPrint('✅ [Android FCM] Notification payload handled successfully');
+    } catch (e, stackTrace) {
+      debugPrint(
+          '❌ [Android FCM] Error handling notification via NotificationHandlerService: $e');
+      debugPrint('   Stack trace: $stackTrace');
       // Fallback to simple navigation for basic types
+      _handleFallbackNavigation(type, data);
+    }
+  }
+
+  /// Handle fallback navigation when NotificationHandlerService is unavailable
+  void _handleFallbackNavigation(dynamic type, Map<String, dynamic> data) {
+    try {
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('⚠️ No context available for fallback navigation');
+        return;
+      }
+
       switch (type) {
         case 'meal_plan_reminder':
           _navigateToMealPlanning(data);
@@ -218,12 +267,19 @@ class HybridNotificationService extends GetxService {
         default:
           debugPrint('Unknown notification type: $type');
       }
+    } catch (e) {
+      debugPrint('Error in fallback navigation: $e');
     }
   }
 
   /// Navigate to meal planning screen
   void _navigateToMealPlanning(Map<String, dynamic> data) {
     try {
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('⚠️ No context available for navigation');
+        return;
+      }
       // Navigate to meal design screen (tab 4 in bottom nav)
       Get.to(() => const BottomNavSec(selectedIndex: 4));
     } catch (e) {
@@ -234,6 +290,11 @@ class HybridNotificationService extends GetxService {
   /// Navigate to water tracking screen
   void _navigateToWaterTracking(Map<String, dynamic> data) {
     try {
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('⚠️ No context available for navigation');
+        return;
+      }
       // Navigate to home screen where water tracking is available
       Get.to(() => AddFoodScreen(date: DateTime.now()));
     } catch (e) {
@@ -244,6 +305,11 @@ class HybridNotificationService extends GetxService {
   /// Navigate to evening review screen
   void _navigateToEveningReview(Map<String, dynamic> data) {
     try {
+      final context = Get.context;
+      if (context == null) {
+        debugPrint('⚠️ No context available for navigation');
+        return;
+      }
       // Navigate to home screen where evening review is available
       Get.to(() => AddFoodScreen(date: DateTime.now()));
     } catch (e) {
@@ -263,16 +329,16 @@ class HybridNotificationService extends GetxService {
     }
 
     try {
-      // Set up meal plan reminder (9 PM daily)
-      await _localNotificationService!.scheduleDailyReminder(
-        id: 1,
-        title: 'Mise en Place Reminder',
-        body:
-            'Chef, we haven\'t planned tomorrow\'s menu yet. Shall I prep some suggestions?',
-        hour: 21, // 9 PM
-        minute: 0,
-        payload: {'type': 'meal_plan_reminder'},
-      );
+      // // Set up meal plan reminder (9 PM daily)
+      // await _localNotificationService!.scheduleDailyReminder(
+      //   id: 1,
+      //   title: 'Mise en Place Reminder',
+      //   body:
+      //       'Chef, we haven\'t planned tomorrow\'s menu yet. Shall I prep some suggestions?',
+      //   hour: 21, // 9 PM
+      //   minute: 0,
+      //   payload: {'type': 'meal_plan_reminder'},
+      // );
 
       // Set up water reminder (11 AM daily)
       await _localNotificationService!.scheduleDailyReminder(
@@ -340,9 +406,15 @@ class HybridNotificationService extends GetxService {
         debugPrint(
             'Android notification preferences updated in Cloud Functions');
       } else if (Platform.isIOS) {
-        // For iOS: Initialize service if not already initialized
+        // For iOS: Use existing service instance from GetX
         if (_localNotificationService == null) {
-          _localNotificationService = NotificationService();
+          if (Get.isRegistered<NotificationService>()) {
+            _localNotificationService = Get.find<NotificationService>();
+          } else {
+            debugPrint(
+                '⚠️ NotificationService not registered, cannot update preferences');
+            return;
+          }
         }
         // Update local notification service
         await _setupIOSNotificationPreferences();

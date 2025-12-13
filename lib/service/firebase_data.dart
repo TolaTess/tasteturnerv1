@@ -5,7 +5,10 @@ import 'package:flutter/material.dart' show debugPrint;
 import '../constants.dart';
 
 class FirebaseService extends GetxController {
-  static FirebaseService instance = Get.find();
+  static FirebaseService get instance {
+    return Get.find<FirebaseService>(); // Always registered in main.dart
+  }
+
   final RxMap<String, dynamic> generalData = <String, dynamic>{}.obs;
   Future<List<Map<String, dynamic>>> fetchPlans() async {
     try {

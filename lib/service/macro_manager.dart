@@ -11,7 +11,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 class MacroManager extends GetxController {
-  static final MacroManager instance = Get.put(MacroManager());
+  static MacroManager get instance {
+    if (!Get.isRegistered<MacroManager>()) {
+      debugPrint('⚠️ MacroManager not registered, registering now');
+      return Get.put(MacroManager());
+    }
+    return Get.find<MacroManager>();
+  }
+
   static int _instanceCount = 0;
   final FirebaseFunctions functions = FirebaseFunctions.instance;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -331,9 +338,12 @@ class MacroManager extends GetxController {
         _listenToShoppingList(userId);
       });
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 

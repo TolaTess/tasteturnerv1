@@ -5,9 +5,16 @@ import 'package:flutter/material.dart' show debugPrint;
 import '../constants.dart';
 import '../data_models/badge_system_model.dart';
 import '../helper/utils.dart';
+import 'notification_service.dart';
 
 class BadgeService extends GetxController {
-  static BadgeService instance = Get.find();
+  static BadgeService get instance {
+    if (!Get.isRegistered<BadgeService>()) {
+      debugPrint('⚠️ BadgeService not registered, registering now');
+      return Get.put(BadgeService());
+    }
+    return Get.find<BadgeService>();
+  }
 
   final FirebaseFirestore _firestore = firestore;
   final RxList<Badge> availableBadges = <Badge>[].obs;
@@ -154,16 +161,34 @@ class BadgeService extends GetxController {
 
       // Show notification if reason provided
       if (reason != null) {
-        // await notificationService.showNotification(
-        //   id: 101,
-        //   title: "Points Earned! 🏆",
-        //   body: "$reason $points points awarded!",
-        //   payload: {
-        //     'type': 'points_earned',
-        //     'reason': reason,
-        //     'points': points,
-        //   },
-        // );
+        try {
+          if (Get.isRegistered<NotificationService>()) {
+            final notificationService = Get.find<NotificationService>();
+            if (notificationService.isInitialized) {
+              await notificationService.showNotification(
+                id: DateTime.now().millisecondsSinceEpoch % 100000,
+                title: "Points Earned! 🏆",
+                body: "$reason $points points awarded!",
+                payload: {
+                  'type': 'points_earned',
+                  'reason': reason,
+                  'points': points,
+                },
+              );
+              debugPrint(
+                  '✅ Points notification sent: $reason - $points points');
+            } else {
+              debugPrint(
+                  '⚠️ NotificationService not initialized, skipping points notification');
+            }
+          } else {
+            debugPrint(
+                '⚠️ NotificationService not registered, skipping points notification');
+          }
+        } catch (e) {
+          debugPrint('Error showing points notification: $e');
+          // Don't fail the points award if notification fails
+        }
 
         // Mark this award as given today
         await _markAwardGivenToday(userId, reason);
