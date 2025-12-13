@@ -38,6 +38,12 @@ class _PremiumSectionState extends State<PremiumSection> {
   void initState() {
     super.initState();
     _getBannerId();
+    // Retry loading ad after a delay in case consent is obtained asynchronously
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && !_canRequestAds) {
+        _loadBannerAd(); // Retry after delay
+      }
+    });
   }
 
   Future<void> _getBannerId() async {
@@ -88,12 +94,17 @@ class _PremiumSectionState extends State<PremiumSection> {
         listener: BannerAdListener(
           onAdFailedToLoad: (ad, error) {
             debugPrint('Banner ad failed to load: $error');
+            debugPrint('Ad unit ID: $_bannerId');
+            debugPrint('Can request ads: $_canRequestAds');
             setState(() {
               _adsInitialized = true;
+              _bannerAd = null; // Ensure bannerAd is null on failure
             });
           },
           onAdLoaded: (_) {
             debugPrint('Banner ad loaded successfully');
+            debugPrint(
+                'Ad size: ${_bannerAd?.size.width}x${_bannerAd?.size.height}');
             setState(() {
               _adsInitialized = true;
             });
@@ -175,15 +186,7 @@ class _PremiumSectionState extends State<PremiumSection> {
             ),
           ),
         ),
-        // Show consent prompt banner if consent hasn't been obtained
-        if (_adsInitialized && !_canRequestAds)
-          Padding(
-            padding: EdgeInsets.only(
-              top: getPercentageHeight(1, context),
-            ),
-            child: _buildConsentPromptBanner(context, isDarkMode),
-          ),
-        // Only show ad widget if ad is loaded and ads can be requested
+        // Show ad widget if ad is loaded and ads can be requested
         // Note: SDK automatically serves personalized or non-personalized ads based on consent
         if (_adsInitialized && _canRequestAds && _bannerAd != null)
           Padding(
@@ -215,113 +218,5 @@ class _PremiumSectionState extends State<PremiumSection> {
         ),
       ],
     );
-  }
-
-  /// Build consent prompt banner when consent hasn't been obtained
-  Widget _buildConsentPromptBanner(BuildContext context, bool isDarkMode) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: getPercentageWidth(3, context),
-        vertical: getPercentageHeight(1.5, context),
-      ),
-      decoration: BoxDecoration(
-        color: kAccentLight.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: isDarkMode
-                ? kAccentLight.withValues(alpha: 0.4)
-                : kDarkGrey.withValues(alpha: 0.2),
-            spreadRadius: 0.6,
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.privacy_tip_outlined,
-            color: Colors.white,
-            size: getIconScale(8, context),
-          ),
-          SizedBox(height: getPercentageHeight(1, context)),
-          Text(
-            'Privacy & Consent',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: getTextScale(4.5, context),
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: getPercentageHeight(0.5, context)),
-          Text(
-            'Please review our privacy policy and terms to enable personalized content and ads.',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: getTextScale(3.2, context),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: getPercentageHeight(1.5, context)),
-          ElevatedButton(
-            onPressed: () => _requestConsent(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: kAccentLight,
-              padding: EdgeInsets.symmetric(
-                horizontal: getPercentageWidth(6, context),
-                vertical: getPercentageHeight(1, context),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            child: Text(
-              'Review Privacy Policy',
-              style: TextStyle(
-                fontSize: getTextScale(3.5, context),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Request UMP consent and reload ads if consent is obtained
-  Future<void> _requestConsent(BuildContext context) async {
-    // Show dialog first, then trigger UMP consent form
-    await UMPConsentHelper.showConsentDialog(context);
-
-    // After dialog/consent form is closed, check if consent was obtained
-    // Small delay to ensure consent status is updated
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Reload ads if consent was obtained
-    await _reloadAds();
-  }
-
-  /// Reload ads after consent is obtained
-  Future<void> _reloadAds() async {
-    // Dispose existing ad if any
-    _bannerAd?.dispose();
-    _bannerAd = null;
-    _adsInitialized = false;
-
-    // Check consent status again
-    _canRequestAds = await _checkCanRequestAds();
-
-    if (mounted) {
-      setState(() {});
-    }
-
-    // Load ads if consent is now available
-    if (_canRequestAds) {
-      await _loadBannerAd();
-    }
   }
 }

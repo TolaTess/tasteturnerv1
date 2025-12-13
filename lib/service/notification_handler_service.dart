@@ -11,74 +11,120 @@ import '../screens/rainbow_tracker_detail_screen.dart';
 import 'user_service.dart';
 
 class NotificationHandlerService extends GetxService {
-  static NotificationHandlerService get instance =>
-      Get.find<NotificationHandlerService>();
+  static NotificationHandlerService get instance {
+    return Get.find<
+        NotificationHandlerService>(); // Always registered in main.dart
+  }
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final UserService _userService = Get.find<UserService>();
+  late UserService _userService;
+
+  @override
+  void onInit() {
+    super.onInit();
+    if (Get.isRegistered<UserService>()) {
+      _userService = Get.find<UserService>();
+    } else {
+      debugPrint('⚠️ UserService not registered yet');
+      // Will be initialized when needed
+    }
+  }
 
   // Handle notification payload and show appropriate screen
   Future<void> handleNotificationPayload(String? payload) async {
+    debugPrint(
+        '🔔 [NotificationHandlerService] handleNotificationPayload called');
     if (payload == null) {
-      debugPrint('⚠️ Notification payload is null');
+      debugPrint(
+          '⚠️ [NotificationHandlerService] Notification payload is null');
       return;
     }
 
-    debugPrint('📱 Received notification payload: $payload');
+    debugPrint(
+        '📱 [NotificationHandlerService] Received notification payload: $payload');
 
     try {
       // Parse the payload
       final parsedPayload = _parsePayload(payload);
       if (parsedPayload == null) {
-        debugPrint('⚠️ Failed to parse notification payload');
+        debugPrint(
+            '⚠️ [NotificationHandlerService] Failed to parse notification payload');
         return;
       }
 
-      debugPrint('📱 Parsed payload: $parsedPayload');
+      debugPrint(
+          '📱 [NotificationHandlerService] Parsed payload: $parsedPayload');
 
       final type = parsedPayload['type'] as String?;
       final date = parsedPayload['date'] as String?;
       final hasMealPlan = parsedPayload['hasMealPlan'] as bool?;
 
-      if (type == null) return;
+      debugPrint('📋 [NotificationHandlerService] Payload details:');
+      debugPrint('   Type: $type');
+      debugPrint('   Date: $date');
+      debugPrint('   HasMealPlan: $hasMealPlan');
+
+      if (type == null) {
+        debugPrint(
+            '⚠️ [NotificationHandlerService] Notification type is null, returning');
+        return;
+      }
 
       // Handle water reminder notifications
       if (type == 'water_reminder') {
+        debugPrint('💧 [NotificationHandlerService] Handling water_reminder');
         await _handleWaterReminder();
         return;
       }
 
       // Handle meal symptom check notifications
       if (type == 'meal_symptom_check') {
+        debugPrint(
+            '🍽️ [NotificationHandlerService] Handling meal_symptom_check');
         await _handleMealSymptomCheck(parsedPayload);
         return;
       }
 
       // Handle plant milestone notifications
       if (type == 'plant_milestone') {
+        debugPrint('🌱 [NotificationHandlerService] Handling plant_milestone');
         await _handlePlantMilestone(parsedPayload);
         return;
       }
 
       // For meal plan and evening review, date and hasMealPlan are required
-      if (date == null || hasMealPlan == null) return;
+      if (date == null || hasMealPlan == null) {
+        debugPrint(
+            '⚠️ [NotificationHandlerService] Missing required fields for type $type');
+        debugPrint('   Date: $date, HasMealPlan: $hasMealPlan');
+        return;
+      }
+
+      debugPrint(
+          '📅 [NotificationHandlerService] Handling $type with date: $date, hasMealPlan: $hasMealPlan');
 
       // Get today's summary data
       final todaySummary = await _getTodaySummary();
 
       // Show the action items screen
+      debugPrint('🎯 [NotificationHandlerService] Showing action items screen');
       await _showActionItemsScreen(
         todaySummary: todaySummary,
         tomorrowDate: date,
         hasMealPlan: hasMealPlan,
         notificationType: type,
       );
-    } catch (e) {
-      debugPrint('Error handling notification payload: $e');
+      debugPrint(
+          '✅ [NotificationHandlerService] Action items screen shown successfully');
+    } catch (e, stackTrace) {
+      debugPrint(
+          '❌ [NotificationHandlerService] Error handling notification payload: $e');
+      debugPrint('   Stack trace: $stackTrace');
       // Only show snackbar if context is available
-      if (Get.context != null) {
+      final context = Get.context;
+      if (context != null) {
         showTastySnackbar(
-            'Something went wrong', 'Please try again later', Get.context!,
+            'Something went wrong', 'Please try again later', context,
             backgroundColor: kRed);
       }
     }
@@ -132,11 +178,22 @@ class NotificationHandlerService extends GetxService {
   // Get today's summary data
   Future<Map<String, dynamic>> _getTodaySummary() async {
     try {
+      // Ensure UserService is initialized
+      if (!Get.isRegistered<UserService>()) {
+        debugPrint('⚠️ UserService not registered in _getTodaySummary');
+        return {};
+      }
+
+      // Re-fetch UserService if userId is not available
+      if (_userService.userId == null) {
+        _userService = Get.find<UserService>();
+      }
+
       final today = DateTime.now();
       final todayStr = DateFormat('yyyy-MM-dd').format(today);
       final userId = _userService.userId;
 
-      if (userId == null) return {};
+      if (userId == null || userId.isEmpty) return {};
 
       final summaryDoc = await _firestore
           .collection('users')
@@ -149,9 +206,13 @@ class NotificationHandlerService extends GetxService {
         return summaryDoc.data() ?? {};
       }
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      debugPrint('Error getting today summary: $e');
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
 
     return {};
@@ -165,6 +226,16 @@ class NotificationHandlerService extends GetxService {
     required String notificationType,
   }) async {
     try {
+      debugPrint(
+          '🎯 [NotificationHandlerService] _showActionItemsScreen called');
+      final context = Get.context;
+      if (context == null) {
+        debugPrint(
+            '⚠️ [NotificationHandlerService] No context available for navigation');
+        return;
+      }
+      debugPrint(
+          '✅ [NotificationHandlerService] Navigating to TomorrowActionItemsScreen');
       // Use Get.to to navigate to the action items screen
       await Get.to(() => TomorrowActionItemsScreen(
             todaySummary: todaySummary,
@@ -172,10 +243,16 @@ class NotificationHandlerService extends GetxService {
             hasMealPlan: hasMealPlan,
             notificationType: notificationType,
           ));
+      debugPrint('✅ [NotificationHandlerService] Navigation completed');
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      debugPrint(
+          '❌ [NotificationHandlerService] Error showing action items screen: $e');
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -200,17 +277,31 @@ class NotificationHandlerService extends GetxService {
         notificationType: 'manual',
       );
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
   // Check if tomorrow has meal plan
   Future<bool> _checkTomorrowMealPlan(String tomorrowStr) async {
     try {
+      // Ensure UserService is initialized
+      if (!Get.isRegistered<UserService>()) {
+        debugPrint('⚠️ UserService not registered in _checkTomorrowMealPlan');
+        return false;
+      }
+
+      // Re-fetch UserService if userId is not available
+      if (_userService.userId == null) {
+        _userService = Get.find<UserService>();
+      }
+
       final userId = _userService.userId;
-      if (userId == null) return false;
+      if (userId == null || userId.isEmpty) return false;
 
       final mealPlanDoc = await _firestore
           .collection('mealPlans')
@@ -225,9 +316,13 @@ class NotificationHandlerService extends GetxService {
         return mealsList.isNotEmpty;
       }
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      debugPrint('Error checking tomorrow meal plan: $e');
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
 
     return false;
@@ -238,11 +333,12 @@ class NotificationHandlerService extends GetxService {
     try {
       // Navigate to water tracking or show a simple message
       // For now, we'll just show a snackbar
-      if (Get.context != null) {
+      final context = Get.context;
+      if (context != null) {
         showTastySnackbar(
           'Water Reminder 💧',
           'Time to track your water intake!',
-          Get.context!,
+          context,
           backgroundColor: Colors.blue,
         );
       }
@@ -283,26 +379,38 @@ class NotificationHandlerService extends GetxService {
       }
 
       // Navigate to daily summary screen with meal context
-      if (Get.context != null) {
+      final context = Get.context;
+      if (context != null) {
         debugPrint('🍽️ Navigating to DailySummaryScreen with meal context');
-        await Get.to(() => DailySummaryScreen(
-              date: date,
-              mealId: mealId,
-              instanceId: instanceId,
-              mealName: mealName,
-              mealType: mealType,
-            ));
-        debugPrint('🍽️ Navigation completed');
+        try {
+          await Get.to(() => DailySummaryScreen(
+                date: date,
+                mealId: mealId,
+                instanceId: instanceId,
+                mealName: mealName,
+                mealType: mealType,
+              ));
+          debugPrint('🍽️ Navigation completed');
+        } catch (navError) {
+          debugPrint('Error during navigation: $navError');
+          showTastySnackbar(
+            'Error',
+            'Failed to open symptom check. Please try again.',
+            context,
+            backgroundColor: kRed,
+          );
+        }
       } else {
         debugPrint('Error: No context available for navigation');
       }
     } catch (e) {
       debugPrint('Error handling meal symptom check: $e');
-      if (Get.context != null) {
+      final context = Get.context;
+      if (context != null) {
         showTastySnackbar(
           'Error',
           'Failed to open symptom check. Please try again.',
-          Get.context!,
+          context,
           backgroundColor: kRed,
         );
       }
@@ -330,22 +438,34 @@ class NotificationHandlerService extends GetxService {
       }
 
       // Navigate to Rainbow Tracker detail screen
-      if (Get.context != null) {
-        await Get.to(() => RainbowTrackerDetailScreen(
-              weekStart: weekStart,
-            ));
-        debugPrint(
-            '🌱 Navigated to Rainbow Tracker for level $level ($levelName) with $plantCount plants');
+      final context = Get.context;
+      if (context != null) {
+        try {
+          await Get.to(() => RainbowTrackerDetailScreen(
+                weekStart: weekStart,
+              ));
+          debugPrint(
+              '🌱 Navigated to Rainbow Tracker for level $level ($levelName) with $plantCount plants');
+        } catch (navError) {
+          debugPrint('Error during navigation: $navError');
+          showTastySnackbar(
+            'Error',
+            'Failed to open Rainbow Tracker. Please try again.',
+            context,
+            backgroundColor: kRed,
+          );
+        }
       } else {
         debugPrint('Error: No context available for navigation');
       }
     } catch (e) {
       debugPrint('Error handling plant milestone: $e');
-      if (Get.context != null) {
+      final context = Get.context;
+      if (context != null) {
         showTastySnackbar(
           'Error',
           'Failed to open Rainbow Tracker. Please try again.',
-          Get.context!,
+          context,
           backgroundColor: kRed,
         );
       }

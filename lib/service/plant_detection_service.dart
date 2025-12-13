@@ -66,11 +66,11 @@ class PlantDiversityScore {
 
 class PlantDetectionService extends GetxController {
   static PlantDetectionService get instance {
-    try {
-      return Get.find<PlantDetectionService>();
-    } catch (e) {
+    if (!Get.isRegistered<PlantDetectionService>()) {
+      debugPrint('⚠️ PlantDetectionService not registered, registering now');
       return Get.put(PlantDetectionService());
     }
+    return Get.find<PlantDetectionService>();
   }
 
   // Plant keyword lists for categorization
@@ -226,6 +226,39 @@ class PlantDetectionService extends GetxController {
     'star anise',
   ];
 
+  static const List<String> _excludedIngredients = [
+    'oil',
+    'oils',
+    'sauce',
+    'dressings',
+    'spice',
+    'spices',
+    'sugar',
+    'sweeteners',
+    'salt',
+    'water',
+    'coffee',
+    'tea',
+    'meat',
+    'fish',
+    'poultry',
+    'dairy',
+    'eggs',
+    'flour', // To exclude refined flour (assuming whole grain is explicitly listed otherwise)
+    'yeast',
+  ];
+
+  /// Check if an ingredient should be excluded from plant detection
+  bool _isExcluded(String ingredientName) {
+    final lowerName = ingredientName.toLowerCase();
+    for (final excluded in _excludedIngredients) {
+      if (lowerName.contains(excluded.toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Normalize ingredient name for comparison (handles plurals, spaces, etc.)
   /// Examples: "apples" -> "apple", "sesame oil" -> "sesameoil", "SesameOil" -> "sesameoil"
   String _normalizeIngredientName(String name) {
@@ -280,6 +313,9 @@ class PlantDetectionService extends GetxController {
       final ingredientName = ingredientEntry.key.toLowerCase().trim();
       final normalizedName = _normalizeIngredientName(ingredientName);
 
+      // Skip if excluded
+      if (_isExcluded(ingredientName)) continue;
+
       // Skip if already seen (normalized comparison)
       if (seenNames.contains(normalizedName)) continue;
       seenNames.add(normalizedName);
@@ -312,6 +348,9 @@ class PlantDetectionService extends GetxController {
     for (final ingredientEntry in ingredients.entries) {
       final ingredientName = ingredientEntry.key.toLowerCase().trim();
       final normalizedName = _normalizeIngredientName(ingredientName);
+
+      // Skip if excluded
+      if (_isExcluded(ingredientName)) continue;
 
       // Skip if already seen (normalized comparison)
       if (seenNames.contains(normalizedName)) continue;
@@ -463,6 +502,96 @@ class PlantDetectionService extends GetxController {
       progress: progress,
       categoryBreakdown: categoryBreakdown,
     );
+  }
+
+  /// Stream plant diversity score for a week (realtime updates)
+  Stream<PlantDiversityScore> streamPlantDiversityScore(
+    String userId,
+    DateTime weekStart,
+  ) {
+    try {
+      final weekId = _getWeekId(weekStart);
+      final docRef = firestore
+          .collection('users')
+          .doc(userId)
+          .collection('plant_tracking')
+          .doc(weekId);
+
+      return docRef.snapshots().asyncMap((doc) {
+        if (!doc.exists) {
+          // Return empty score if document doesn't exist
+          return PlantDiversityScore(
+            uniquePlants: 0,
+            level: 0,
+            progress: 0.0,
+            categoryBreakdown: {},
+          );
+        }
+
+        final data = doc.data()!;
+        final plantsList = (data['plantDetails'] as List<dynamic>?)
+                ?.map((e) => PlantIngredient.fromMap(e as Map<String, dynamic>))
+                .toList() ??
+            [];
+
+        final uniqueCount = plantsList.length;
+
+        // Calculate level (1: 10+, 2: 20+, 3: 30+)
+        int level = 0;
+        if (uniqueCount >= 30) {
+          level = 3;
+        } else if (uniqueCount >= 20) {
+          level = 2;
+        } else if (uniqueCount >= 10) {
+          level = 1;
+        }
+
+        // Calculate progress (0.0 to 1.0) towards next level
+        double progress = 0.0;
+        if (level == 0) {
+          progress = uniqueCount / 10.0; // Progress to level 1
+        } else if (level == 1) {
+          progress = (uniqueCount - 10) / 10.0; // Progress to level 2
+        } else if (level == 2) {
+          progress = (uniqueCount - 20) / 10.0; // Progress to level 3
+        } else {
+          progress = 1.0; // Maxed out
+        }
+        progress = progress.clamp(0.0, 1.0);
+
+        // Category breakdown
+        final categoryBreakdown = <PlantCategory, int>{};
+        for (final plant in plantsList) {
+          categoryBreakdown[plant.category] =
+              (categoryBreakdown[plant.category] ?? 0) + 1;
+        }
+
+        return PlantDiversityScore(
+          uniquePlants: uniqueCount,
+          level: level,
+          progress: progress,
+          categoryBreakdown: categoryBreakdown,
+        );
+      }).handleError((error) {
+        debugPrint('Error in plant diversity score stream: $error');
+        // Return empty score on error
+        return PlantDiversityScore(
+          uniquePlants: 0,
+          level: 0,
+          progress: 0.0,
+          categoryBreakdown: {},
+        );
+      });
+    } catch (e) {
+      debugPrint('Error creating plant diversity score stream: $e');
+      // Return a stream with empty score
+      return Stream.value(PlantDiversityScore(
+        uniquePlants: 0,
+        level: 0,
+        progress: 0.0,
+        categoryBreakdown: {},
+      ));
+    }
   }
 
   /// Track plants from a meal and update Firestore

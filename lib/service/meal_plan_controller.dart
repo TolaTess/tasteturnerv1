@@ -9,7 +9,15 @@ import '../data_models/meal_model.dart';
 import 'meal_manager.dart';
 
 class MealPlanController extends GetxController {
-  static MealPlanController instance = Get.find();
+  static MealPlanController get instance {
+    try {
+      // Get.find() will automatically trigger lazy initialization if registered with Get.lazyPut()
+      return Get.find<MealPlanController>();
+    } catch (e) {
+      debugPrint('⚠️ MealPlanController not registered: $e');
+      throw Exception('MealPlanController not registered');
+    }
+  }
 
   // Reactive data
   final RxMap<DateTime, List<MealWithType>> mealPlans =
@@ -191,12 +199,21 @@ class MealPlanController extends GetxController {
               final mealId = parts[0];
               String mealType = parts.length > 1 ? parts[1] : '';
               String mealMember = parts.length > 2 ? parts[2] : '';
-              
+
               // Defensive parsing: Handle edge case where format is mealId/familyMemberName (2 parts)
               // Check if second part is a known suffix (bf, lh, dn, sn) or a family member name
               if (parts.length == 2) {
                 final secondPart = parts[1].toLowerCase();
-                final knownSuffixes = ['bf', 'lh', 'dn', 'sn', 'breakfast', 'lunch', 'dinner', 'snack'];
+                final knownSuffixes = [
+                  'bf',
+                  'lh',
+                  'dn',
+                  'sn',
+                  'breakfast',
+                  'lunch',
+                  'dinner',
+                  'snack'
+                ];
                 if (!knownSuffixes.contains(secondPart)) {
                   // Second part is likely a family member name, not a suffix
                   // Default to 'bf' (breakfast) as per user comment
@@ -211,7 +228,7 @@ class MealPlanController extends GetxController {
                 // If mealType is empty, default to 'bf' (breakfast) as per user comment
                 mealType = 'bf';
               }
-              
+
               final meal = await mealManager.getMealbyMealID(mealId);
               if (meal != null) {
                 mealWithTypes.add(MealWithType(
@@ -227,7 +244,8 @@ class MealPlanController extends GetxController {
               if (meal != null) {
                 mealWithTypes.add(MealWithType(
                   meal: meal,
-                  mealType: 'bf', // Default to 'bf' (breakfast) when suffix is missing
+                  mealType:
+                      'bf', // Default to 'bf' (breakfast) when suffix is missing
                   familyMember:
                       userService.currentUser.value?.displayName ?? '',
                   fullMealId: mealId,
@@ -278,7 +296,8 @@ class MealPlanController extends GetxController {
       if (userId == null) return;
 
       // Correctly fetch friends from 'friends' collection
-      final friendsDoc = await firestore.collection('friends').doc(userId).get();
+      final friendsDoc =
+          await firestore.collection('friends').doc(userId).get();
 
       if (!friendsDoc.exists) return;
 

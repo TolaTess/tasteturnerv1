@@ -15,6 +15,11 @@ class NotificationService {
   bool _isInitialized = false;
   static const String _unreadNotificationKey = 'has_shown_unread_notification';
 
+  // Thread-safe timezone initialization flag
+  // Using static to ensure single initialization across all instances
+  static bool _timezoneInitialized = false;
+  static Completer<void>? _timezoneInitCompleter;
+
   bool get isInitialized => _isInitialized;
   String? get userTimeZone => _userTimeZone;
 
@@ -73,14 +78,53 @@ class NotificationService {
     return jsonSafePayload;
   }
 
+  // Thread-safe timezone initialization
+  // Ensures timezone is only initialized once, even if called from multiple threads/isolates
+  static Future<void> _ensureTimezoneInitialized() async {
+    // If already initialized, return immediately
+    if (_timezoneInitialized) return;
+
+    // If initialization is in progress, wait for it to complete
+    if (_timezoneInitCompleter != null) {
+      return _timezoneInitCompleter!.future;
+    }
+
+    // Create a completer to track initialization
+    _timezoneInitCompleter = Completer<void>();
+
+    try {
+      // Initialize timezone data safely - only once
+      // This must be called on the main isolate/thread
+      tz.initializeTimeZones();
+      _timezoneInitialized = true;
+      debugPrint('Timezone initialized successfully');
+      _timezoneInitCompleter!.complete();
+    } catch (e) {
+      debugPrint(
+          'Error initializing timezone (may already be initialized): $e');
+      // Mark as initialized anyway to prevent repeated attempts
+      // Some versions of timezone package throw if already initialized
+      _timezoneInitialized = true;
+      _timezoneInitCompleter!.complete();
+    }
+  }
+
   //initialize
   Future<void> initNotification(
       {Function(String?)? onNotificationTapped}) async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      debugPrint(
+          '⚠️ [NotificationService] Already initialized. Callback will NOT be updated.');
+      debugPrint('   New callback provided: ${onNotificationTapped != null}');
+      return;
+    }
+
+    debugPrint('🔧 [NotificationService] Initializing notification service...');
+    debugPrint('   Callback provided: ${onNotificationTapped != null}');
 
     try {
-      // Initialize timezone data safely
-      tz.initializeTimeZones();
+      // Initialize timezone data safely (thread-safe, only once)
+      await _ensureTimezoneInitialized();
 
       // Ensure local timezone is set (required for tz.local to work)
       // The timezone package needs the local location to be set explicitly
@@ -151,14 +195,33 @@ class NotificationService {
     await notificationPlugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) async {
+        debugPrint('🔔 [Local Notification] Notification tapped');
+        debugPrint('   Payload: ${response.payload}');
+        debugPrint('   Action ID: ${response.actionId}');
+        debugPrint('   Input: ${response.input}');
+        debugPrint('   Has callback: ${onNotificationTapped != null}');
+
         if (onNotificationTapped != null) {
+          debugPrint(
+              '✅ [Local Notification] Calling onNotificationTapped callback');
           onNotificationTapped(response.payload);
+        } else {
+          debugPrint(
+              '⚠️ [Local Notification] onNotificationTapped callback is null!');
         }
 
         // The notification payload will be handled by the callback
         // The notification handler service will process it when the app is ready
       },
     );
+
+    if (onNotificationTapped != null) {
+      debugPrint(
+          '✅ [NotificationService] Initialized with onNotificationTapped callback');
+    } else {
+      debugPrint(
+          '⚠️ [NotificationService] Initialized WITHOUT onNotificationTapped callback');
+    }
 
     // NOTE: We do NOT request permissions here during initialization
     // Permissions will be requested explicitly when user enables notifications
@@ -282,6 +345,9 @@ class NotificationService {
           'NotificationService not initialized, cannot schedule reminder');
       return;
     }
+
+    // Ensure timezone is initialized before any timezone operations
+    await _ensureTimezoneInitialized();
 
     if (Platform.isAndroid) {
       final androidPlugin =
@@ -463,15 +529,8 @@ class NotificationService {
     required Duration delay,
     Map<String, dynamic>? payload,
   }) async {
-    // Ensure timezone database is initialized before use
-    // This is safe to call multiple times and prevents "Tried to get location before initializing" errors
-    try {
-      tz.initializeTimeZones();
-    } catch (e) {
-      debugPrint(
-          'Warning: Timezone initialization check failed (may already be initialized): $e');
-      // Continue anyway - timezone might already be initialized
-    }
+    // Ensure timezone database is initialized before use (thread-safe)
+    await _ensureTimezoneInitialized();
 
     if (Platform.isAndroid) {
       final androidPlugin =
@@ -586,6 +645,9 @@ class NotificationService {
     required int minute,
     String? timeZoneName,
   }) async {
+    // Ensure timezone is initialized before any timezone operations
+    await _ensureTimezoneInitialized();
+
     if (Platform.isAndroid) {
       final androidPlugin =
           notificationPlugin.resolvePlatformSpecificImplementation<

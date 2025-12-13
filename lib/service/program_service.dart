@@ -6,6 +6,14 @@ import '../data_models/program_model.dart';
 import 'package:flutter/material.dart' show debugPrint;
 
 class ProgramService extends GetxController {
+  static ProgramService get instance {
+    if (!Get.isRegistered<ProgramService>()) {
+      debugPrint('⚠️ ProgramService not registered, registering now');
+      return Get.put(ProgramService());
+    }
+    return Get.find<ProgramService>();
+  }
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Rx<Program?> currentProgram = Rx<Program?>(null);
   final RxList<Program> userPrograms = RxList<Program>([]);
@@ -47,7 +55,7 @@ class ProgramService extends GetxController {
 
       final enrolledProgramIds =
           userProgramsSnapshot.docs.map((doc) => doc.id).toSet();
-      
+
       // Track IDs we've already checked archive status for
       final checkedArchiveStatusIds = enrolledProgramIds.toSet();
 
@@ -82,18 +90,18 @@ class ProgramService extends GetxController {
           privateProgramIdsToCheck.add(doc.id);
         }
       }
-      
+
       // 2.5 Check archive status for private programs that weren't in the enrollment list
-      // This handles cases where user owns a private program but isn't in 'userIds' 
+      // This handles cases where user owns a private program but isn't in 'userIds'
       // or if the enrollment query missed it for some reason
       if (privateProgramIdsToCheck.isNotEmpty) {
         // Batch fetch userProgram docs
         for (var i = 0; i < privateProgramIdsToCheck.length; i += 10) {
-          final end = (i + 10 < privateProgramIdsToCheck.length) 
-              ? i + 10 
+          final end = (i + 10 < privateProgramIdsToCheck.length)
+              ? i + 10
               : privateProgramIdsToCheck.length;
           final batchIds = privateProgramIdsToCheck.sublist(i, end);
-          
+
           if (batchIds.isEmpty) continue;
 
           try {
@@ -101,18 +109,20 @@ class ProgramService extends GetxController {
                 .collection('userProgram')
                 .where(FieldPath.documentId, whereIn: batchIds)
                 .get();
-            
+
             for (final doc in batchSnapshot.docs) {
               try {
                 final data = doc.data();
-                final archivedUsers = List<dynamic>.from(data['archivedUsers'] ?? [])
-                    .map((e) => e.toString())
-                    .toList();
+                final archivedUsers =
+                    List<dynamic>.from(data['archivedUsers'] ?? [])
+                        .map((e) => e.toString())
+                        .toList();
                 if (archivedUsers.contains(userId)) {
                   archivedProgramIds.add(doc.id);
                 }
               } catch (e) {
-                debugPrint('Error checking archive status for private program ${doc.id}: $e');
+                debugPrint(
+                    'Error checking archive status for private program ${doc.id}: $e');
               }
             }
           } catch (e) {

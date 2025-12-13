@@ -10,7 +10,13 @@ class PostService extends GetxService {
   static const Duration cacheValidDuration = Duration(minutes: 5);
 
   // Singleton instance
-  static PostService get instance => Get.find<PostService>();
+  static PostService get instance {
+    if (!Get.isRegistered<PostService>()) {
+      debugPrint('⚠️ PostService not registered, registering now');
+      return Get.put(PostService());
+    }
+    return Get.find<PostService>();
+  }
 
   /// Efficient post feed loading with server-side filtering and pagination
   Future<PostFeedResult> getPostsFeed({

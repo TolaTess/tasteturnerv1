@@ -16,7 +16,13 @@ import '../helper/utils.dart';
 import 'post_service.dart';
 
 class PostController extends GetxController {
-  static PostController instance = Get.find();
+  static PostController get instance {
+    if (!Get.isRegistered<PostController>()) {
+      debugPrint('⚠️ PostController not registered, registering now');
+      return Get.put(PostController());
+    }
+    return Get.find<PostController>();
+  }
 
   // Reactive list of posts
   var isLoading = true.obs;
@@ -138,9 +144,10 @@ class PostController extends GetxController {
       posts.assignAll(fetchedPosts);
     } catch (e) {
       debugPrint('Error in fallback post fetch: $e');
-      if (Get.context != null) {
+      final context = Get.context;
+      if (context != null) {
         showTastySnackbar(
-            'Something went wrong', 'Please try again later', Get.context!,
+            'Something went wrong', 'Please try again later', context,
             backgroundColor: kRed);
       }
     }
