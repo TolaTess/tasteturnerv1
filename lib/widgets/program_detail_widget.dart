@@ -30,13 +30,8 @@ class _ProgramDetailWidgetState extends State<ProgramDetailWidget> {
   void initState() {
     super.initState();
     _isEnrolled = widget.isEnrolled;
-    // Initialize ProgramService using Get.find() with try-catch fallback
-    try {
-      _programService = Get.find<ProgramService>();
-    } catch (e) {
-      // If not found, put it
-      _programService = Get.put(ProgramService());
-    }
+    // Initialize ProgramService using instance getter (MacroManager pattern)
+    _programService = ProgramService.instance;
   }
 
   void _showErrorSnackbar(String message) {

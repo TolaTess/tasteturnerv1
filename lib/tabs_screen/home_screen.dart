@@ -43,6 +43,10 @@ import '../screens/rainbow_tracker_detail_screen.dart';
 import '../screens/badges_screen.dart';
 import '../service/badge_service.dart';
 import '../service/plant_detection_service.dart';
+import '../service/symptom_analysis_service.dart';
+import '../service/symptom_service.dart';
+import '../data_models/symptom_entry.dart';
+import '../screens/symptom_insights_screen.dart';
 import '../widgets/tutorial_blocker.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -80,12 +84,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _tutorialCompleted = false;
   Worker? _unreadNotificationsWorker;
   final RxInt _rainbowPlantsCount = 0.obs;
+  StreamSubscription<PlantDiversityScore>? _rainbowPlantsSubscription;
+  final RxInt _totalSymptomsCount = 0.obs;
+  StreamSubscription<List<SymptomEntry>>? _symptomsSubscription;
 
   @override
   void initState() {
     super.initState();
-    // Initialize ProgramService
-    _programService = Get.put(ProgramService());
+    // Initialize ProgramService using instance getter (MacroManager pattern)
+    _programService = ProgramService.instance;
 
     // Setup listener for unread notifications (moved out of build method)
     _setupUnreadNotificationsListener();
@@ -117,6 +124,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Initialize NotificationService after the widget is built
       try {
+        if (!Get.isRegistered<NotificationService>()) {
+          debugPrint('⚠️ NotificationService not registered');
+          return;
+        }
+        if (!Get.isRegistered<HybridNotificationService>()) {
+          debugPrint('⚠️ HybridNotificationService not registered');
+          return;
+        }
         notificationService = Get.find<NotificationService>();
         hybridNotificationService = Get.find<HybridNotificationService>();
       } catch (e) {
@@ -149,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // Preload dietary/cuisine data early for better performance
       _preloadDietaryData();
 
-       if (!mounted) return;
+      if (!mounted) return;
 
       // Check and show notification preference prompt for existing users
       _checkNotificationPreference();
@@ -208,19 +223,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (!mounted) return;
 
     try {
+      debugPrint('🔧 [HomeScreen] Initializing notifications with callback...');
       // Initialize local notification service (without requesting permissions)
       await notificationService?.initNotification(
         onNotificationTapped: (String? payload) {
+          debugPrint('🔔 [HomeScreen] onNotificationTapped callback triggered');
+          debugPrint('   Payload: $payload');
+          debugPrint('   Mounted: $mounted');
           if (payload != null && mounted) {
             _handleNotificationTap(payload);
+          } else {
+            debugPrint(
+                '⚠️ [HomeScreen] Skipping notification tap - payload: $payload, mounted: $mounted');
           }
         },
       ).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          debugPrint('Notification initialization timed out');
+          debugPrint('⚠️ [HomeScreen] Notification initialization timed out');
         },
       );
+      debugPrint(
+          '✅ [HomeScreen] NotificationService initialized with callback');
 
       if (!mounted) return;
 
@@ -249,10 +273,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _handleNotificationTap(String? payload) async {
-    if (!mounted || payload == null) return;
+    if (!mounted || payload == null) {
+      debugPrint(
+          '⚠️ [HomeScreen] _handleNotificationTap skipped - mounted: $mounted, payload: $payload');
+      return;
+    }
 
     try {
-      debugPrint('Notification tapped: $payload');
+      debugPrint('🔔 [HomeScreen] _handleNotificationTap called');
+      debugPrint('   Payload: $payload');
 
       // Try to parse as JSON first
       Map<String, dynamic>? parsedPayload;
@@ -297,11 +326,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         // For complex payloads, use NotificationHandlerService
         if (mounted) {
           try {
+            debugPrint('🔔 [HomeScreen] Routing to NotificationHandlerService');
+            if (!Get.isRegistered<NotificationHandlerService>()) {
+              debugPrint(
+                  '⚠️ [HomeScreen] NotificationHandlerService not registered');
+              if (mounted && context.mounted) {
+                showTastySnackbar('Notification service unavailable',
+                    'Please try again later', context,
+                    backgroundColor: kRed);
+              }
+              return;
+            }
             final handlerService = NotificationHandlerService.instance;
-            await handlerService.handleNotificationPayload(payload);
-          } catch (e) {
             debugPrint(
-                'Error handling notification via NotificationHandlerService: $e');
+                '✅ [HomeScreen] Calling NotificationHandlerService.handleNotificationPayload');
+            await handlerService.handleNotificationPayload(payload);
+            debugPrint('✅ [HomeScreen] NotificationHandlerService completed');
+          } catch (e, stackTrace) {
+            debugPrint(
+                '❌ [HomeScreen] Error handling notification via NotificationHandlerService: $e');
+            debugPrint('   Stack trace: $stackTrace');
             if (mounted && context.mounted) {
               showTastySnackbar(
                   'Something went wrong', 'Please try again later', context,
@@ -327,10 +371,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // Try NotificationHandlerService as fallback
           if (mounted) {
             try {
+              if (!Get.isRegistered<NotificationHandlerService>()) {
+                debugPrint('⚠️ NotificationHandlerService not registered');
+                return;
+              }
               final handlerService = NotificationHandlerService.instance;
               await handlerService.handleNotificationPayload(payload);
-            } catch (e) {
+            } catch (e, stackTrace) {
               debugPrint('Error handling notification: $e');
+              debugPrint('Stack trace: $stackTrace');
             }
           }
         }
@@ -701,6 +750,108 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _setupDataListeners() {
     // Show Tasty popup after a short delay
     _onRefresh();
+    // Setup realtime listener for rainbow plants count
+    _setupRainbowPlantsListener();
+    // Setup realtime listener for symptoms count
+    _setupSymptomsListener();
+  }
+
+  void _setupRainbowPlantsListener() {
+    final userId = userService.userId;
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    // Cancel existing subscription if any
+    _rainbowPlantsSubscription?.cancel();
+
+    try {
+      final plantDetectionService = PlantDetectionService.instance;
+      final weekStart = getWeekStart(DateTime.now());
+
+      _rainbowPlantsSubscription = plantDetectionService
+          .streamPlantDiversityScore(userId, weekStart)
+          .listen(
+        (score) {
+          if (mounted) {
+            _rainbowPlantsCount.value = score.uniquePlants;
+            debugPrint('Loaded rainbow plants count: ${score.uniquePlants}');
+          }
+        },
+        onError: (error) {
+          debugPrint('Error in rainbow plants listener: $error');
+          if (mounted) {
+            _rainbowPlantsCount.value = 0;
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Error setting up rainbow plants listener: $e');
+      _rainbowPlantsCount.value = 0;
+    }
+  }
+
+  /// Setup realtime listener for symptoms count
+  void _setupSymptomsListener() {
+    final userId = userService.userId;
+    if (userId == null || userId.isEmpty) {
+      _totalSymptomsCount.value = 0;
+      return;
+    }
+
+    // Cancel existing subscription if any
+    _symptomsSubscription?.cancel();
+
+    try {
+      final symptomService = SymptomService.instance;
+      final today = DateTime.now();
+
+      // Listen to today's symptoms for real-time updates
+      _symptomsSubscription =
+          symptomService.getSymptomsStreamForDate(userId, today).listen(
+        (todaySymptoms) {
+          // Also get total symptoms from last 30 days
+          _updateTotalSymptomsCount(userId);
+        },
+        onError: (error) {
+          debugPrint('Error in symptoms listener: $error');
+          if (mounted) {
+            _totalSymptomsCount.value = 0;
+          }
+        },
+      );
+
+      // Initial load
+      _updateTotalSymptomsCount(userId);
+    } catch (e) {
+      debugPrint('Error setting up symptoms listener: $e');
+      _totalSymptomsCount.value = 0;
+    }
+  }
+
+  /// Update total symptoms count from last 30 days
+  Future<void> _updateTotalSymptomsCount(String userId) async {
+    try {
+      final symptomAnalysisService = SymptomAnalysisService.instance;
+      final analysis = await symptomAnalysisService.analyzeSymptomPatterns(
+        userId,
+        days: 30,
+      );
+
+      if (mounted) {
+        if (analysis['hasData'] == true) {
+          final totalSymptoms = analysis['totalSymptoms'] as int? ?? 0;
+          _totalSymptomsCount.value = totalSymptoms;
+        } else {
+          _totalSymptomsCount.value = 0;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating total symptoms count: $e');
+      if (mounted) {
+        _totalSymptomsCount.value = 0;
+      }
+    }
   }
 
   Future<void> _onRefresh() async {
@@ -718,20 +869,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         } catch (e) {
           debugPrint('Error loading badge data: $e');
         }
-        // Load rainbow tracker data
-        try {
-          final plantDetectionService = PlantDetectionService.instance;
-          final weekStart = getWeekStart(DateTime.now());
-          final score = await plantDetectionService.getPlantDiversityScore(
-            userId,
-            weekStart,
-          );
-          _rainbowPlantsCount.value = score.uniquePlants;
-          debugPrint('Loaded rainbow plants count: ${score.uniquePlants}');
-        } catch (e) {
-          debugPrint('Error loading rainbow tracker data: $e');
-          _rainbowPlantsCount.value = 0;
-        }
+        // Rainbow tracker data is now loaded via realtime listener in _setupRainbowPlantsListener
       }
 
       // Run independent operations in parallel with timeout
@@ -996,22 +1134,56 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Setup listener for unread notifications using GetX Worker
   void _setupUnreadNotificationsListener() {
-    _unreadNotificationsWorker = ever(
-      chatController.userChats,
-      (_) {
-        // Calculate unread count when chats change
-        final nonBuddyChats = chatController.userChats
-            .where((chat) => !(chat['participants'] as List).contains('buddy'))
-            .toList();
+    try {
+      // Ensure ChatController is available before setting up listener
+      final controller = chatController;
+      _unreadNotificationsWorker = ever(
+        controller.userChats,
+        (_) {
+          // Calculate unread count when chats change
+          final nonBuddyChats = controller.userChats
+              .where(
+                  (chat) => !(chat['participants'] as List).contains('buddy'))
+              .toList();
 
-        final int unreadCount = nonBuddyChats.fold<int>(
-          0,
-          (sum, chat) => sum + (chat['unreadCount'] as int? ?? 0),
-        );
+          final int unreadCount = nonBuddyChats.fold<int>(
+            0,
+            (sum, chat) => sum + (chat['unreadCount'] as int? ?? 0),
+          );
 
-        _handleUnreadNotifications(unreadCount);
-      },
-    );
+          _handleUnreadNotifications(unreadCount);
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ Error setting up unread notifications listener: $e');
+      // Defer to post-frame callback to ensure controller is ready
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          try {
+            final controller = chatController;
+            _unreadNotificationsWorker = ever(
+              controller.userChats,
+              (_) {
+                final nonBuddyChats = controller.userChats
+                    .where((chat) =>
+                        !(chat['participants'] as List).contains('buddy'))
+                    .toList();
+
+                final int unreadCount = nonBuddyChats.fold<int>(
+                  0,
+                  (sum, chat) => sum + (chat['unreadCount'] as int? ?? 0),
+                );
+
+                _handleUnreadNotifications(unreadCount);
+              },
+            );
+          } catch (e2) {
+            debugPrint(
+                '⚠️ Failed to setup unread notifications listener after retry: $e2');
+          }
+        }
+      });
+    }
   }
 
   @override
@@ -1019,6 +1191,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _tastyPopupTimer?.cancel();
     _networkCheckTimer?.cancel();
     _unreadNotificationsWorker?.dispose();
+    _rainbowPlantsSubscription?.cancel();
+    _symptomsSubscription?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -1292,7 +1466,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               height: getPercentageHeight(4, context),
               color: kAccent.withValues(alpha: 0.2),
             ),
-
+            // Symptom Analysis Card
+            Obx(() => _buildStatCard(
+                  context: context,
+                  icon: Icons.insights,
+                  iconColor: Colors.orange,
+                  value: _totalSymptomsCount.value.toString(),
+                  label: 'Symptoms',
+                  isDarkMode: isDarkMode,
+                  textTheme: textTheme,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SymptomInsightsScreen(),
+                      ),
+                    );
+                  },
+                )),
+            // Divider
             Container(
               width: 1,
               height: getPercentageHeight(4, context),
@@ -1636,7 +1828,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     // Show snackbar when family member is selected
                                     showTastySnackbar(
                                       'Station Tracking Limited, Chef',
-                                      'Food tracking is only available for ${nameCapitalized}, Chef.',
+                                      'Food tracking is only available for Chef ${capitalizeFirstLetter(nameCapitalized)}.',
                                       context,
                                       backgroundColor: kAccentLight,
                                     );

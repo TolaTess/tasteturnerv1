@@ -10,9 +10,11 @@ import '../screens/tomorrow_action_items_screen.dart';
 import '../service/notification_handler_service.dart';
 import '../service/nutrient_breakdown_service.dart';
 import '../service/symptom_service.dart';
+import '../service/symptom_analysis_service.dart';
 import '../data_models/symptom_entry.dart';
 import '../screens/rainbow_tracker_detail_screen.dart';
 import '../screens/add_food_screen.dart';
+import '../screens/symptom_insights_screen.dart';
 import 'rainbow_tracker_widget.dart';
 
 class DailySummaryWidget extends StatefulWidget {
@@ -23,6 +25,7 @@ class DailySummaryWidget extends StatefulWidget {
   final String? instanceId;
   final String? mealName;
   final String? mealType;
+  final ScrollController? scrollController;
 
   const DailySummaryWidget({
     super.key,
@@ -32,6 +35,7 @@ class DailySummaryWidget extends StatefulWidget {
     this.instanceId,
     this.mealName,
     this.mealType,
+    this.scrollController,
   });
 
   @override
@@ -42,6 +46,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   late NutritionController dailyDataController;
   late NutrientBreakdownService nutrientBreakdownService;
   late SymptomService symptomService;
+  late SymptomAnalysisService symptomAnalysisService;
   bool isLoading = true;
   Map<String, dynamic> summaryData = {};
   Map<String, dynamic> goals = {};
@@ -52,6 +57,8 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   String? _currentInstanceId;
   String? _currentMealName;
   String? _currentMealType;
+  // GlobalKey for scrolling to symptom section
+  final GlobalKey _symptomSectionKey = GlobalKey();
 
   @override
   void initState() {
@@ -74,6 +81,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     // Initialize services (these are singletons, safe to access)
     nutrientBreakdownService = NutrientBreakdownService.instance;
     symptomService = SymptomService.instance;
+    symptomAnalysisService = SymptomAnalysisService.instance;
 
     // Set meal context from widget parameters if provided
     _currentMealId = widget.mealId;
@@ -90,7 +98,39 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     _loadSummaryData();
   }
 
+  void _scrollToSymptomSection() {
+    if (!mounted) return;
+
+    if (widget.scrollController == null ||
+        !widget.scrollController!.hasClients) {
+      debugPrint('⚠️ ScrollController not available for scrolling');
+      return;
+    }
+
+    try {
+      final context = _symptomSectionKey.currentContext;
+      if (context != null && mounted) {
+        // Use Scrollable.ensureVisible for reliable scrolling
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          alignment: 0.1, // Position near top (10% from top)
+        );
+
+        debugPrint(
+            '✅ Scrolled to symptom section for instanceId: $_currentInstanceId');
+      } else {
+        debugPrint(
+            '⚠️ Symptom section context not available or widget not mounted');
+      }
+    } catch (e) {
+      debugPrint('Error scrolling to symptom section: $e');
+    }
+  }
+
   Future<void> _loadSummaryData() async {
+    if (!mounted) return;
     setState(() {
       isLoading = true;
     });
@@ -101,6 +141,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       // Handle case where user is not logged in or userId is empty
       if (userId.isEmpty) {
         debugPrint('Warning: userId is empty, cannot load daily summary');
+        if (!mounted) return;
         setState(() {
           isLoading = false;
         });
@@ -126,6 +167,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
 
       // Load routine completion data
       await _loadRoutineCompletionData(userId, dateString);
+      if (!mounted) return;
 
       // Load nutrient breakdowns (handle errors gracefully)
       try {
@@ -138,6 +180,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         debugPrint('Error loading nutrient breakdowns: $e');
         nutrientBreakdowns = {};
       }
+      if (!mounted) return;
 
       // Load existing symptoms for this date (handle errors gracefully)
       try {
@@ -147,6 +190,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         debugPrint('Error loading symptoms: $e');
         currentSymptoms = [];
       }
+      if (!mounted) return;
 
       // Load user goals (handle null user gracefully)
       final user = userService.currentUser.value;
@@ -174,11 +218,22 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         };
       }
 
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
+
+      // Scroll to symptom section after data is loaded if instanceId is provided
+      if (_currentInstanceId != null && _currentInstanceId!.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _scrollToSymptomSection();
+          }
+        });
+      }
     } catch (e) {
       debugPrint('Error loading daily summary: $e');
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
@@ -699,21 +754,21 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
 
     if (overallProgress >= 0.8) {
       message = 'Excellent work! You\'re crushing your goals today! 🎉';
-      messageColor = Colors.green;
+      messageColor = kGreen;
       messageIcon = Icons.celebration;
     } else if (overallProgress >= 0.6) {
       message = 'Great progress! Keep up the momentum! 💪';
-      messageColor = kAccent;
+      messageColor = kPurple;
       messageIcon = Icons.thumb_up;
     } else if (overallProgress >= 0.4) {
       message = 'Good start! You\'re on the right track! 🌟';
-      messageColor = Colors.orange;
+      messageColor = kAccentLight;
       messageIcon = Icons.star;
     } else {
       message = isToday
-          ? 'Tap to view your action items for tomorrow! 🌅'
-          : 'Every step counts! Tomorrow is a new opportunity! 🌅';
-      messageColor = Colors.blue;
+          ? 'View action items for tomorrow! 🌅'
+          : 'Every step counts!\nTomorrow is a new opportunity! 🌅';
+      messageColor = kAccent;
       messageIcon = Icons.lightbulb;
     }
 
@@ -1285,6 +1340,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         isToday || (_currentMealId != null && _currentMealName != null);
 
     return Container(
+      key: _symptomSectionKey,
       padding: EdgeInsets.all(getPercentageWidth(3, context)),
       decoration: BoxDecoration(
         color: isDarkMode ? kDarkGrey.withValues(alpha: 0.5) : kWhite,
@@ -1383,6 +1439,55 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
               ),
             ),
           ],
+          // View Insights link
+          SizedBox(height: getPercentageHeight(1.5, context)),
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SymptomInsightsScreen(),
+                ),
+              );
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: getPercentageWidth(3, context),
+                vertical: getPercentageHeight(1, context),
+              ),
+              decoration: BoxDecoration(
+                color: kAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: kAccent.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.insights,
+                    color: kAccent,
+                    size: getIconScale(4, context),
+                  ),
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  Text(
+                    'View Symptom Insights',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: kAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(width: getPercentageWidth(1, context)),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: kAccent,
+                    size: getIconScale(3, context),
+                  ),
+                ],
+              ),
+            ),
+          ),
           // Display logged symptoms grouped by meal
           if (currentSymptoms.isNotEmpty) ...[
             SizedBox(height: getPercentageHeight(1.5, context)),
@@ -1648,12 +1753,8 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       }
 
       if (mounted) {
-        showTastySnackbar(
-          'Success',
-          'Symptom logged successfully',
-          context,
-          backgroundColor: kAccent,
-        );
+        // Show enhanced feedback with insights
+        await _showSymptomInsights(symptomType, severity, ingredients, symptom);
       }
     } catch (e) {
       debugPrint('Error saving symptom: $e');
@@ -1949,7 +2050,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           SizedBox(height: getPercentageHeight(1, context)),
           Text(
             remainingProtein > 30
-                ? 'Chef, we\'re in the weeds on protein today. You have $remainingCalories calories left but need ${remainingProtein}g protein. Don\'t worry, I\'ve got a fix.'
+                ? 'Chef, we\'re in the weeds on protein today. You have $remainingCalories calories left but need ${remainingProtein}g protein. Don\'t worry, we just need to complete your logs and we\'ll be back on track.'
                 : 'Chef, the station needs attention. We\'re low on calories ($remainingCalories left) and protein is behind. Let me help you fix this.',
             style: textTheme.bodyMedium?.copyWith(
               color: isDarkMode ? kWhite : kDarkGrey,
@@ -1992,5 +2093,91 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         ],
       ),
     );
+  }
+
+  /// Show symptom insights after saving
+  Future<void> _showSymptomInsights(
+    String symptomType,
+    int severity,
+    List<String> ingredients,
+    SymptomEntry symptom,
+  ) async {
+    if (!mounted) return;
+
+    // Analyze common triggers
+    final triggers = _analyzeCommonTriggers(symptomType, ingredients);
+    final isNegative = symptomType != 'good' && symptomType != 'energy';
+
+    // Show enhanced snackbar with action button
+    Get.snackbar(
+      isNegative ? 'Symptom Logged' : 'Great to Hear!',
+      isNegative
+          ? (triggers.isNotEmpty
+              ? 'Common triggers detected: ${triggers.join(", ")}'
+              : 'Symptom saved. Tap to view symptom insights to view personalized recommendations.')
+          : 'Keep tracking to identify what makes you feel great!',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isNegative
+          ? (severity >= 4
+              ? Colors.red.withValues(alpha: 0.9)
+              : Colors.orange.withValues(alpha: 0.9))
+          : Colors.green.withValues(alpha: 0.9),
+      colorText: kWhite,
+      duration: const Duration(seconds: 4),
+      margin: EdgeInsets.all(getPercentageWidth(3, context)),
+      borderRadius: 12,
+    );
+  }
+
+  /// Analyze common trigger ingredients
+  List<String> _analyzeCommonTriggers(
+      String symptomType, List<String> ingredients) {
+    final triggers = <String>[];
+    final ingredientsLower = ingredients.map((i) => i.toLowerCase()).toList();
+
+    // Common trigger mappings
+    final triggerMap = {
+      'bloating': [
+        'dairy',
+        'milk',
+        'cheese',
+        'lactose',
+        'beans',
+        'legumes',
+        'onion',
+        'garlic',
+        'cruciferous',
+        'cabbage',
+        'broccoli'
+      ],
+      'headache': [
+        'caffeine',
+        'chocolate',
+        'alcohol',
+        'aged cheese',
+        'processed meat',
+        'nitrates',
+        'msg',
+        'artificial sweetener'
+      ],
+      'fatigue': [
+        'sugar',
+        'refined',
+        'processed',
+        'white bread',
+        'pasta',
+        'high glycemic'
+      ],
+      'nausea': ['greasy', 'fried', 'fatty', 'spicy', 'acidic', 'citrus'],
+    };
+
+    final relevantTriggers = triggerMap[symptomType] ?? [];
+    for (final trigger in relevantTriggers) {
+      if (ingredientsLower.any((ing) => ing.contains(trigger))) {
+        triggers.add(trigger);
+      }
+    }
+
+    return triggers;
   }
 }

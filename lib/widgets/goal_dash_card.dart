@@ -41,6 +41,7 @@ class UserDetailsSection extends StatelessWidget {
     final name = user['name'] ?? '';
     final firstName = name.split(' ').first;
     final nameCapitalized = capitalizeFirstLetter(firstName);
+    final mainUserName = userService.currentUser.value?.displayName ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -58,11 +59,11 @@ class UserDetailsSection extends StatelessWidget {
                       // Only navigate to AddFoodScreen if selected user is current user
                       if (familyMode &&
                           user['name'] !=
-                              userService.currentUser.value?.displayName) {
+                              mainUserName) {
                         // Show snackbar when family member is selected
                         showTastySnackbar(
-                          'Tracking Only',
-                          'Food tracking is only available for ${nameCapitalized}',
+                          'Tracking Only1',
+                          'Food tracking is only available for Chef ${capitalizeFirstLetter(mainUserName)}',
                           context,
                           backgroundColor: kAccentLight,
                         );

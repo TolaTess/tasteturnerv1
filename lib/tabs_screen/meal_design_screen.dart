@@ -1492,10 +1492,10 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     // Treat iPad/tablet layouts differently so we can show a denser grid (e.g. 3x3+)
     final bool isTablet = shortestSide >= 600;
-    final int crossAxisCount = isTablet ? 6 : 3;
+    final int crossAxisCount = isTablet ? 4 : 3;
 
     final double baseCardHeight = mediaQuery.size.height > 700
-        ? getPercentageHeight(isTablet ? 15 : 18, context)
+        ? getPercentageHeight(isTablet ? 26 : 20, context)
         : getPercentageHeight(isTablet ? 20 : 25, context);
 
     return LayoutBuilder(
@@ -1594,7 +1594,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                 textAlign: TextAlign.center,
                                 style: textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w500,
-                                  fontSize: getPercentageWidth(3, context),
+                                  fontSize: isTablet
+                                      ? getPercentageWidth(1, context)
+                                      : getPercentageWidth(3, context),
                                 ),
                               ),
                             ),
@@ -2438,7 +2440,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                   children: [
                     if (isSpecialDay == true) ...[
                       Text(
-                        'Enjoy your ${currentDayType.toLowerCase() == 'regular_day' ? 'meal plan' : capitalizeFirstLetter(currentDayType.replaceAll('_', ' '))} day!',
+                        'Enjoy your ${currentDayType.toLowerCase() == 'regular_day' ? 'meal plan' : capitalizeFirstLetter(currentDayType.replaceAll('_', ' '))}!',
                         style: textTheme.bodyMedium?.copyWith(
                           color: getDayTypeColor(
                               currentDayType.replaceAll('_', ' '), isDarkMode),
@@ -2731,6 +2733,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   }
 
   bool _shouldShowCycleIndicator(DateTime date) {
+    // In family mode, only show cycle indicators for the main user (displayName)
+    if (familyMode) {
+      final isMainUser = selectedCategory.toLowerCase() ==
+          userService.currentUser.value?.displayName?.toLowerCase();
+      if (!isMainUser) return false;
+    }
+
     final cycleData = _getCycleData();
     if (cycleData == null) return false;
 
@@ -2789,6 +2798,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
   /// Returns a suggestion for the given date if cycle syncing is enabled,
   /// the user is not male, and the phase is luteal. Otherwise returns null.
   Map<String, String>? _getCycleSuggestionForDate(DateTime date) {
+    // In family mode, only return cycle suggestions for the main user (displayName)
+    if (familyMode) {
+      final isMainUser = selectedCategory.toLowerCase() ==
+          userService.currentUser.value?.displayName?.toLowerCase();
+      if (!isMainUser) return null;
+    }
+
     final user = userService.currentUser.value;
     if (user == null) return null;
 

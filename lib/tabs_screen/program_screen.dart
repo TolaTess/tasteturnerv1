@@ -45,12 +45,8 @@ class _ProgramScreenState extends State<ProgramScreen> {
     super.initState();
 
     // Initialize ProgramService using Get.find() with try-catch fallback
-    try {
-      _programService = Get.find<ProgramService>();
-    } catch (e) {
-      // If not found, put it
-      _programService = Get.put(ProgramService());
-    }
+    _programService =
+        ProgramService.instance; // Instance getter handles registration
 
     _loadProgramTypes();
     // Load user's enrolled programs
@@ -452,8 +448,12 @@ class _ProgramScreenState extends State<ProgramScreen> {
 
       if (!mounted) return;
 
+      // Filter out any AI instructions that may have leaked through
+      final cleanedResponse =
+          BuddyChatController.filterSystemInstructions(response);
+
       setState(() {
-        aiCoachResponse = response;
+        aiCoachResponse = cleanedResponse;
         isLoading = false;
       });
 
@@ -467,9 +467,10 @@ class _ProgramScreenState extends State<ProgramScreen> {
             content: prompt,
             senderId: userId,
           );
+          // Save the cleaned response, not the raw one
           await BuddyChatController.saveMessageToFirestore(
             chatId: chatId,
-            content: response,
+            content: cleanedResponse,
             senderId: 'buddy',
           );
         } catch (e) {
@@ -1230,7 +1231,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                 SizedBox(height: getPercentageHeight(2.5, context)),
 
                 Obx(() => Text(
-                    key: _addProgramButtonKey,
+                      key: _addProgramButtonKey,
                       _programService.userPrograms.length > 1
                           ? 'Explore More Menus, Chef'
                           : _programService.userPrograms.length == 1

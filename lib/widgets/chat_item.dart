@@ -652,12 +652,8 @@ class ChatItem extends StatelessWidget {
       Map<String, dynamic> actionButtons, bool isDarkMode) {
     return ElevatedButton.icon(
       onPressed: () {
-        // Ensure ProgramService is initialized before navigating
-        try {
-          Get.find<ProgramService>();
-        } catch (e) {
-          Get.put(ProgramService());
-        }
+        // ProgramService instance getter handles registration
+        ProgramService.instance;
 
         final programId = actionButtons['viewPlan'] as String;
         Get.to(() => ProgramProgressScreen(

@@ -148,19 +148,65 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
           ? programPortionDetails[foodType] as Map<String, dynamic>?
           : null;
 
+      // Check if palmPercentage is a string (like "1 fist") - if so, we'll use it directly
+      final palmPercentageValue = programConfig?['palmPercentage'];
+      final palmSizeString = programConfig?['palmSize']?.toString() ??
+          programConfig?['size']?.toString();
+
+      // Determine if we have a reference size string or need to calculate
+      // There are two data formats:
+      // 1. NEW FORMAT: palmPercentage is a STRING like "1 palm", "1 fist" → extract number and unit, then calculate
+      // 2. OLD FORMAT: palmPercentage is a NUMBER like 0.25 → calculate from percentage
+      String? referenceSizeString; // Store the full string for parsing
+      double? palmPercentageNum;
+      double?
+          referenceMultiplier; // The number extracted from string (e.g., 1 from "1 fist")
+      String?
+          referenceUnit; // The unit extracted from string (e.g., "fist" from "1 fist")
+
+      if (palmSizeString != null && palmSizeString.isNotEmpty) {
+        // Use palmSize/size if available (preferred field)
+        referenceSizeString = palmSizeString;
+      } else if (palmPercentageValue is String &&
+          !palmPercentageValue.contains('%') &&
+          !RegExp(r'^\d+(\.\d+)?$').hasMatch(palmPercentageValue)) {
+        // NEW FORMAT: palmPercentage field contains a string like "1 fist" (not a number)
+        // Extract the number and unit, then use for calculation
+        referenceSizeString = palmPercentageValue;
+      } else {
+        // OLD FORMAT: palmPercentage is a number (or null) → calculate from percentage
+        palmPercentageNum = (parseToNumber(palmPercentageValue) ??
+                defaultConfig['defaultPalmPercentage'])
+            .toDouble();
+      }
+
+      // Parse reference size string to extract multiplier and unit
+      if (referenceSizeString != null && referenceSizeString.isNotEmpty) {
+        final parsed = _parseReferenceSize(referenceSizeString);
+        referenceMultiplier = parsed['multiplier'] as double?;
+        referenceUnit = parsed['unit'] as String?;
+      }
+
       // Create food type configuration combining defaults with program specifics
+      // Note: palmPercentage (numeric) is ALWAYS stored for calories calculation
+      // If referenceSizeString exists, we extract multiplier and unit, then calculate
       final foodTypeConfig = {
         'type': foodType,
         'name': defaultConfig['name'],
         'icon': defaultConfig['icon'],
-        'palmPercentage': (parseToNumber(programConfig?['palmPercentage']) ??
-                defaultConfig['defaultPalmPercentage'])
-            .toDouble(),
+        // palmPercentage is always numeric - used for calories calculation
+        'palmPercentage': palmPercentageNum ??
+            (parseToNumber(defaultConfig['defaultPalmPercentage']) ?? 0.25)
+                .toDouble(),
         'examples': programConfig?['examples'] != null
             ? List<String>.from(programConfig!['examples'])
             : List<String>.from(defaultConfig['defaultExamples']),
         'caloriesPerPalm':
             programConfig?['calories'] ?? defaultConfig['defaultCalories'],
+        // Reference size info: multiplier and unit extracted from string (NEW FORMAT)
+        // If null, calculate from palmPercentage only (OLD FORMAT)
+        'referenceMultiplier': referenceMultiplier,
+        'referenceUnit': referenceUnit,
       };
 
       _foodTypes.add(foodTypeConfig);
@@ -230,7 +276,14 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
     return adjustedTotalTarget * percentage;
   }
 
-  String _getCalculatedPalmSize(double palmPercentage, String caloriesPerPalm) {
+  String _getCalculatedPalmSize(
+    double palmPercentage,
+    String caloriesPerPalm,
+    String foodType, {
+    double? referenceMultiplier,
+    String? referenceUnit,
+  }) {
+    // Calculate from palmPercentage (always calculate based on user's calories)
     final currentMealTime = getMealTimeOfDay();
     final mealTargetCalories = _getMealTargetCalories(currentMealTime);
 
@@ -244,37 +297,106 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
         ? (int.tryParse(calorieMatch.group(1)!) ?? 120).toDouble()
         : 120.0;
 
-    // Calculate palm count
-    final palmCount = foodTypeCalories / caloriesPerPalmNumber;
+    // Calculate base palm/fist count from calories
+    final basePalmCount = foodTypeCalories / caloriesPerPalmNumber;
 
-    // Format the palm size
-    final palmSize =
-        _formatPalmSize(palmCount, false); // Assuming not cupped for now
+    // Apply reference multiplier if provided (NEW FORMAT: e.g., "1 fist" means 1x the calculated amount)
+    final finalPalmCount = referenceMultiplier != null
+        ? basePalmCount * referenceMultiplier
+        : basePalmCount;
+
+    // Determine unit: use reference unit if provided, otherwise use food type default
+    final isGrain = foodType.toLowerCase() == 'grain';
+    final isVegetable = foodType.toLowerCase() == 'vegetable';
+
+    // Use reference unit if available, otherwise use food type default
+    String unit;
+    if (referenceUnit != null) {
+      unit = referenceUnit;
+    } else if (isGrain) {
+      unit = 'fist';
+    } else if (isVegetable) {
+      unit = 'cupped hand';
+    } else {
+      unit = 'palm';
+    }
+
+    final palmSize = _formatPalmSize(finalPalmCount, unit);
 
     return palmSize;
   }
 
-  String _formatPalmSize(double palmCount, bool isCupped) {
-    final cuppedPrefix = isCupped ? 'cupped ' : '';
+  /// Parse a reference size string like "1 fist", "2 cupped hand", "1 palm" to extract
+  /// the numeric multiplier and unit type
+  Map<String, dynamic> _parseReferenceSize(String sizeString) {
+    // Match patterns like "1 fist", "2 cupped hand", "1/2 palm", "1.5 palms"
+    final match = RegExp(r'(\d+(?:\.\d+)?|(?:\d+)?\s*/\s*\d+)\s+(.+)')
+        .firstMatch(sizeString.toLowerCase().trim());
 
+    if (match != null) {
+      final numberStr = match.group(1)!.trim();
+      final unitStr = match.group(2)!.trim();
+
+      // Parse the number (handle fractions like "1/2" or decimals like "1.5")
+      double multiplier = 1.0;
+      if (numberStr.contains('/')) {
+        // Handle fractions like "1/2", "3/4"
+        final parts = numberStr.split('/');
+        if (parts.length == 2) {
+          final numerator = double.tryParse(parts[0].trim()) ?? 1.0;
+          final denominator = double.tryParse(parts[1].trim()) ?? 1.0;
+          multiplier = numerator / denominator;
+        }
+      } else {
+        multiplier = double.tryParse(numberStr) ?? 1.0;
+      }
+
+      // Normalize unit (remove plural, handle variations)
+      String unit = unitStr;
+      if (unit.endsWith('s') && unit.length > 1) {
+        unit = unit.substring(0, unit.length - 1);
+      }
+      // Handle "cupped hand" vs "cupped hands"
+      if (unit == 'cupped hands') {
+        unit = 'cupped hand';
+      }
+
+      return {'multiplier': multiplier, 'unit': unit};
+    }
+
+    // If parsing fails, return defaults
+    return {'multiplier': 1.0, 'unit': null};
+  }
+
+  String _formatPalmSize(double palmCount, String unit) {
+    // Unit is now passed as parameter (from reference or food type default)
+    // Handle pluralization for "cupped hand" (always plural when count > 1)
+    final isPlural = palmCount > 1.0;
+    final displayUnit = unit == 'cupped hand' && isPlural
+        ? 'cupped hands'
+        : (isPlural && !unit.endsWith('s')
+            ? '$unit${unit == 'fist' ? 's' : 's'}'
+            : unit);
+
+    // Format the size
     if (palmCount >= 1.0) {
       if (palmCount % 1 == 0) {
-        return '${palmCount.toInt()} ${cuppedPrefix}palm${palmCount > 1 ? 's' : ''}';
+        return '${palmCount.toInt()} $displayUnit';
       } else {
-        return '${palmCount.toStringAsFixed(1)} ${cuppedPrefix}palm${palmCount > 1 ? 's' : ''}';
+        return '${palmCount.toStringAsFixed(1)} $displayUnit';
       }
     } else if (palmCount >= 0.75) {
-      return '3/4 ${cuppedPrefix}palm';
+      return '3/4 $displayUnit';
     } else if (palmCount >= 0.67) {
-      return '2/3 ${cuppedPrefix}palm';
+      return '2/3 $displayUnit';
     } else if (palmCount >= 0.5) {
-      return '1/2 ${cuppedPrefix}palm';
+      return '1/2 $displayUnit';
     } else if (palmCount >= 0.33) {
-      return '1/3 ${cuppedPrefix}palm';
+      return '1/3 $displayUnit';
     } else if (palmCount >= 0.25) {
-      return '1/4 ${cuppedPrefix}palm';
+      return '1/4 $displayUnit';
     } else {
-      return '1/8 ${cuppedPrefix}palm';
+      return '1/8 $displayUnit';
     }
   }
 
@@ -504,8 +626,9 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
         ),
       ),
       child: Padding(
-        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+        padding: EdgeInsets.all(getPercentageWidth(2.5, context)),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Food type header
@@ -542,7 +665,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
               ],
             ),
 
-            SizedBox(height: getPercentageHeight(1, context)),
+            SizedBox(height: getPercentageHeight(0.8, context)),
 
             // Palm portion visualization
             Container(
@@ -565,6 +688,10 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                       _getCalculatedPalmSize(
                         food['palmPercentage'] as double,
                         food['caloriesPerPalm'] as String,
+                        food['type'] as String,
+                        referenceMultiplier:
+                            food['referenceMultiplier'] as double?,
+                        referenceUnit: food['referenceUnit'] as String?,
                       ),
                       style: textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w500,
@@ -577,8 +704,6 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
               ),
             ),
 
-            SizedBox(height: getPercentageHeight(0.5, context)),
-
             // Calories
             Text(
               _getCalculatedCalories(food['palmPercentage'] as double),
@@ -589,7 +714,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
               ),
             ),
 
-            SizedBox(height: getPercentageHeight(1, context)),
+            SizedBox(height: getPercentageHeight(0.6, context)),
 
             // Examples
             Text(

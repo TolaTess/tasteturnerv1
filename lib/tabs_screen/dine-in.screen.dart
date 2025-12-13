@@ -17,7 +17,6 @@ import '../helper/helper_functions.dart';
 import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 import '../service/macro_manager.dart';
-import '../service/gemini_service.dart' as gemini;
 import '../widgets/primary_button.dart';
 import '../widgets/info_icon_widget.dart';
 import '../detail_screen/recipe_detail.dart';
@@ -381,9 +380,12 @@ class _DineInScreenState extends State<DineInScreen> {
             _selectedProteinKey, jsonEncode(selectedProtein!.toJson()));
       }
     } catch (e) {
-      showTastySnackbar('Kitchen Error, Chef',
-          'Something went wrong. Please try again later, Chef', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar('Kitchen Error, Chef',
+            'Something went wrong. Please try again later, Chef', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -669,7 +671,7 @@ class _DineInScreenState extends State<DineInScreen> {
       }
 
       // Analyze the fridge image with specialized AI method
-      final analysisResult = await gemini.geminiService.analyzeFridgeImage(
+      final analysisResult = await geminiService.analyzeFridgeImage(
         imageFile: _fridgeImage!,
       );
 
@@ -1400,7 +1402,7 @@ class _DineInScreenState extends State<DineInScreen> {
 
       // Generate recipes using the existing service
       // Pass the selected cuisine filter if available
-      final recipes = await gemini.geminiService.generateMealsFromIngredients(
+      final recipes = await geminiService.generateMealsFromIngredients(
         mockIngredients,
         context,
         true, // isDineIn
@@ -1416,7 +1418,7 @@ class _DineInScreenState extends State<DineInScreen> {
           onRetry: () async {
             try {
               final retryRecipes =
-                  await gemini.geminiService.generateMealsFromIngredients(
+                  await geminiService.generateMealsFromIngredients(
                 mockIngredients,
                 context,
                 true,
@@ -2240,7 +2242,7 @@ class _DineInScreenState extends State<DineInScreen> {
       debugPrint('Basic meal data: $basicMealData');
 
       // Use saveBasicMealsToFirestore to save the recipe
-      final saveResult = await gemini.geminiService.saveBasicMealsToFirestore(
+      final saveResult = await geminiService.saveBasicMealsToFirestore(
         [basicMealData],
         'fridge-generated',
       );

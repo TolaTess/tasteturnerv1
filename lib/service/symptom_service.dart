@@ -7,11 +7,11 @@ import '../helper/utils.dart';
 
 class SymptomService extends GetxController {
   static SymptomService get instance {
-    try {
-      return Get.find<SymptomService>();
-    } catch (e) {
+    if (!Get.isRegistered<SymptomService>()) {
+      debugPrint('⚠️ SymptomService not registered, registering now');
       return Get.put(SymptomService());
     }
+    return Get.find<SymptomService>();
   }
 
   /// Get week ID in ISO format (YYYY-Www) for organizing symptoms by week

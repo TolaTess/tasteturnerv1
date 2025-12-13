@@ -20,6 +20,8 @@ class _InspirationScreenState extends State<InspirationScreen> {
   final GlobalKey<SearchContentGridState> _gridKey =
       GlobalKey<SearchContentGridState>();
   final GlobalKey _addDietButtonKey = GlobalKey();
+  final GlobalKey _addRecipeButtonKey = GlobalKey();
+  final GlobalKey _addCommunityButtonKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
   String selectedGoal = 'all';
   bool filterByRecipe = false;
@@ -154,6 +156,24 @@ class _InspirationScreenState extends State<InspirationScreen> {
             // Optional: Add any actions to perform after the tutorial is completed
           },
         ),
+
+        TutorialStep(
+          tutorialId: 'add_recipe_button',
+          message: 'Tap here to browse the post with dishes only, Chef!',
+          targetKey: _addRecipeButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+
+        TutorialStep(
+          tutorialId: 'add_community_button',
+          message: 'Tap here to upload your own post, Chef!',
+          targetKey: _addCommunityButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
         // Upload button tutorial removed since feature is disabled
       ],
     );
@@ -195,6 +215,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
   Widget _buildRecipeFilterButton(
       BuildContext context, TextTheme textTheme, bool isDarkMode) {
     return IconButton(
+      key: _addRecipeButtonKey, // Place the key here on the IconButton itself
       icon: Icon(
         filterByRecipe ? Icons.restaurant_menu : Icons.restaurant_menu_outlined,
         color: filterByRecipe
@@ -323,6 +344,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
       appBar: _buildAppBar(context, textTheme, isDarkMode, userGoal),
       body: _buildBody(context),
       floatingActionButton: FloatingActionButton(
+        key: _addCommunityButtonKey,
         onPressed: () {
           Navigator.push(
             context,
