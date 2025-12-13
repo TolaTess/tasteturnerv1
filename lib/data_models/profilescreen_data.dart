@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -18,7 +19,14 @@ class BadgeAchievementData {
 }
 
 class BadgeController extends GetxController {
-  static BadgeController instance = Get.find();
+  static BadgeController get instance {
+    try {
+      return Get.find<BadgeController>();
+    } catch (e) {
+      debugPrint('⚠️ BadgeController not found, creating instance');
+      return Get.put(BadgeController());
+    }
+  }
 
   // Observable list to hold badges
   var badgeAchievements = <BadgeAchievementData>[].obs;
@@ -42,8 +50,12 @@ class BadgeController extends GetxController {
         'image': badge.image,
       });
     } catch (e) {
-      showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -62,8 +74,12 @@ class BadgeController extends GetxController {
         );
       }).toList();
     } catch (e) {
-      showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -87,8 +103,12 @@ class BadgeController extends GetxController {
         );
       }).toList();
     } catch (e) {
-      showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -108,8 +128,12 @@ class BadgeController extends GetxController {
         userIdsForBadge.clear();
       }
     } catch (e) {
-      showTastySnackbar('Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 }

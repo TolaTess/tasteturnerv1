@@ -50,9 +50,12 @@ class _DineInLeaderboardScreenState extends State<DineInLeaderboardScreen>
     try {
       await challengeService.refresh();
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 

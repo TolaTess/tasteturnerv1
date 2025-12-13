@@ -72,19 +72,8 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
   void initState() {
     super.initState();
 
-    // Safely initialize ProgramService
-    try {
-      if (Get.isRegistered<ProgramService>()) {
-        programService = Get.find<ProgramService>();
-      } else {
-        // If not registered, ensure it's registered
-        programService = Get.put(ProgramService());
-      }
-    } catch (e) {
-      debugPrint('Error initializing ProgramService: $e');
-      // Fallback: ensure service is registered
-      programService = Get.put(ProgramService());
-    }
+    // Initialize ProgramService using instance getter (MacroManager pattern)
+    programService = ProgramService.instance;
 
     if (widget.programId != null) {
       currentProgramId = widget.programId;

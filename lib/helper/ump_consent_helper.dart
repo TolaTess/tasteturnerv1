@@ -6,6 +6,9 @@ import 'utils.dart';
 
 /// Shared utility for managing UMP (User Messaging Platform) consent
 class UMPConsentHelper {
+  // Track if a form is currently being shown/loaded to prevent concurrent calls
+  static bool _isFormLoading = false;
+
   /// Show a dialog and then request UMP consent
   /// This provides a better UX by showing a dialog first, then the consent form
   static Future<void> showConsentDialog(BuildContext context) async {
@@ -160,10 +163,20 @@ class UMPConsentHelper {
 
           // If consent hasn't been obtained, show the initial consent form
           if (!canRequest) {
+            if (_isFormLoading) {
+              debugPrint('Form already loading, skipping...');
+              return;
+            }
             debugPrint('Consent not obtained, showing initial consent form...');
+            _isFormLoading = true;
             ConsentForm.loadAndShowConsentFormIfRequired((formError) {
+              _isFormLoading = false;
               if (formError != null) {
-                debugPrint('UMP Consent form error: $formError');
+                debugPrint('=== UMP Consent form error ===');
+                debugPrint('Error code: ${formError.errorCode}');
+                debugPrint('Error message: ${formError.message}');
+                debugPrint('Full error: $formError');
+                debugPrint('================================');
                 _setFirebaseConsent();
                 onError?.call();
               } else {
@@ -176,12 +189,35 @@ class UMPConsentHelper {
               PrivacyOptionsRequirementStatus.required) {
             // If consent was already obtained but privacy options are required,
             // show the privacy options form
+            // But first check if we don't already have consent granted
+            if (_isFormLoading) {
+              debugPrint('Privacy options form already loading, skipping...');
+              // If form is loading, treat as success since user will see it
+              onConsentObtained?.call();
+              return;
+            }
             debugPrint('Showing privacy options form...');
+            _isFormLoading = true;
             ConsentForm.showPrivacyOptionsForm((formError) {
+              _isFormLoading = false;
               if (formError != null) {
-                debugPrint('Privacy options form error: $formError');
-                _setFirebaseConsent();
-                onError?.call();
+                debugPrint('=== Privacy options form error ===');
+                debugPrint('Error code: ${formError.errorCode}');
+                debugPrint('Error message: ${formError.message}');
+                debugPrint('Full error: $formError');
+                debugPrint('===================================');
+
+                // Error code 7 means form is already being loaded
+                // This is not a critical error, consent is already obtained
+                if (formError.errorCode == 7) {
+                  debugPrint(
+                      'Form already loading (error 7), consent already obtained');
+                  _setFirebaseConsent();
+                  onConsentObtained?.call();
+                } else {
+                  _setFirebaseConsent();
+                  onError?.call();
+                }
               } else {
                 debugPrint('Privacy options form processed successfully');
                 _setFirebaseConsent();
@@ -197,7 +233,11 @@ class UMPConsentHelper {
         },
         (FormError error) {
           // Handle the error updating consent info
-          debugPrint('UMP Consent info update error: $error');
+          debugPrint('=== UMP Consent info update error ===');
+          debugPrint('Error code: ${error.errorCode}');
+          debugPrint('Error message: ${error.message}');
+          debugPrint('Full error: $error');
+          debugPrint('=====================================');
           _setFirebaseConsent();
           onError?.call();
         },

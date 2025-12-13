@@ -16,9 +16,12 @@ class CacheManager {
       await CachedNetworkImage.evictFromCache("");
       debugPrint('Image cache cleared successfully');
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -33,9 +36,12 @@ class CacheManager {
         debugPrint('Video thumbnail cache cleared successfully');
       }
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -50,9 +56,12 @@ class CacheManager {
         debugPrint('Video cache cleared successfully');
       }
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -87,9 +96,12 @@ class CacheManager {
       // Convert bytes to MB
       return totalSize / (1024 * 1024);
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
       return 0;
     }
   }
@@ -127,9 +139,12 @@ class CacheManager {
 
       debugPrint('Old cache files cleaned successfully');
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 
@@ -164,9 +179,12 @@ class CacheManager {
         }
       }
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
     }
   }
 }

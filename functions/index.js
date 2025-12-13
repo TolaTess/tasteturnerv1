@@ -4063,34 +4063,67 @@ async function handleSubscriptionRefunded(data, environment) {
  */
 async function checkExistingMealsByTitles(mealTitles) {
   try {
-    const existingMeals = {};
+    // Validate input
+    if (!mealTitles || !Array.isArray(mealTitles) || mealTitles.length === 0) {
+      console.log('No meal titles provided for checking');
+      return {};
+    }
 
-    // Get all meals from Firestore
-    const mealsSnapshot = await firestore.collection('meals').get();
+    const existingMeals = {};
+    const MAX_MEALS_TO_CHECK = 2000; // Limit to prevent timeout and memory issues
+
+    console.log(`Checking ${mealTitles.length} titles against Firestore (limited to ${MAX_MEALS_TO_CHECK} most recent meals)`);
+
+    // Get limited number of most recent meals from Firestore
+    // Order by createdAt descending to get most recent meals first
+    // If index doesn't exist, fall back to unordered query
+    let mealsSnapshot;
+    try {
+      const mealsQuery = firestore.collection('meals')
+        .orderBy('createdAt', 'desc')
+        .limit(MAX_MEALS_TO_CHECK);
+      mealsSnapshot = await mealsQuery.get();
+    } catch (orderError) {
+      // If ordering fails (likely missing index), use unordered query
+      console.warn('Ordered query failed, using unordered query:', orderError.message);
+      const mealsQuery = firestore.collection('meals')
+        .limit(MAX_MEALS_TO_CHECK);
+      mealsSnapshot = await mealsQuery.get();
+    }
     const allMeals = [];
 
     mealsSnapshot.forEach(doc => {
       const mealData = doc.data();
-      allMeals.push({
-        mealId: doc.id,
-        title: mealData.title,
-        categories: mealData.categories || [],
-        ingredients: mealData.ingredients || {},
-        calories: mealData.calories || 0,
-        nutritionalInfo: mealData.nutritionalInfo || {},
-        instructions: mealData.instructions || [],
-      });
+      // Only include meals with valid titles
+      if (mealData.title && typeof mealData.title === 'string' && mealData.title.trim().length > 0) {
+        allMeals.push({
+          mealId: doc.id,
+          title: mealData.title,
+          categories: mealData.categories || [],
+          ingredients: mealData.ingredients || {},
+          calories: mealData.calories || 0,
+          nutritionalInfo: mealData.nutritionalInfo || {},
+          instructions: mealData.instructions || [],
+        });
+      }
     });
 
-    console.log(`Checking ${mealTitles.length} titles against ${allMeals.length} existing meals`);
+    console.log(`Retrieved ${allMeals.length} meals from Firestore (out of ${mealsSnapshot.size} total)`);
 
     // Check each title for similarity
     for (const title of mealTitles) {
+      if (!title || typeof title !== 'string' || title.trim().length === 0) {
+        continue; // Skip invalid titles
+      }
+
       let bestMatch = null;
       let bestScore = 0.0;
+      const normalizedTitle = title.toLowerCase().trim();
 
       for (const meal of allMeals) {
-        const score = calculateTitleSimilarity(title.toLowerCase(), meal.title.toLowerCase());
+        if (!meal.title) continue;
+        
+        const score = calculateTitleSimilarity(normalizedTitle, meal.title.toLowerCase().trim());
         if (score > bestScore && score > 0.6) { // Threshold for similarity
           bestScore = score;
           bestMatch = meal;
@@ -4103,9 +4136,17 @@ async function checkExistingMealsByTitles(mealTitles) {
       }
     }
 
+    console.log(`Matched ${Object.keys(existingMeals).length} out of ${mealTitles.length} titles`);
     return existingMeals;
   } catch (error) {
-    console.error('Error checking existing meals:', error);
+    console.error('Error checking existing meals:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      mealTitlesCount: mealTitles ? mealTitles.length : 0
+    });
+    // Return empty object on error to allow function to continue
     return {};
   }
 }
@@ -4285,7 +4326,18 @@ exports.generateMealsWithAI = functions
       console.log(`Generating ${mealCount || 'default'} meals for cuisine: ${cuisine || 'general'}`);
 
       // Get the best Gemini model
-      const model = await _getGeminiModel();
+      let model;
+      try {
+        model = await _getGeminiModel();
+        console.log('✅ Successfully initialized Gemini model');
+      } catch (modelError) {
+        console.error('❌ Failed to initialize Gemini model:', {
+          error: modelError.message,
+          stack: modelError.stack,
+          name: modelError.name
+        });
+        throw new Error(`Model initialization failed: ${modelError.message}`);
+      }
 
       // Build comprehensive prompt with user context (matching original gemini_service structure)
       const fullPrompt = `You are a professional nutritionist and meal planner.
@@ -4319,18 +4371,47 @@ Important guidelines:
 - type must be one of: protein|grain|vegetable|fruit`;
 
       // Generate content with optimized settings
-      const result = await model.generateContent({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        generationConfig: {
-          maxOutputTokens: 8000, // Matching client-side meal generation
-        },
-      });
-      const response = result.response.text();
-
-      console.log(`Raw AI response length: ${response.length} characters`);
+      let response;
+      try {
+        console.log('🔄 Calling Gemini API for meal generation...');
+        const result = await model.generateContent({
+          contents: [{ parts: [{ text: fullPrompt }] }],
+          generationConfig: {
+            maxOutputTokens: 8000, // Matching client-side meal generation
+          },
+        });
+        response = result.response.text();
+        console.log(`✅ AI response received: ${response.length} characters`);
+      } catch (aiError) {
+        console.error('❌ Gemini API call failed:', {
+          error: aiError.message,
+          stack: aiError.stack,
+          name: aiError.name,
+          code: aiError.code
+        });
+        throw new Error(`AI generation failed: ${aiError.message}`);
+      }
 
       // Process AI response with robust parsing
-      const mealData = await processAIResponse(response, 'meal_generation');
+      let mealData;
+      try {
+        console.log('🔄 Processing AI response...');
+        mealData = await processAIResponse(response, 'meal_generation');
+        console.log('✅ Successfully processed AI response');
+      } catch (parseError) {
+        console.error('❌ Failed to process AI response:', {
+          error: parseError.message,
+          stack: parseError.stack,
+          name: parseError.name,
+          responsePreview: response ? response.substring(0, 500) : 'null'
+        });
+        throw new Error(`Response parsing failed: ${parseError.message}`);
+      }
+
+      // Validate mealData structure
+      if (!mealData || typeof mealData !== 'object') {
+        throw new Error('Invalid mealData: expected object but got ' + typeof mealData);
+      }
 
       // Accept multiple shapes: { mealPlan: [...] } or raw array
       let planArray = Array.isArray(mealData?.mealPlan)
@@ -4341,106 +4422,196 @@ Important guidelines:
             ? mealData.data
             : [];
 
+      // Validate planArray
+      if (!Array.isArray(planArray)) {
+        console.warn('planArray is not an array, attempting extraction...');
+        planArray = [];
+      }
+
       // If still empty, attempt minimal regex-based extraction directly from the raw response
-      if (!Array.isArray(planArray) || planArray.length === 0) {
+      if (planArray.length === 0) {
+        console.log('Attempting minimal regex-based extraction from raw response...');
         const minimal = _extractMinimalMealsFromText(response);
-        if (minimal.length > 0) {
+        if (minimal && Array.isArray(minimal) && minimal.length > 0) {
           planArray = minimal;
-          console.log(`Extracted ${planArray.length} meals via minimal regex extraction`);
+          console.log(`✅ Extracted ${planArray.length} meals via minimal regex extraction`);
         }
       }
 
+      // Final validation
       if (!Array.isArray(planArray) || planArray.length === 0) {
-        throw new Error('Invalid meal data structure in AI response - no meals array found');
+        throw new Error('Invalid meal data structure in AI response - no meals array found after all extraction attempts');
       }
 
-      console.log(`Generated ${planArray.length} meals from AI`);
+      // Validate each meal has required fields
+      const validMeals = planArray.filter(meal => {
+        if (!meal || typeof meal !== 'object') return false;
+        const hasTitle = meal.title && typeof meal.title === 'string' && meal.title.trim().length > 0;
+        return hasTitle;
+      });
+
+      if (validMeals.length === 0) {
+        throw new Error('No valid meals found after filtering - all meals missing required title field');
+      }
+
+      if (validMeals.length < planArray.length) {
+        console.warn(`Filtered out ${planArray.length - validMeals.length} invalid meals`);
+      }
+
+      planArray = validMeals;
+      console.log(`✅ Generated ${planArray.length} valid meals from AI`);
 
       // Extract meal titles for existing meal check
       const mealTitles = planArray.map(meal => meal.title).filter(title => title);
+      if (!mealTitles || mealTitles.length === 0) {
+        throw new Error('No valid meal titles extracted from AI response');
+      }
       console.log(`Checking for existing meals with titles: ${mealTitles.join(', ')}`);
 
       // Check for existing meals server-side
-      const existingMeals = await checkExistingMealsByTitles(mealTitles);
-      console.log(`Found ${Object.keys(existingMeals).length} existing meals`);
+      let existingMeals;
+      try {
+        console.log('🔄 Checking for existing meals in Firestore...');
+        existingMeals = await checkExistingMealsByTitles(mealTitles);
+        console.log(`✅ Found ${Object.keys(existingMeals).length} existing meals`);
+      } catch (checkError) {
+        console.error('❌ Failed to check existing meals:', {
+          error: checkError.message,
+          stack: checkError.stack,
+          name: checkError.name,
+          mealTitlesCount: mealTitles.length
+        });
+        // Continue with empty existing meals rather than failing completely
+        existingMeals = {};
+        console.log('⚠️ Continuing with empty existing meals due to check error');
+      }
 
       // Identify missing meals that need to be generated
       const missingMeals = [];
       const existingMealTitles = Object.keys(existingMeals);
 
       for (const meal of planArray) {
+        if (!meal || typeof meal !== 'object') {
+          console.warn('Skipping invalid meal object');
+          continue;
+        }
+        
         const title = meal.title;
+        if (!title || typeof title !== 'string' || title.trim().length === 0) {
+          console.warn('Skipping meal with invalid title:', meal);
+          continue;
+        }
+
         if (!existingMealTitles.includes(title)) {
-          missingMeals.push(meal);
+          // Ensure meal has required fields
+          const validMeal = {
+            title: title.trim(),
+            mealType: meal.mealType || 'main',
+            type: meal.type || 'main',
+            cuisine: meal.cuisine || cuisine || 'general'
+          };
+          missingMeals.push(validMeal);
         }
       }
 
-      console.log(`Need to generate ${missingMeals.length} new meals`);
+      console.log(`Need to generate ${missingMeals.length} new meals (out of ${planArray.length} total)`);
 
       // Save only missing meals individually to meals collection
       const mealIds = [];
-      const batch = firestore.batch();
-
-      for (const meal of missingMeals) {
-        const mealRef = firestore.collection('meals').doc();
-        const mealId = mealRef.id;
-
-        // Create meal document with minimal data - Firebase Functions will fill out details
-        const basicMealData = {
-          title: meal.title || 'Untitled Meal',
-          mealType: meal.mealType || 'main',
-          calories: 0, // Will be filled by Firebase Functions
-          categories: [meal.cuisine || 'general'],
-          nutritionalInfo: {}, // Will be filled by Firebase Functions
-          ingredients: {}, // Will be filled by Firebase Functions
-          instructions: [], // Will be filled by Firebase Functions
-          status: 'pending', // Firebase Functions will process this
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          type: meal.type || 'main',
-          userId: 'hhY2Fp8pA5cVPCWJKuCb1IGWagh1', // tastyId from constants.dart
-          source: 'ai_generated',
-          version: 'basic',
-          processingAttempts: 0, // Track retry attempts
-          lastProcessingAttempt: null, // Timestamp of last attempt
-          processingPriority: Date.now(), // FIFO processing
-          needsProcessing: true, // Flag for Firebase Functions
-          partOfWeeklyMeal: partOfWeeklyMeal || false, // Flag for weekly meal plan context
-          weeklyPlanContext: weeklyPlanContext || '', // Context about the weekly meal plan
-        };
-
-        console.log(`Saving new meal with minimal data: ${meal.title} with ID: ${mealId}`);
-        console.log(`Minimal meal data (Firebase Functions will fill out details):`, JSON.stringify(basicMealData, null, 2));
-        batch.set(mealRef, basicMealData);
-        mealIds.push(mealId);
-      }
-
-      // Commit all new meals in a single batch
       if (missingMeals.length > 0) {
-        await batch.commit();
-        console.log(`Saved ${mealIds.length} new meals to Firestore with pending status`);
+        try {
+          console.log('🔄 Saving new meals to Firestore...');
+          const batch = firestore.batch();
+
+          for (const meal of missingMeals) {
+            const mealRef = firestore.collection('meals').doc();
+            const mealId = mealRef.id;
+
+            // Create meal document with minimal data - Firebase Functions will fill out details
+            const basicMealData = {
+              title: meal.title || 'Untitled Meal',
+              mealType: meal.mealType || 'main',
+              calories: 0, // Will be filled by Firebase Functions
+              categories: [meal.cuisine || 'general'],
+              nutritionalInfo: {}, // Will be filled by Firebase Functions
+              ingredients: {}, // Will be filled by Firebase Functions
+              instructions: [], // Will be filled by Firebase Functions
+              status: 'pending', // Firebase Functions will process this
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              type: meal.type || 'main',
+              userId: 'hhY2Fp8pA5cVPCWJKuCb1IGWagh1', // tastyId from constants.dart
+              source: 'ai_generated',
+              version: 'basic',
+              processingAttempts: 0, // Track retry attempts
+              lastProcessingAttempt: null, // Timestamp of last attempt
+              processingPriority: Date.now(), // FIFO processing
+              needsProcessing: true, // Flag for Firebase Functions
+              partOfWeeklyMeal: partOfWeeklyMeal || false, // Flag for weekly meal plan context
+              weeklyPlanContext: weeklyPlanContext || '', // Context about the weekly meal plan
+            };
+
+            console.log(`Saving new meal with minimal data: ${meal.title} with ID: ${mealId}`);
+            batch.set(mealRef, basicMealData);
+            mealIds.push(mealId);
+          }
+
+          // Commit all new meals in a single batch
+          await batch.commit();
+          console.log(`✅ Saved ${mealIds.length} new meals to Firestore with pending status`);
+        } catch (saveError) {
+          console.error('❌ Failed to save meals to Firestore:', {
+            error: saveError.message,
+            stack: saveError.stack,
+            name: saveError.name,
+            code: saveError.code,
+            missingMealsCount: missingMeals.length
+          });
+          throw new Error(`Failed to save meals: ${saveError.message}`);
+        }
       }
 
       // Build minimal response only (ids, title, mealType, status)
       const minimalMeals = [];
       const existingMealIds = [];
+      
+      // Add existing meals to response
       for (const [title, existingMeal] of Object.entries(existingMeals)) {
+        if (!existingMeal || !existingMeal.mealId) {
+          console.warn(`Skipping invalid existing meal for title: ${title}`);
+          continue;
+        }
+        
+        const matchingMeal = planArray.find(m => m && m.title === title);
         minimalMeals.push({
           id: existingMeal.mealId,
-          title: existingMeal.title,
-          mealType: planArray.find(m => m.title === title)?.mealType || 'main',
+          title: existingMeal.title || title,
+          mealType: matchingMeal?.mealType || 'main',
           status: 'completed',
         });
         existingMealIds.push(existingMeal.mealId);
       }
+      
+      // Add new meals to response
       for (let i = 0; i < missingMeals.length; i++) {
         const meal = missingMeals[i];
         const mealId = mealIds[i];
+        
+        if (!mealId || !meal || !meal.title) {
+          console.warn(`Skipping invalid meal at index ${i}`);
+          continue;
+        }
+        
         minimalMeals.push({
           id: mealId,
           title: meal.title,
           mealType: meal.mealType || 'main',
           status: 'pending',
         });
+      }
+
+      // Validate we have at least some meals
+      if (minimalMeals.length === 0) {
+        throw new Error('No valid meals to return after processing');
       }
 
       // Save meal plan to mealPlans/{userId}/buddy/{date} collection
@@ -4468,25 +4639,10 @@ Important guidelines:
         return mealId; // Return as-is if type doesn't match
       };
 
-      // Fetch existing document to preserve generations
-      let existingGenerations = [];
-      try {
-        const existingDoc = await mealPlanRef.get();
-        if (existingDoc.exists) {
-          const existingData = existingDoc.data();
-          const generations = existingData?.generations;
-          if (Array.isArray(generations)) {
-            existingGenerations = generations.map(gen => {
-              if (typeof gen === 'object' && gen !== null) {
-                return gen;
-              }
-              return {};
-            });
-          }
-        }
-      } catch (error) {
-        console.log(`Error fetching existing meal plan: ${error.message}`);
-      }
+      // Ensure date field is set (using merge to avoid overwriting)
+      await mealPlanRef.set({
+        date: dateStr,
+      }, { merge: true });
 
       // Format meal IDs with meal type suffixes (matching client-side behavior)
       // If mealType is missing, assign based on position (cycling through breakfast, lunch, dinner, snack)
@@ -4513,16 +4669,28 @@ Important guidelines:
         tips: null,
       };
 
-      // Add the new generation to the list
-      existingGenerations.push(newGeneration);
+      // Save meal plan data using arrayUnion to append (matching client-side behavior)
+      // This avoids race conditions and preserves existing generations
+      try {
+        console.log('🔄 Saving meal plan to Firestore...');
+        console.log(`📦 Saving ${formattedMealIds.length} meal IDs to generation`);
 
-      // Save meal plan data with generations array
-      const mealPlanData = {
-        date: dateStr,
-        generations: existingGenerations,
-      };
-
-      await mealPlanRef.set(mealPlanData);
+        await mealPlanRef.update({
+          generations: admin.firestore.FieldValue.arrayUnion(newGeneration),
+        });
+        console.log('✅ Successfully saved meal plan');
+      } catch (planSaveError) {
+        console.error('❌ Failed to save meal plan:', {
+          error: planSaveError.message,
+          stack: planSaveError.stack,
+          name: planSaveError.name,
+          code: planSaveError.code,
+          userId: userId,
+          dateStr: dateStr
+        });
+        // Don't throw - we still have the meals saved, just the plan reference failed
+        console.log('⚠️ Continuing despite meal plan save error');
+      }
 
       console.log(`=== SAVED MEAL PLAN TO FIRESTORE ===`);
       console.log(`Meal Plan Path: mealPlans/${userId}/buddy/${dateStr}`);
@@ -4546,11 +4714,32 @@ Important guidelines:
 
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      console.error(`=== generateMealsWithAI failed after ${executionTime}ms ===`, error);
-
+      
+      // Detailed error logging with full context
+      console.error(`=== generateMealsWithAI failed after ${executionTime}ms ===`);
+      console.error('Error Details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        details: error.details
+      });
+      
+      // Preserve original error code if it's an HttpsError
+      if (error instanceof functions.https.HttpsError) {
+        console.error(`Preserving original error code: ${error.code}`);
+        throw error;
+      }
+      
+      // For other errors, wrap in HttpsError but preserve message
       throw new functions.https.HttpsError(
         'internal',
-        `Failed to generate meals: ${error.message}`
+        `Failed to generate meals: ${error.message}`,
+        {
+          originalError: error.name,
+          executionTime: executionTime,
+          stack: error.stack
+        }
       );
     }
   });

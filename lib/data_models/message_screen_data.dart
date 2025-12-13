@@ -1,10 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../constants.dart';
 
 class ChatSummaryController extends GetxController {
-  static ChatSummaryController instance = Get.find();
+  static ChatSummaryController get instance {
+    if (!Get.isRegistered<ChatSummaryController>()) {
+      debugPrint('⚠️ ChatSummaryController not registered, registering now');
+      return Get.put(ChatSummaryController());
+    }
+    return Get.find<ChatSummaryController>();
+  }
 
   var chatSummaries =
       <ChatSummary>[].obs; // Observable list initialized as empty

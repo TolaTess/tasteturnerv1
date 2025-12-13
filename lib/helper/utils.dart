@@ -648,9 +648,12 @@ Future<Map<String, dynamic>?> getFoodAnalysisData(String analysisId) async {
           as Map<String, dynamic>; // Use 'analysis' field
     }
   } catch (e) {
-    showTastySnackbar(
-        'Something went wrong', 'Please try again later', Get.context!,
-        backgroundColor: kRed);
+    final context = Get.context;
+    if (context != null) {
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', context,
+          backgroundColor: kRed);
+    }
   }
   return null;
 }

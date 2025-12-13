@@ -477,9 +477,12 @@ bool _validateNutritionalInfo(Map<String, String> nutritionalInfo) {
     }
     return true;
   } catch (e) {
-    showTastySnackbar(
-        'Something went wrong', 'Please try again later', Get.context!,
-        backgroundColor: kRed);
+    final context = Get.context;
+    if (context != null) {
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', context,
+          backgroundColor: kRed);
+    }
     return false;
   }
 }
@@ -506,9 +509,12 @@ Future<void> saveMealPlanToFirestore(String userId, String date,
       }
     }
   } catch (e) {
-    showTastySnackbar(
-        'Something went wrong', 'Please try again later', Get.context!,
-        backgroundColor: kRed);
+    final context = Get.context;
+    if (context != null) {
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', context,
+          backgroundColor: kRed);
+    }
   }
 
   // Create a new generation object
@@ -543,9 +549,12 @@ Future<void> saveMealPlanToFirestore(String userId, String date,
   try {
     await docRef.set(mealPlanData);
   } catch (e) {
-    showTastySnackbar(
-        'Something went wrong', 'Please try again later', Get.context!,
-        backgroundColor: kRed);
+    final context = Get.context;
+    if (context != null) {
+      showTastySnackbar(
+          'Something went wrong', 'Please try again later', context,
+          backgroundColor: kRed);
+    }
   }
 }
 

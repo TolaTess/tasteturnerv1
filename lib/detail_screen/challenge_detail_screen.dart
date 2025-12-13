@@ -146,9 +146,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         }
       }
     } catch (e) {
-      showTastySnackbar(
-          'Something went wrong', 'Please try again later', Get.context!,
-          backgroundColor: kRed);
+      final context = Get.context;
+      if (context != null) {
+        showTastySnackbar(
+            'Something went wrong', 'Please try again later', context,
+            backgroundColor: kRed);
+      }
       if (mounted) {
         setState(() {
           hasMeal = false;
@@ -637,7 +640,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
             SizedBox(width: getPercentageWidth(2, context)),
             InfoIconWidget(
               title: 'Post Details',
-              description: 'View, zoom by pinching and interact with posts and community content',
+              description:
+                  'View, zoom by pinching and interact with posts and community content',
               details: [
                 {
                   'icon': Icons.favorite,
