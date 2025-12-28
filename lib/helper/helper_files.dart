@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import '../constants.dart';
@@ -243,19 +244,135 @@ Widget buildAddMealTypeLegend(BuildContext context, String mealType,
 }
 
 List<MacroData> updateIngredientListByType(
-  List<MacroData> ingredientList,
-  String selectedCategory,
-) {
+  List<MacroData>
+      ingredientList, // Kept for backward compatibility but not used when curatedLists provided
+  String selectedCategory, {
+  Map<String, List<String>>? curatedLists,
+}) {
+  // Use time-based seed for better randomization
+  final random = Random(DateTime.now().millisecondsSinceEpoch);
+  final selectedCategoryLower = selectedCategory.toLowerCase();
+
+  // If curated lists are provided, use them exclusively
+  if (curatedLists != null && curatedLists.isNotEmpty) {
+    List<String> curatedNames = [];
+
+    // If 'all' or 'general', combine all curated lists with type tracking
+    if (selectedCategory.isEmpty ||
+        selectedCategoryLower == 'all' ||
+        selectedCategoryLower == 'general') {
+      // Combine all categories, tracking which category each item belongs to
+      final Map<String, String> nameToType = {};
+      for (final category in ['protein', 'grain', 'vegetable', 'fruit']) {
+        if (curatedLists.containsKey(category) &&
+            curatedLists[category]!.isNotEmpty) {
+          for (final name in curatedLists[category]!) {
+            curatedNames.add(name);
+            nameToType[name.toLowerCase()] = category;
+          }
+        }
+      }
+
+      curatedNames.shuffle(random);
+
+      // Create MacroData placeholders from curated names
+      final result = curatedNames.take(20).map((name) {
+        final type = nameToType[name.toLowerCase()] ?? 'vegetable';
+        return MacroData(
+          title: name,
+          type: type,
+          mediaPaths: [],
+          macros: {},
+          categories: [type],
+          features: {},
+        );
+      }).toList();
+
+      return result;
+    } else if (curatedLists.containsKey(selectedCategoryLower) &&
+        curatedLists[selectedCategoryLower]!.isNotEmpty) {
+      // Use specific category
+      curatedNames = List<String>.from(curatedLists[selectedCategoryLower]!);
+      curatedNames.shuffle(random);
+
+      // Create MacroData placeholders from curated names
+      final result = curatedNames.take(20).map((name) {
+        return MacroData(
+          title: name,
+          type: selectedCategoryLower,
+          mediaPaths: [],
+          macros: {},
+          categories: [selectedCategoryLower],
+          features: {},
+        );
+      }).toList();
+
+      return result;
+    }
+    // If curated lists provided but category not found, return empty (shouldn't happen with proper data)
+    return [];
+  }
+
+  // Fallback to original filtering logic only if curated lists are not available
+  // If ingredientList is empty, try to use fallback lists from constants
+  if (ingredientList.isEmpty) {
+    final fallbackLists = fallbackSpinWheelIngredients;
+    if (fallbackLists.isNotEmpty) {
+      List<String> fallbackNames = [];
+
+      if (selectedCategory.isEmpty ||
+          selectedCategoryLower == 'all' ||
+          selectedCategoryLower == 'general') {
+        // Combine all fallback categories
+        final Map<String, String> nameToType = {};
+        for (final category in ['protein', 'grain', 'vegetable', 'fruit']) {
+          if (fallbackLists.containsKey(category) &&
+              fallbackLists[category]!.isNotEmpty) {
+            for (final name in fallbackLists[category]!) {
+              fallbackNames.add(name);
+              nameToType[name.toLowerCase()] = category;
+            }
+          }
+        }
+        fallbackNames.shuffle(random);
+        return fallbackNames.take(20).map((name) {
+          final type = nameToType[name.toLowerCase()] ?? 'vegetable';
+          return MacroData(
+            title: name,
+            type: type,
+            mediaPaths: [],
+            macros: {},
+            categories: [type],
+            features: {},
+          );
+        }).toList();
+      } else if (fallbackLists.containsKey(selectedCategoryLower) &&
+          fallbackLists[selectedCategoryLower]!.isNotEmpty) {
+        fallbackNames =
+            List<String>.from(fallbackLists[selectedCategoryLower]!);
+        fallbackNames.shuffle(random);
+        return fallbackNames.take(20).map((name) {
+          return MacroData(
+            title: name,
+            type: selectedCategoryLower,
+            mediaPaths: [],
+            macros: {},
+            categories: [selectedCategoryLower],
+            features: {},
+          );
+        }).toList();
+      }
+    }
+  }
   if (selectedCategory.isEmpty ||
       selectedCategory == 'all' ||
       selectedCategory == 'general') {
     final shuffledIngredients = List<MacroData>.from(ingredientList);
-    shuffledIngredients.shuffle();
+    shuffledIngredients.shuffle(random);
     return shuffledIngredients.take(20).toList();
   }
 
   final newIngredientList = ingredientList.where((ingredient) {
-    final selectedCategoryLower = selectedCategory.toLowerCase();
     final ingredientType = ingredient.type.toLowerCase();
 
     // Primary check: exact type match or type contains the category
@@ -283,8 +400,8 @@ List<MacroData> updateIngredientListByType(
     }
   }).toList();
 
-  // Shuffle the filtered list for randomization
-  newIngredientList.shuffle();
+  // Shuffle the filtered list for randomization with time-based seed
+  newIngredientList.shuffle(random);
 
   return newIngredientList.length > 20
       ? newIngredientList.take(20).toList()

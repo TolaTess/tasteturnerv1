@@ -85,7 +85,10 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
           }
 
           final List<MacroData> ingredientList =
-              await macroManager.fetchAndEnsureIngredientsExist(acceptedItems);
+              await macroManager.fetchAndEnsureIngredientsExist(
+            acceptedItems,
+            categoryType: widget.selectedCategory,
+          );
 
           await macroManager.saveShoppingList(ingredientList);
 
@@ -215,7 +218,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
       availableLabels = []; // Clear existing labels first
       final random = Random();
       if (widget.isMealSpin) {
-        if (widget.customLabels != null) {
+        if (widget.customLabels != null && widget.customLabels!.isNotEmpty) {
           final customList = widget.customLabels!.toSet().toList();
           customList.shuffle(random);
           availableLabels = customList.take(10).toList();
@@ -230,6 +233,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
           widget.customLabels!.isNotEmpty) {
         final customList = widget.customLabels!.toSet().toList();
         customList.shuffle(random);
+        // Take up to 10 items, but don't repeat if we have fewer
         availableLabels = customList.take(10).toList();
       } else {
         fullLabelsList = widget.labels;
@@ -242,11 +246,52 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
 
       // Ensure we don't have empty labels
       availableLabels.removeWhere((label) => label.trim().isEmpty);
+
+      // Safety check: ensure we have at least 1 item (but don't force 10)
+      if (availableLabels.isEmpty) {
+        debugPrint('Warning: No available labels after update');
+      }
     });
   }
 
   void _maintainAvailableLabels() {
     availableLabels.removeWhere((label) => acceptedItems.contains(label));
+
+    // If using customLabels (curated lists), maintain from that source
+    if (widget.customLabels != null && widget.customLabels!.isNotEmpty) {
+      final customList = widget.customLabels!.toSet().toList();
+      final random = Random();
+
+      // Get all available items that haven't been accepted or shown
+      final availableNewLabels = customList
+          .where(
+            (label) =>
+                !acceptedItems.contains(label) &&
+                !availableLabels.contains(label) &&
+                label.trim().isNotEmpty,
+          )
+          .toList();
+
+      // Shuffle for variety
+      availableNewLabels.shuffle(random);
+
+      // Fill up to 10 items, but stop if we only have 1 left (can't accept/skip the last one)
+      while (availableLabels.length < 10 &&
+          availableNewLabels.length > 1 &&
+          availableNewLabels.isNotEmpty) {
+        availableLabels.add(availableNewLabels.removeAt(0));
+      }
+
+      // If we have exactly 1 item left, add it but user won't be able to accept/skip it
+      if (availableNewLabels.length == 1 && availableLabels.length < 10) {
+        availableLabels.add(availableNewLabels[0]);
+      }
+
+      return;
+    }
+
+    // Fallback to original logic for non-custom labels
+    // Stop when only 1 item remains (can't accept/skip the last one)
     while (availableLabels.length < 10 && fullLabelsList.isNotEmpty) {
       if (widget.selectedCategory != null) {
         final newLabels = updateIngredientListByType(
@@ -268,6 +313,13 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
         break;
       }
 
+      // Stop if adding this would leave only 1 item remaining
+      if (availableNewLabels.length == 1 && availableLabels.length == 9) {
+        // Add the last item but user won't be able to accept/skip it
+        availableLabels.add(availableNewLabels[0].title);
+        break;
+      }
+
       // Add a random available label for variety
       final random = Random();
       final randomIndex = random.nextInt(availableNewLabels.length);
@@ -276,24 +328,30 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
   }
 
   void _tryAgainLabel() {
+    // Don't allow skipping if only 1 item remains
+    if (availableLabels.length <= 1) {
+      return;
+    }
     setState(() {
       availableLabels.remove(selectedLabel);
-      if (widget.customLabels != null && widget.customLabels!.isNotEmpty) {
-        _maintainAvailableLabels();
-      }
+      // Maintain available labels, but stop at 1 remaining
+      _maintainAvailableLabels();
       selectedLabel = null;
     });
   }
 
   void _acceptSelectedLabel(String label) {
+    // Don't allow accepting if only 1 item remains
+    if (availableLabels.length <= 1) {
+      return;
+    }
     setState(() {
       if (!acceptedItems.contains(label)) {
         acceptedItems.add(label);
       }
       availableLabels.remove(label);
-      if (widget.customLabels != null && widget.customLabels!.isNotEmpty) {
-        _maintainAvailableLabels();
-      }
+      // Maintain available labels, but stop at 1 remaining
+      _maintainAvailableLabels();
       selectedLabel = null;
     });
   }
@@ -370,24 +428,52 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
                           ),
                           actionsAlignment: MainAxisAlignment.spaceBetween,
                           actions: [
-                            AppButton(
-                              type: AppButtonType.follow,
-                              width: 30,
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _tryAgainLabel();
-                              },
-                              text: "Skip",
-                            ),
-                            AppButton(
-                              type: AppButtonType.follow,
-                              width: 30,
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _acceptSelectedLabel(label);
-                              },
-                              text: "Accept",
-                            ),
+                            if (availableLabels.length > 1)
+                              AppButton(
+                                type: AppButtonType.follow,
+                                width: 30,
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  _tryAgainLabel();
+                                },
+                                text: "Skip",
+                              )
+                            else
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(2, context),
+                                ),
+                                child: Text(
+                                  "Last item - cannot skip",
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            if (availableLabels.length > 1)
+                              AppButton(
+                                type: AppButtonType.follow,
+                                width: 30,
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  _acceptSelectedLabel(label);
+                                },
+                                text: "Accept",
+                              )
+                            else
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: getPercentageWidth(2, context),
+                                ),
+                                child: Text(
+                                  "Last item - cannot accept",
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
                           ],
                         );
                       },
@@ -417,6 +503,7 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
           AcceptedItemsList(
             acceptedItems: acceptedItems,
             isMealSpin: widget.isMealSpin,
+            selectedCategory: widget.selectedCategory,
           ),
         ],
       ),
@@ -427,10 +514,12 @@ class _SpinWheelWidgetState extends State<SpinWheelWidget> {
 class AcceptedItemsList extends StatefulWidget {
   final List<String> acceptedItems;
   final bool isMealSpin;
+  final String? selectedCategory;
   const AcceptedItemsList({
     super.key,
     required this.acceptedItems,
     required this.isMealSpin,
+    this.selectedCategory,
   });
 
   @override
@@ -469,8 +558,10 @@ class _AcceptedItemsListState extends State<AcceptedItemsList> {
             },
           )
         : FutureBuilder<List<MacroData>>(
-            future: macroManager
-                .fetchAndEnsureIngredientsExist(widget.acceptedItems),
+            future: macroManager.fetchAndEnsureIngredientsExist(
+              widget.acceptedItems,
+              categoryType: widget.selectedCategory,
+            ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const CircularProgressIndicator(

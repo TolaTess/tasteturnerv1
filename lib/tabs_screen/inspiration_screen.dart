@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tasteturner/constants.dart';
 import 'package:tasteturner/widgets/helper_widget.dart';
 import 'package:tasteturner/service/post_service.dart';
@@ -16,7 +18,8 @@ class InspirationScreen extends StatefulWidget {
   State<InspirationScreen> createState() => _InspirationScreenState();
 }
 
-class _InspirationScreenState extends State<InspirationScreen> {
+class _InspirationScreenState extends State<InspirationScreen>
+    with WidgetsBindingObserver {
   final GlobalKey<SearchContentGridState> _gridKey =
       GlobalKey<SearchContentGridState>();
   final GlobalKey _addDietButtonKey = GlobalKey();
@@ -25,6 +28,10 @@ class _InspirationScreenState extends State<InspirationScreen> {
   final ScrollController _scrollController = ScrollController();
   String selectedGoal = 'all';
   bool filterByRecipe = false;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _postsListener;
+  bool _isInitialLoad = true; // Track if this is the first load
+  DateTime?
+      _lastRefreshTime; // Track last refresh to avoid too frequent refreshes
 
   /// Load excluded ingredients configuration with error handling
   Future<void> loadExcludedIngredients() async {
@@ -81,7 +88,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
     );
   }
 
-  Future<void> _refreshPosts() async {
+  Future<void> _refreshPosts({bool showSnackbar = true}) async {
     if (!mounted) return;
 
     try {
@@ -100,13 +107,16 @@ class _InspirationScreenState extends State<InspirationScreen> {
         await gridState.fetchContent();
       }
 
-      // Show success feedback
-      if (mounted) {
+      // Update last refresh time
+      _lastRefreshTime = DateTime.now();
+
+      // Show success feedback only if requested
+      if (mounted && showSnackbar) {
         _showSuccessSnackbar('Station refreshed, Chef!');
       }
     } catch (e) {
       debugPrint('Error refreshing posts: $e');
-      if (mounted) {
+      if (mounted && showSnackbar) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(
@@ -131,14 +141,76 @@ class _InspirationScreenState extends State<InspirationScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddMealTutorial();
       loadExcludedIngredients();
+      _setupPostsListener();
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh when app comes back to foreground
+    if (state == AppLifecycleState.resumed && mounted) {
+      // Only refresh if it's been more than 5 seconds since last refresh
+      final now = DateTime.now();
+      if (_lastRefreshTime == null ||
+          now.difference(_lastRefreshTime!).inSeconds > 5) {
+        _refreshPosts();
+        _lastRefreshTime = now;
+      }
+    }
+  }
+
+  /// Setup Firebase listener for new posts
+  void _setupPostsListener() {
+    try {
+      // Listen for new posts added to Firestore
+      // Using limit(1) and orderBy to only get the most recent post
+      _postsListener = firestore
+          .collection('posts')
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .snapshots()
+          .listen(
+        (snapshot) {
+          // Skip initial load - only refresh on actual new posts
+          if (_isInitialLoad) {
+            _isInitialLoad = false;
+            return;
+          }
+
+          // Check if this is a new post (document added)
+          if (snapshot.docChanges.isNotEmpty) {
+            for (final change in snapshot.docChanges) {
+              if (change.type == DocumentChangeType.added) {
+                // New post detected, refresh the feed
+                debugPrint('New post detected, refreshing feed...');
+                _refreshPosts(
+                    showSnackbar:
+                        false); // Don't show snackbar for auto-refresh
+                break; // Only need to refresh once per batch
+              }
+            }
+          }
+        },
+        onError: (error) {
+          debugPrint('Error in posts listener: $error');
+          // Don't show error to user, just log it
+        },
+      );
+    } catch (e) {
+      debugPrint('Error setting up posts listener: $e');
+      // Continue without listener if setup fails
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _postsListener?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -345,19 +417,32 @@ class _InspirationScreenState extends State<InspirationScreen> {
       body: _buildBody(context),
       floatingActionButton: FloatingActionButton(
         key: _addCommunityButtonKey,
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          // Navigate to upload screen and refresh when returning
+          await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => const UploadImageScreen(),
             ),
           );
+
+          // Refresh posts when returning from upload screen
+          // This ensures new posts appear immediately
+          if (mounted) {
+            // Small delay to ensure post is saved to Firestore
+            await Future.delayed(const Duration(milliseconds: 500));
+            _refreshPosts(
+                showSnackbar:
+                    false); // Silent refresh when returning from upload
+          }
         },
         backgroundColor: kAccent,
         child: Icon(
           Icons.camera_alt,
           color: kWhite,
-          size: MediaQuery.of(context).size.width > 800 ? getIconScale(6, context) : getIconScale(8, context),
+          size: MediaQuery.of(context).size.width > 800
+              ? getIconScale(6, context)
+              : getIconScale(8, context),
         ),
       ),
     );

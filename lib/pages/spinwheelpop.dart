@@ -59,6 +59,16 @@ class _SpinWheelPopState extends State<SpinWheelPop>
   // Constants
   static const int _maxMealListSize = 10;
 
+  // Cache for ingredient lists by category to avoid re-shuffling
+  final Map<String, List<String>> _ingredientListCache = {};
+  DateTime? _lastCacheTime;
+  static const Duration _cacheExpiry =
+      Duration(minutes: 5); // Cache expires after 5 minutes
+
+  // Curated ingredient lists from Firestore (initialized with fallback)
+  Map<String, List<String>>? _curatedIngredientLists =
+      Map<String, List<String>>.from(fallbackSpinWheelIngredients);
+
   @override
   void initState() {
     super.initState();
@@ -129,11 +139,60 @@ class _SpinWheelPopState extends State<SpinWheelPop>
     _updateMealListByType();
     // Fetch pantry items
     _fetchPantryItems();
+    // Initialize ingredient list with fallback (will be updated when Firestore data loads)
+    _updateCategoryIngredientData(
+        selectedCategoryIdIngredient, selectedCategoryIngredient);
+    // Fetch curated ingredient lists (will update lists when loaded)
+    _fetchCuratedIngredientLists();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _showAddSpinTutorial();
       }
     });
+  }
+
+  /// Get fallback ingredient list when main list is empty
+  List<String> _getFallbackIngredientList() {
+    final listsToUse = _curatedIngredientLists ??
+        Map<String, List<String>>.from(fallbackSpinWheelIngredients);
+
+    if (selectedCategoryIngredient == 'all' ||
+        selectedCategoryIngredient.isEmpty) {
+      // Combine all categories
+      final combined = <String>[];
+      for (final category in ['protein', 'grain', 'vegetable', 'fruit']) {
+        if (listsToUse.containsKey(category)) {
+          combined.addAll(listsToUse[category]!);
+        }
+      }
+      return combined.take(20).toList();
+    } else if (listsToUse
+        .containsKey(selectedCategoryIngredient.toLowerCase())) {
+      return listsToUse[selectedCategoryIngredient.toLowerCase()]!
+          .take(20)
+          .toList();
+    }
+    return [];
+  }
+
+  /// Fetch curated ingredient lists from Firestore
+  Future<void> _fetchCuratedIngredientLists() async {
+    try {
+      final lists = await macroManager.getSpinWheelIngredientLists();
+      if (mounted) {
+        setState(() {
+          _curatedIngredientLists = lists;
+        });
+        // Update ingredient list for current category (refresh with new lists)
+        if (selectedCategoryIngredient != 'custom') {
+          _updateCategoryIngredientData(
+              selectedCategoryIdIngredient, selectedCategoryIngredient);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching curated ingredient lists: $e');
+      // Fallback lists will be used automatically
+    }
   }
 
   void _showAddSpinTutorial() {
@@ -363,10 +422,47 @@ class _SpinWheelPopState extends State<SpinWheelPop>
           // Non-critical error, continue with default category
         }
       } else {
-        _ingredientList = updateIngredientListByType(
-                widget.ingredientList, selectedCategoryIngredient)
-            .map((ingredient) => ingredient.title)
-            .toList();
+        // Check cache first
+        final cacheKey = selectedCategoryIngredient;
+        final now = DateTime.now();
+
+        // Use cache if it exists and hasn't expired
+        if (_ingredientListCache.containsKey(cacheKey) &&
+            _lastCacheTime != null &&
+            now.difference(_lastCacheTime!) < _cacheExpiry) {
+          if (mounted) {
+            setState(() {
+              _ingredientList = _ingredientListCache[cacheKey]!;
+            });
+          }
+        } else {
+          // Generate new list and cache it
+          // Pass empty list as ingredientList since we're using curated lists exclusively
+          // Ensure we have curated lists (use fallback if null)
+          final listsToUse = _curatedIngredientLists ??
+              Map<String, List<String>>.from(fallbackSpinWheelIngredients);
+          final macroDataList = updateIngredientListByType(
+              [], selectedCategoryIngredient,
+              curatedLists: listsToUse);
+          final newList =
+              macroDataList.map((ingredient) => ingredient.title).toList();
+
+          // Debug: Log if list is empty
+          if (newList.isEmpty) {
+            debugPrint(
+                'Warning: Generated ingredient list is empty for category: $selectedCategoryIngredient');
+            debugPrint('Curated lists available: ${listsToUse.keys.toList()}');
+            debugPrint('Lists to use: $listsToUse');
+          }
+
+          if (mounted) {
+            setState(() {
+              _ingredientList = newList;
+              _ingredientListCache[cacheKey] = newList;
+              _lastCacheTime = now;
+            });
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error updating category ingredient data: $e');
@@ -864,16 +960,22 @@ class _SpinWheelPopState extends State<SpinWheelPop>
         SizedBox(height: getPercentageHeight(1, context)),
 
         Expanded(
-          child: SpinWheelWidget(
-            key: _addSpinButtonKey,
-            labels: widget.ingredientList,
-            customLabels: _ingredientList.isNotEmpty ? _ingredientList : null,
-            isMealSpin: false,
-            playSound: _playSound,
-            stopSound: _stopSound,
-            funMode: _funMode,
-            selectedCategory: selectedCategoryIngredient,
-          ),
+          child: _ingredientList.isEmpty && _curatedIngredientLists == null
+              ? Center(
+                  child: CircularProgressIndicator(color: kAccent),
+                )
+              : SpinWheelWidget(
+                  key: _addSpinButtonKey,
+                  labels: [], // Not used when using curated lists
+                  customLabels: _ingredientList.isNotEmpty
+                      ? _ingredientList
+                      : _getFallbackIngredientList(),
+                  isMealSpin: false,
+                  playSound: _playSound,
+                  stopSound: _stopSound,
+                  funMode: _funMode,
+                  selectedCategory: selectedCategoryIngredient,
+                ),
         ),
       ],
     );

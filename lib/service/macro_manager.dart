@@ -129,6 +129,7 @@ class MacroManager extends GetxController {
 
   /// Saves a list of ingredients to the manual shopping list by calling a Cloud Function.
   /// Used for features like the "Spin the Wheel".
+  /// When ingredient ID is missing, uses the ingredient name (normalized) as the ID.
   Future<void> saveShoppingList(List<MacroData> items) async {
     try {
       final HttpsCallable callable =
@@ -138,8 +139,12 @@ class MacroManager extends GetxController {
       final List<Map<String, String?>> itemsPayload = items.map((item) {
         // The amount is stored in the macros map as a workaround.
         final amount = item.macros['amount'] as String?;
+        // Use ID if available, otherwise use normalized title as ID
+        final ingredientId = item.id?.isNotEmpty == true
+            ? item.id
+            : item.title.toLowerCase().trim();
         return {
-          'ingredientId': item.id,
+          'ingredientId': ingredientId,
           'amount': amount,
         };
       }).toList();
@@ -378,8 +383,65 @@ class MacroManager extends GetxController {
     }
   }
 
-  Future<List<MacroData>> fetchAndEnsureIngredientsExist(
-      List<String> names) async {
+  // Cache for spin wheel ingredient lists
+  Map<String, List<String>>? _cachedSpinWheelLists;
+  DateTime? _cacheTimestamp;
+  static const Duration _cacheExpiry = Duration(hours: 1);
+
+  /// Fetches curated ingredient lists for spin wheel from Firestore
+  /// Falls back to hardcoded lists if Firestore fetch fails
+  Future<Map<String, List<String>>> getSpinWheelIngredientLists() async {
+    try {
+      // Check cache first
+      if (_cachedSpinWheelLists != null &&
+          _cacheTimestamp != null &&
+          DateTime.now().difference(_cacheTimestamp!) < _cacheExpiry) {
+        return _cachedSpinWheelLists!;
+      }
+
+      // Try to fetch from Firestore
+      final docSnapshot = await firestore
+          .collection('appConfig')
+          .doc('spinWheelIngredients')
+          .get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data();
+        if (data != null) {
+          final Map<String, List<String>> lists = {};
+
+          // Extract lists for each category
+          for (final category in ['protein', 'grain', 'vegetable', 'fruit']) {
+            if (data[category] != null && data[category] is List) {
+              lists[category] = (data[category] as List)
+                  .map((e) => e.toString().toLowerCase().trim())
+                  .where((e) => e.isNotEmpty)
+                  .toList();
+            }
+          }
+
+          // Only use Firestore data if we have at least one category
+          if (lists.isNotEmpty) {
+            _cachedSpinWheelLists = lists;
+            _cacheTimestamp = DateTime.now();
+            return lists;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint(
+          'Error fetching spin wheel ingredient lists from Firestore: $e');
+    }
+
+    // Fallback to hardcoded lists
+    _cachedSpinWheelLists =
+        Map<String, List<String>>.from(fallbackSpinWheelIngredients);
+    _cacheTimestamp = DateTime.now();
+    return _cachedSpinWheelLists!;
+  }
+
+  Future<List<MacroData>> fetchAndEnsureIngredientsExist(List<String> names,
+      {String? categoryType}) async {
     try {
       final fetchedItems = await getIngredientsByTitles(names);
 
@@ -395,10 +457,10 @@ class MacroManager extends GetxController {
             ? existingItemsMap[key]!
             : MacroData(
                 title: name,
-                type: "Unknown",
+                type: categoryType ?? "Unknown",
                 mediaPaths: [],
                 macros: {},
-                categories: [],
+                categories: categoryType != null ? [categoryType] : [],
                 features: {},
               );
       }).toList();
@@ -786,29 +848,6 @@ class MacroManager extends GetxController {
     });
   }
 
-  Future<Map<String, String>> _fetchIngredientsData(List<String> ids) async {
-    if (ids.isEmpty) return {};
-    final Map<String, String> ingredientsMap = {};
-
-    // Firestore 'whereIn' queries are limited to 30 elements per query.
-    for (var i = 0; i < ids.length; i += 30) {
-      final sublist = ids.sublist(i, i + 30 > ids.length ? ids.length : i + 30);
-      try {
-        final snapshot = await firestore
-            .collection('ingredients')
-            .where(FieldPath.documentId, whereIn: sublist)
-            .get();
-        for (var doc in snapshot.docs) {
-          ingredientsMap[doc.id] =
-              (doc.data()['title'] as String?) ?? 'No Title';
-        }
-      } catch (e) {
-        return {};
-      }
-    }
-    return ingredientsMap;
-  }
-
   /// Returns the first [n] ingredients after ensuring data is fetched.
   /// Evenly distributes ingredients across 4 types (protein, grain, vegetable, fruit).
   Future<List<MacroData>> getFirstNIngredients(int n) async {
@@ -824,6 +863,7 @@ class MacroManager extends GetxController {
     final remainder = n % 4; // Remaining ingredients to distribute
 
     List<MacroData> result = [];
+    final random = Random(DateTime.now().millisecondsSinceEpoch);
 
     // Get ingredients for each type
     for (int i = 0; i < requiredTypes.length; i++) {
@@ -839,8 +879,11 @@ class MacroManager extends GetxController {
       }
 
       if (typeIngredients.isNotEmpty) {
+        // Shuffle before taking to ensure randomization
+        final shuffled = List<MacroData>.from(typeIngredients);
+        shuffled.shuffle(random);
         // Take up to targetCount ingredients of this type
-        final ingredientsToAdd = typeIngredients.take(targetCount).toList();
+        final ingredientsToAdd = shuffled.take(targetCount).toList();
         result.addAll(ingredientsToAdd);
       }
     }
@@ -848,13 +891,15 @@ class MacroManager extends GetxController {
     // If we still don't have enough ingredients (some types might be empty),
     // fill with remaining ingredients from any type
     if (result.length < n) {
-      final remainingIngredients = ingredient
-          .where((item) => !result.contains(item))
-          .take(n - result.length)
-          .toList();
-      result.addAll(remainingIngredients);
+      final remainingIngredients =
+          ingredient.where((item) => !result.contains(item)).toList();
+      // Shuffle remaining ingredients before taking
+      remainingIngredients.shuffle(random);
+      result.addAll(remainingIngredients.take(n - result.length).toList());
     }
 
+    // Final shuffle of the entire result to mix types
+    result.shuffle(random);
     return result;
   }
 
