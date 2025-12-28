@@ -9,6 +9,7 @@ import '../helper/ingredient_utils.dart';
 import '../widgets/primary_button.dart';
 import '../data_models/post_model.dart';
 import '../service/calorie_adjustment_service.dart';
+import '../service/plant_detection_service.dart';
 import 'package:get/get.dart';
 
 // QC State enum for Service Quality Check
@@ -610,6 +611,39 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
         },
       ),
     );
+  }
+
+  /// Calculate plant count from food items
+  Future<int> _calculatePlantCount() async {
+    try {
+      final foodItems = _editableAnalysis['foodItems'] as List<dynamic>;
+      if (foodItems.isEmpty) return 0;
+
+      // Convert food items to ingredients map
+      final ingredients = <String, String>{};
+      for (final item in foodItems) {
+        final itemMap = Map<String, dynamic>.from(item as Map);
+        final name = itemMap['name']?.toString() ?? '';
+        if (name.isNotEmpty) {
+          // Use name as ingredient, with empty quantity for now
+          ingredients[name] = '';
+        }
+      }
+
+      if (ingredients.isEmpty) return 0;
+
+      // Detect plants from ingredients
+      final plantService = PlantDetectionService.instance;
+      final detectedPlants = plantService.detectPlantsFromIngredients(
+        ingredients,
+        widget.date ?? DateTime.now(),
+      );
+
+      return detectedPlants.length;
+    } catch (e) {
+      debugPrint('Error calculating plant count: $e');
+      return 0;
+    }
   }
 
   void _recalculateTotalNutrition() {
@@ -1896,6 +1930,53 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
           ),
 
           SizedBox(height: getPercentageHeight(2, context)),
+
+          // Plant Count Display
+          FutureBuilder<int>(
+            future: _calculatePlantCount(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox.shrink();
+              }
+              
+              final plantCount = snapshot.data ?? 0;
+              if (plantCount == 0) {
+                return const SizedBox.shrink();
+              }
+
+              return Container(
+                margin: EdgeInsets.only(bottom: getPercentageHeight(2, context)),
+                padding: EdgeInsets.all(getPercentageWidth(4, context)),
+                decoration: BoxDecoration(
+                  color: kAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: kAccent.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.eco,
+                      color: kAccent,
+                      size: getIconScale(5, context),
+                    ),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                    Text(
+                      'This meal contains $plantCount ${plantCount == 1 ? 'plant' : 'plants'}',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: kAccent,
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(3.5, context),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
 
           // Save Button
           SizedBox(

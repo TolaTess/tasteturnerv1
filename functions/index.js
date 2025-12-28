@@ -953,13 +953,59 @@ exports.addManualItemsToShoppingList = functions.https.onCall(
         .collection("shoppingList")
         .doc(weekId);
 
-      // 3. Use a transaction to safely read, modify, and write the map.
+      // 3. Process items and ensure ingredients exist in Firestore
+      // If ingredientId looks like a name (not a Firestore document ID), find or create the ingredient
+      const processedItems = await Promise.all(
+        itemsToAdd.map(async (item) => {
+          let { ingredientId, amount } = item;
+          if (!ingredientId) return null;
+
+          // Check if ingredientId looks like a name (contains spaces, lowercase, etc.)
+          // Firestore IDs are typically 20 chars alphanumeric without spaces
+          const looksLikeName = ingredientId.includes(' ') || 
+                                ingredientId.length > 30 || 
+                                /[^a-zA-Z0-9]/.test(ingredientId);
+
+          if (looksLikeName) {
+            // Try to find ingredient by title (case-insensitive)
+            const normalizedName = ingredientId.toLowerCase().trim();
+            const titleCaseName = ingredientId.split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(' ');
+
+            const existingIngredient = await firestore
+              .collection('ingredients')
+              .where('title', '==', titleCaseName)
+              .limit(1)
+              .get();
+
+            if (!existingIngredient.empty) {
+              // Use the existing ingredient's ID
+              ingredientId = existingIngredient.docs[0].id;
+            } else {
+              // Create new ingredient using AI (async, don't wait)
+              _generateAndSaveIngredient(ingredientId).catch(err => {
+                console.error(`Failed to generate ingredient "${ingredientId}":`, err);
+              });
+              // For now, use the name as ID (will be updated when ingredient is created)
+              // The shopping list can handle names as keys
+            }
+          }
+
+          return { ingredientId, amount };
+        })
+      );
+
+      // Filter out null items
+      const validItems = processedItems.filter(item => item !== null);
+
+      // 4. Use a transaction to safely read, modify, and write the map.
       await firestore.runTransaction(async (transaction) => {
         const doc = await transaction.get(listRef);
         const existingData = doc.data() || {};
         const manualItems = existingData.manualItems || {};
 
-        itemsToAdd.forEach((item) => {
+        validItems.forEach((item) => {
           const { ingredientId, amount } = item;
           if (ingredientId) {
             const key = amount ? `${ingredientId}/${amount}` : ingredientId;

@@ -6,6 +6,9 @@ import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
 import '../service/nutrition_controller.dart';
 import '../service/meal_move_service.dart';
+import '../service/plant_detection_service.dart';
+import '../service/meal_manager.dart';
+import 'plant_count_badge.dart';
 
 class MealDetailWidget extends StatefulWidget {
   final String mealType;
@@ -285,12 +288,43 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                capitalizeFirstLetter(meal.name),
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: isDarkMode ? kWhite : kDarkGrey,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      capitalizeFirstLetter(meal.name),
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: isDarkMode ? kWhite : kDarkGrey,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  // Plant count badge
+                                  if (meal.mealId.isNotEmpty &&
+                                      meal.mealId != 'Add Food')
+                                    FutureBuilder<int>(
+                                      future: _getPlantCountForMeal(meal.mealId),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                            ConnectionState.waiting) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        final plantCount = snapshot.data ?? 0;
+                                        if (plantCount == 0) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        return Padding(
+                                          padding: EdgeInsets.only(
+                                            left: getPercentageWidth(2, context),
+                                          ),
+                                          child: PlantCountBadge(
+                                            plantCount: plantCount,
+                                            size: getIconScale(3.5, context),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                ],
                               ),
                               SizedBox(
                                   height: getPercentageHeight(0.3, context)),
@@ -494,6 +528,29 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
         );
       },
     );
+  }
+
+  /// Get plant count for a meal by mealId
+  Future<int> _getPlantCountForMeal(String mealId) async {
+    try {
+      if (mealId.isEmpty || mealId == 'Add Food') return 0;
+
+      // Fetch meal data
+      final meal = await MealManager.instance.getMealbyMealID(mealId);
+      if (meal == null || meal.ingredients.isEmpty) return 0;
+
+      // Detect plants from meal ingredients
+      final plantService = PlantDetectionService.instance;
+      final detectedPlants = plantService.detectPlantsFromIngredients(
+        meal.ingredients,
+        widget.currentDate ?? DateTime.now(),
+      );
+
+      return detectedPlants.length;
+    } catch (e) {
+      debugPrint('Error getting plant count for meal $mealId: $e');
+      return 0;
+    }
   }
 
   void _moveMealToDate(UserMeal meal) {

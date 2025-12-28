@@ -30,6 +30,7 @@ import 'buddy_tab.dart';
 import '../helper/calendar_sharing_controller.dart';
 import '../service/calendar_sharing_service.dart';
 import '../service/cycle_adjustment_service.dart';
+import '../data_models/cycle_tracking_model.dart';
 import 'shopping_tab.dart';
 
 class MealDesignScreen extends StatefulWidget {
@@ -430,6 +431,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     return BlockableSingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(height: getPercentageHeight(1, context)),
           Row(
@@ -530,83 +532,92 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                 title: Row(
                   children: [
                     // Calendar view toggle
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: getPercentageWidth(1.5, context),
-                          vertical: getPercentageHeight(0.5, context)),
-                      decoration: BoxDecoration(
-                        color: kAccent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          SizedBox(width: getPercentageWidth(1, context)),
-                          Text(
-                            _mealPlanController.showSharedCalendars.value
-                                ? 'Shared'
-                                : familyMode
-                                    ? 'Family'
-                                    : 'Personal',
-                            style: textTheme.titleLarge?.copyWith(
-                                color: isDarkMode ? kWhite : kDarkGrey,
-                                fontWeight: FontWeight.w600,
-                                fontSize: getTextScale(4, context)),
-                          ),
-                          SizedBox(width: getPercentageWidth(1, context)),
-                          SizedBox(
-                              width: MediaQuery.of(context).size.height > 1100
-                                  ? getPercentageWidth(5, context)
-                                  : getPercentageWidth(1, context)),
-                          IconButton(
-                            key: _toggleCalendarButtonKey,
-                            icon: Icon(
-                              _mealPlanController.showSharedCalendars.value
-                                  ? Icons.person_outline
-                                  : Icons.people_outline,
-                              size: getIconScale(5.5, context),
-                            ),
-                            onPressed: () {
-                              if (!mounted) return;
-                              setState(() {
-                                _mealPlanController.showSharedCalendars.value =
-                                    !_mealPlanController
-                                        .showSharedCalendars.value;
-                              });
-                              _mealPlanController.refresh();
-                            },
-                            tooltip:
+                    Flexible(
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(1.5, context),
+                            vertical: getPercentageHeight(0.5, context)),
+                        decoration: BoxDecoration(
+                          color: kAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(width: getPercentageWidth(1, context)),
+                            Flexible(
+                              child: Text(
                                 _mealPlanController.showSharedCalendars.value
-                                    ? 'Show Personal Calendar'
-                                    : 'Show Shared Calendars',
-                          ),
-                          SizedBox(
-                              width: MediaQuery.of(context).size.height > 1100
-                                  ? getPercentageWidth(5, context)
-                                  : getPercentageWidth(1, context)),
-                          IconButton(
-                            key: _sharedCalendarButtonKey,
-                            icon: Icon(
-                              Icons.ios_share,
-                              size: getIconScale(4.5, context),
+                                    ? 'Shared'
+                                    : familyMode
+                                        ? 'Family'
+                                        : 'Personal',
+                                style: textTheme.titleLarge?.copyWith(
+                                    color: isDarkMode ? kWhite : kDarkGrey,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: getTextScale(4, context)),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            onPressed: () => _shareCalendar(''),
-                          ),
-                        ],
+                            SizedBox(width: getPercentageWidth(1, context)),
+                            SizedBox(
+                                width: MediaQuery.of(context).size.height > 1100
+                                    ? getPercentageWidth(5, context)
+                                    : getPercentageWidth(1, context)),
+                            IconButton(
+                              key: _toggleCalendarButtonKey,
+                              icon: Icon(
+                                _mealPlanController.showSharedCalendars.value
+                                    ? Icons.person_outline
+                                    : Icons.people_outline,
+                                size: getIconScale(5.5, context),
+                              ),
+                              onPressed: () {
+                                if (!mounted) return;
+                                setState(() {
+                                  _mealPlanController
+                                          .showSharedCalendars.value =
+                                      !_mealPlanController
+                                          .showSharedCalendars.value;
+                                });
+                                _mealPlanController.refresh();
+                              },
+                              tooltip:
+                                  _mealPlanController.showSharedCalendars.value
+                                      ? 'Show Personal Calendar'
+                                      : 'Show Shared Calendars',
+                            ),
+                            SizedBox(
+                                width: MediaQuery.of(context).size.height > 1100
+                                    ? getPercentageWidth(5, context)
+                                    : getPercentageWidth(1, context)),
+                            IconButton(
+                              key: _sharedCalendarButtonKey,
+                              icon: Icon(
+                                Icons.ios_share,
+                                size: getIconScale(4.5, context),
+                              ),
+                              onPressed: () => _shareCalendar(''),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     SizedBox(width: getPercentageWidth(2, context)),
                     if (!_mealPlanController.showSharedCalendars.value)
-                      Spacer(),
-                    if (!_mealPlanController.showSharedCalendars.value)
-                      Text(
-                        ' ${shortMonthName(selectedDate.month)} ${selectedDate.day}',
-                        style: textTheme.titleMedium?.copyWith(
-                            color: kAccent, fontWeight: FontWeight.w500),
+                      Flexible(
+                        child: Text(
+                          ' ${shortMonthName(selectedDate.month)} ${selectedDate.day}',
+                          style: textTheme.titleMedium?.copyWith(
+                              color: kAccent, fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
 
                     // Shared calendar selector
                     if (_mealPlanController.showSharedCalendars.value)
                       Flexible(
+                        flex: 2,
                         child: FutureBuilder<List<SharedCalendar>>(
                           future: () {
                             final userId = userService.userId;
@@ -980,15 +991,22 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                               Positioned(
                                                 left: 2,
                                                 top: 2,
-                                                child: Text(
-                                                  _getCyclePhaseEmoji(
-                                                      normalizedDate),
-                                                  style: TextStyle(
-                                                    fontSize:
-                                                        getPercentageWidth(
-                                                            2.5, context),
-                                                    color: _getCyclePhaseColor(
+                                                child: GestureDetector(
+                                                  onTap: () =>
+                                                      _showCycleGoalsDialog(
+                                                          context,
+                                                          normalizedDate),
+                                                  child: Text(
+                                                    _getCyclePhaseEmoji(
                                                         normalizedDate),
+                                                    style: TextStyle(
+                                                      fontSize:
+                                                          getPercentageWidth(
+                                                              2.5, context),
+                                                      color:
+                                                          _getCyclePhaseColor(
+                                                              normalizedDate),
+                                                    ),
                                                   ),
                                                 ),
                                               ),
@@ -1368,7 +1386,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final hasSharedMeals =
         _mealPlanController.showSharedCalendars.value && sharedPlans.isNotEmpty;
     final hasAnyMeals = hasPersonalMeals || hasSharedMeals;
-    final cycleSuggestion = _getCycleSuggestionForDate(normalizedSelectedDate);
 
     // Show empty state only if there are truly no meals and no special day
     if (!hasAnyMeals && !hasMeal && !isPersonalSpecialDay) {
@@ -1418,46 +1435,15 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               normalizedSelectedDate, birthdayName, isDarkMode, personalMeals),
         ],
 
-        if (cycleSuggestion != null) ...[
-          SizedBox(height: getPercentageHeight(0.5, context)),
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: getPercentageWidth(2, context),
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: getPercentageWidth(80, context),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cycle Goals',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDarkMode ? kLightGrey : kDarkGrey,
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                    SizedBox(height: getPercentageHeight(0.3, context)),
-                    Text(
-                      cycleSuggestion['appAction'] ?? '',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDarkMode ? kLightGrey : kDarkGrey,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-
         if (hasPersonalMeals &&
             !_mealPlanController.showSharedCalendars.value) ...[
           SizedBox(height: getPercentageHeight(1, context)),
-          _buildMealsRowContent(personalMeals, isDarkMode),
+          // Wrap GridView in a constrained container to prevent layout issues
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return _buildMealsRowContent(personalMeals, isDarkMode);
+            },
+          ),
           SizedBox(height: getPercentageHeight(1, context)),
         ],
 
@@ -1465,7 +1451,12 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         if (hasSharedMeals &&
             _mealPlanController.showSharedCalendars.value) ...[
           SizedBox(height: getPercentageHeight(1, context)),
-          _buildMealsRowContent(sharedPlans, isDarkMode),
+          // Wrap GridView in a constrained container to prevent layout issues
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return _buildMealsRowContent(sharedPlans, isDarkMode);
+            },
+          ),
           SizedBox(height: getPercentageHeight(1, context)),
         ],
 
@@ -1500,6 +1491,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Ensure we have valid constraints before proceeding
+        if (constraints.maxWidth.isInfinite || constraints.maxWidth <= 0) {
+          return const SizedBox.shrink();
+        }
+
         final double itemWidth = constraints.maxWidth / crossAxisCount;
         final double itemHeight = baseCardHeight;
         final double childAspectRatio = itemWidth / itemHeight;
@@ -2404,123 +2400,113 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       {DateTime? normalizedSelectedDate, bool? isSpecialDay}) {
     final textTheme = Theme.of(context).textTheme;
     final currentDayType = _mealPlanController.dayTypes[date] ?? 'regular_day';
-    final cycleSuggestion = _getCycleSuggestionForDate(date);
     return SizedBox(
       height: 200,
       child: Center(
-        child: Column(
-          key: _addMealButtonKey,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (birthdayName.isNotEmpty &&
-                _mealPlanController.showSharedCalendars.value) ...[
-              getBirthdayTextContainer(birthdayName, false, context),
-            ],
-            if (_isUserBirthday(date)) ...[
-              getBirthdayTextContainer('You', false, context),
-            ],
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (!date.isBefore(
-                    DateTime.now().subtract(const Duration(days: 1)))) ...[
-                  SizedBox(height: getPercentageHeight(1, context)),
-                  TextButton.icon(
-                    onPressed: () => _addMealPlan(
-                        context, isDarkMode, false, '',
-                        goStraightToAddMeal: !familyMode ||
-                                selectedCategory.toLowerCase() ==
-                                    userService.currentUser.value?.displayName
-                                        ?.toLowerCase()
-                            ? false
-                            : true),
-                    icon: Icon(Icons.add, size: getIconScale(6, context)),
-                    label: Text('Add Meal',
-                        style: textTheme.bodyMedium?.copyWith(
-                            fontSize: getPercentageWidth(3.5, context),
-                            fontWeight: FontWeight.w400)),
-                    style: TextButton.styleFrom(
-                      foregroundColor: kAccent,
-                    ),
-                  ),
-                ],
+        child: SingleChildScrollView(
+          child: Column(
+            key: _addMealButtonKey,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (birthdayName.isNotEmpty &&
+                  _mealPlanController.showSharedCalendars.value) ...[
+                getBirthdayTextContainer(birthdayName, false, context),
               ],
-            ),
-            SizedBox(height: getPercentageHeight(1, context)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
-                  Icon(
-                    Icons.restaurant,
-                    size: getPercentageWidth(6, context),
-                    color: isDarkMode ? Colors.white24 : Colors.black26,
-                  ),
+              if (_isUserBirthday(date)) ...[
+                getBirthdayTextContainer('You', false, context),
+              ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!date.isBefore(
+                      DateTime.now().subtract(const Duration(days: 1)))) ...[
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    TextButton.icon(
+                      onPressed: () => _addMealPlan(
+                          context, isDarkMode, false, '',
+                          goStraightToAddMeal: !familyMode ||
+                                  selectedCategory.toLowerCase() ==
+                                      userService.currentUser.value?.displayName
+                                          ?.toLowerCase()
+                              ? false
+                              : true),
+                      icon: Icon(Icons.add, size: getIconScale(6, context)),
+                      label: Text('Add Meal',
+                          style: textTheme.bodyMedium?.copyWith(
+                              fontSize: getPercentageWidth(3.5, context),
+                              fontWeight: FontWeight.w400)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: kAccent,
+                      ),
+                    ),
+                  ],
                 ],
-                SizedBox(width: getPercentageWidth(1.5, context)),
-                Column(
-                  children: [
-                    if (isSpecialDay == true) ...[
-                      Text(
-                        'Enjoy your ${currentDayType.toLowerCase() == 'regular_day' ? 'meal plan' : capitalizeFirstLetter(currentDayType.replaceAll('_', ' '))}!',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: getDayTypeColor(
-                              currentDayType.replaceAll('_', ' '), isDarkMode),
-                        ),
-                      ),
-                    ],
-                    SizedBox(width: getPercentageWidth(1.5, context)),
-                    if (cycleSuggestion != null) ...[
-                      // Cycle Syncing messaging for luteal phase
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: getPercentageWidth(80, context),
+              ),
+              // Cycle goals button - only show in personal calendar view and for non-past dates
+              if (!_mealPlanController.showSharedCalendars.value) ...[
+                Builder(
+                  builder: (context) {
+                    final isPastDate = date.isBefore(DateTime(
+                        DateTime.now().year,
+                        DateTime.now().month,
+                        DateTime.now().day));
+                    final cycleSuggestion =
+                        !isPastDate ? _getCycleSuggestionForDate(date) : null;
+                    if (cycleSuggestion == null) return const SizedBox.shrink();
+
+                    final phaseEmoji = _getCyclePhaseEmoji(date);
+                    final phaseColor = _getCyclePhaseColor(date);
+
+                    return Padding(
+                      padding:
+                          EdgeInsets.only(top: getPercentageHeight(1, context)),
+                      child: TextButton.icon(
+                        onPressed: () => _showCycleGoalsDialog(context, date),
+                        icon: Text(
+                          phaseEmoji,
+                          style: TextStyle(
+                            fontSize: getPercentageWidth(4, context),
+                            color: phaseColor,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Cycle Goals',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: isDarkMode ? kLightGrey : kDarkGrey,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              SizedBox(
-                                  height: getPercentageHeight(0.5, context)),
-                              Text(
-                                cycleSuggestion['description'] ?? '',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: isDarkMode ? kLightGrey : kDarkGrey,
-                                ),
-                              ),
-                              SizedBox(
-                                  height: getPercentageHeight(0.3, context)),
-                              Text(
-                                cycleSuggestion['appAction'] ?? '',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: isDarkMode ? kLightGrey : kDarkGrey,
-                                ),
-                              ),
-                              SizedBox(
-                                  height: getPercentageHeight(0.8, context)),
-                              Text(
-                                getRelativeDayString(selectedDate) == 'Today' ||
-                                        getRelativeDayString(selectedDate) ==
-                                            'Tomorrow'
-                                    ? 'No meals planned for ${getRelativeDayString(selectedDate)}'
-                                    : 'No meals planned for this day',
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: isDarkMode ? kLightGrey : kDarkGrey,
-                                ),
-                              ),
-                            ],
+                        ),
+                        label: Text(
+                          'View Cycle Goals',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: phaseColor,
+                            fontWeight: FontWeight.w500,
+                            fontSize: getPercentageWidth(3.5, context),
                           ),
                         ),
                       ),
-                    ] else ...[
+                    );
+                  },
+                ),
+              ],
+              SizedBox(height: getPercentageHeight(1, context)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (birthdayName.isEmpty && !_isUserBirthday(date)) ...[
+                    Icon(
+                      Icons.restaurant,
+                      size: getPercentageWidth(6, context),
+                      color: isDarkMode ? Colors.white24 : Colors.black26,
+                    ),
+                  ],
+                  SizedBox(width: getPercentageWidth(1.5, context)),
+                  Column(
+                    children: [
+                      if (isSpecialDay == true) ...[
+                        Text(
+                          'Enjoy your ${currentDayType.toLowerCase() == 'regular_day' ? 'meal plan' : capitalizeFirstLetter(currentDayType.replaceAll('_', ' '))}!',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: getDayTypeColor(
+                                currentDayType.replaceAll('_', ' '),
+                                isDarkMode),
+                          ),
+                        ),
+                      ],
+                      SizedBox(width: getPercentageWidth(1.5, context)),
                       Text(
                         getRelativeDayString(selectedDate) == 'Today' ||
                                 getRelativeDayString(selectedDate) == 'Tomorrow'
@@ -2531,11 +2517,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                         ),
                       ),
                     ],
-                  ],
-                ),
-              ],
-            ),
-          ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2604,6 +2590,43 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             ),
                           ),
                         ],
+                            // Cycle goals button - only show in personal calendar view and for non-past dates
+                    if (meals.isNotEmpty &&
+                        !_mealPlanController.showSharedCalendars.value) ...[
+                      Builder(
+                        builder: (context) {
+                          final isPastDate = date.isBefore(DateTime(
+                              DateTime.now().year,
+                              DateTime.now().month,
+                              DateTime.now().day));
+                          final cycleSuggestion = !isPastDate
+                              ? _getCycleSuggestionForDate(date)
+                              : null;
+                          if (cycleSuggestion == null)
+                            return const SizedBox.shrink();
+
+                          final phaseEmoji = _getCyclePhaseEmoji(date);
+                          final phaseColor = _getCyclePhaseColor(date);
+
+                          return Padding(
+                            padding: EdgeInsets.only(
+                                top: getPercentageHeight(0.5, context)),
+                            child: IconButton(
+                              onPressed: () =>
+                                  _showCycleGoalsDialog(context, date),
+                              icon: Text(
+                                phaseEmoji,
+                                style: TextStyle(
+                                  fontSize: getPercentageWidth(4, context),
+                                  color: phaseColor,
+                                ),
+                              ),
+                              tooltip: 'View Cycle Goals',
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                       ],
                     ),
                     if (isUserBirthday)
@@ -2817,9 +2840,9 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     return cycleAdjustmentService.getPhaseEmoji(phase);
   }
 
-  /// Returns a suggestion for the given date if cycle syncing is enabled,
-  /// the user is not male, and the phase is luteal. Otherwise returns null.
-  Map<String, String>? _getCycleSuggestionForDate(DateTime date) {
+  /// Returns a suggestion for the given date if cycle syncing is enabled
+  /// and the user is not male. Returns recommendations for all phases.
+  Map<String, dynamic>? _getCycleSuggestionForDate(DateTime date) {
     // In family mode, only return cycle suggestions for the main user (displayName)
     if (familyMode) {
       final isMainUser = selectedCategory.toLowerCase() ==
@@ -2850,16 +2873,187 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final phase = cycleAdjustmentService.getCurrentPhase(
         lastPeriodStart, cycleLength, date);
 
-    // Handle both enum-like and string-like phases by inspecting the text.
-    final phaseText = phase.toString().toLowerCase();
-    if (!phaseText.contains('luteal')) return null;
+    final recommendations =
+        cycleAdjustmentService.getPhaseRecommendations(phase);
+
+    // Create a concise summary for inline display
+    String appAction = '';
+    switch (phase) {
+      case CyclePhase.menstrual:
+        appAction =
+            'Focus on iron-rich foods, magnesium, and warm cooked meals to support your body during your period.';
+        break;
+      case CyclePhase.follicular:
+        appAction =
+            'Support hormone production with healthy fats, antioxidants, and omega-3s for energy and cell renewal.';
+        break;
+      case CyclePhase.ovulation:
+        appAction =
+            'Maintain peak energy with hydrating foods, antioxidants, and light, cooling options.';
+        break;
+      case CyclePhase.luteal:
+        appAction =
+            'Support recovery and energy with complex carbs, protein, and foods that help balance hormones.';
+        break;
+    }
 
     return {
-      'title': 'Luteal Phase – Support Recovery & Energy',
-      'description':
-          'You\'re in the luteal phase of your cycle, when energy can dip and recovery matters a bit more.',
-      'appAction':
-          'Today we need to focus on steadier energy by nudging complex carbs slightly higher and keeping protein consistent to support recovery.'
+      'title': recommendations['title'] as String,
+      'description': recommendations['description'] as String,
+      'foods': recommendations['foods'] as List<String>,
+      'appAction': appAction,
+      'phase': phase,
     };
+  }
+
+  /// Show cycle goals dialog with detailed recommendations
+  void _showCycleGoalsDialog(BuildContext context, DateTime date) {
+    final cycleSuggestion = _getCycleSuggestionForDate(date);
+    if (cycleSuggestion == null) return;
+
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+    final phase = cycleSuggestion['phase'] as CyclePhase;
+    final phaseColor = cycleAdjustmentService.getPhaseColor(phase);
+    final phaseEmoji = cycleAdjustmentService.getPhaseEmoji(phase);
+    final foods = cycleSuggestion['foods'] as List<String>;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Text(
+              phaseEmoji,
+              style: TextStyle(fontSize: getPercentageWidth(6, context)),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+            Expanded(
+              child: Text(
+                cycleSuggestion['title'] as String,
+                style: textTheme.titleLarge?.copyWith(
+                  color: phaseColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+            maxWidth: MediaQuery.of(context).size.width * 0.9,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  cycleSuggestion['description'] as String,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                    fontSize: getPercentageWidth(3.5, context),
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(2, context)),
+                Container(
+                  padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                  decoration: BoxDecoration(
+                    color: phaseColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Recommended Foods:',
+                        style: textTheme.titleSmall?.copyWith(
+                          color: phaseColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: getPercentageWidth(3.5, context),
+                        ),
+                      ),
+                      SizedBox(height: getPercentageHeight(1, context)),
+                      ...foods.map((food) => Padding(
+                            padding: EdgeInsets.only(
+                                bottom: getPercentageHeight(0.8, context)),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_outline,
+                                  size: getPercentageWidth(3, context),
+                                  color: phaseColor,
+                                ),
+                                SizedBox(width: getPercentageWidth(2, context)),
+                                Expanded(
+                                  child: Text(
+                                    food,
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color:
+                                          isDarkMode ? kLightGrey : kDarkGrey,
+                                      fontSize: getPercentageWidth(3, context),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                    ],
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(1.5, context)),
+                Container(
+                  padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                  decoration: BoxDecoration(
+                    color: kAccentLight.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.lightbulb_outline,
+                        color: kAccent,
+                        size: getPercentageWidth(4, context),
+                      ),
+                      SizedBox(width: getPercentageWidth(2, context)),
+                      Expanded(
+                        child: Text(
+                          cycleSuggestion['appAction'] as String,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: isDarkMode ? kLightGrey : kDarkGrey,
+                            fontSize: getPercentageWidth(3, context),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Got it',
+              style: textTheme.bodyMedium?.copyWith(
+                color: phaseColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../service/symptom_analysis_service.dart';
+import 'daily_summary_screen.dart';
 import 'rainbow_tracker_detail_screen.dart';
 
 class SymptomInsightsScreen extends StatefulWidget {
@@ -99,7 +100,9 @@ class _SymptomInsightsScreenState extends State<SymptomInsightsScreen> {
                         _buildSummaryCard(context, isDarkMode, textTheme),
                         SizedBox(height: getPercentageHeight(2, context)),
                         _buildTopTriggersCard(context, isDarkMode, textTheme),
-                        SizedBox(height: getPercentageHeight(2, context)),
+                        SizedBox(height: getPercentageHeight(1, context)),
+                        _buildAddFoodCard(context, isDarkMode, textTheme),
+                        SizedBox(height: getPercentageHeight(2.5, context)),
                         _buildTrendsCard(context, isDarkMode, textTheme),
                         SizedBox(height: getPercentageHeight(2, context)),
                         _buildRecommendationsCard(
@@ -112,6 +115,68 @@ class _SymptomInsightsScreenState extends State<SymptomInsightsScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildAddFoodCard(
+    BuildContext context,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    return Center(
+      child: Container(
+        padding: EdgeInsets.all(getPercentageWidth(4, context)),
+        decoration: BoxDecoration(
+          color: isDarkMode ? kDarkGrey.withValues(alpha: 0.5) : kWhite,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: kAccentLight.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      DailySummaryScreen(date: DateTime.now(), instanceId: 'jbjkbjknknk')),
+            );
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(
+                    Icons.restaurant_menu,
+                    color: kAccentLight,
+                    size: getIconScale(4, context),
+                  ),
+                  SizedBox(width: getPercentageWidth(2, context)),
+                  Text(
+                    'Log Your Symptoms for Today',
+                    style: textTheme.displaySmall?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontSize: getTextScale(4, context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(width: getPercentageWidth(1, context)),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: kAccentLight,
+                    size: getIconScale(4, context),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -45,60 +45,65 @@ class InfoIconWidget extends StatelessWidget {
           ],
         ),
         padding: EdgeInsets.all(getPercentageWidth(6, context)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: textTheme.displaySmall?.copyWith(
-                          color: iconColor,
-                          fontSize: getTextScale(5, context),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (description.isNotEmpty)
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          description,
-                          style: textTheme.bodySmall?.copyWith(
-                            fontSize: getTextScale(3, context),
-                            color: kLightGrey,
+                          title,
+                          style: textTheme.displaySmall?.copyWith(
+                            color: iconColor,
+                            fontSize: getTextScale(5, context),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                    ],
+                        if (description.isNotEmpty)
+                          Text(
+                            description,
+                            style: textTheme.bodySmall?.copyWith(
+                              fontSize: getTextScale(3, context),
+                              color: kLightGrey,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close, color: iconColor),
-                ),
-              ],
-            ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close, color: iconColor),
+                  ),
+                ],
+              ),
 
-            SizedBox(height: getPercentageHeight(2, context)),
+              SizedBox(height: getPercentageHeight(2, context)),
 
-            // Details
-            ...details
-                .map((detail) => _buildDetailItem(
-                      context,
-                      detail['icon'] ?? Icons.info_outline,
-                      detail['title'] ?? '',
-                      detail['description'] ?? '',
-                      detail['color'] ?? iconColor,
-                      isDarkMode,
-                      textTheme,
-                    ))
-                .toList(),
+              // Details
+              ...details
+                  .map((detail) => _buildDetailItem(
+                        context,
+                        detail['icon'] ?? Icons.info_outline,
+                        detail['title'] ?? '',
+                        detail['description'] ?? '',
+                        detail['color'] ?? iconColor,
+                        isDarkMode,
+                        textTheme,
+                      ))
+                  .toList(),
 
-            SizedBox(height: getPercentageHeight(2, context)),
-          ],
+              SizedBox(height: getPercentageHeight(2, context)),
+            ],
+          ),
         ),
       ),
     );

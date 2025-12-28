@@ -1029,4 +1029,61 @@ class PlantDetectionService extends GetxController {
 
     return '${year}-W${weekNumber.toString().padLeft(2, '0')}';
   }
+
+  /// Get summary of plants from previous weeks
+  /// Returns a list of week summaries with plant counts
+  Future<List<Map<String, dynamic>>> getPreviousWeeksSummary(
+    String userId,
+    DateTime currentWeekStart, {
+    int numberOfWeeks = 4,
+  }) async {
+    try {
+      final summaries = <Map<String, dynamic>>[];
+
+      // Get previous weeks (going back from current week)
+      for (int i = 1; i <= numberOfWeeks; i++) {
+        final previousWeekStart =
+            currentWeekStart.subtract(Duration(days: 7 * i));
+        final weekId = _getWeekId(previousWeekStart);
+
+        try {
+          final docRef = firestore
+              .collection('users')
+              .doc(userId)
+              .collection('plant_tracking')
+              .doc(weekId);
+
+          final doc = await docRef.get();
+          if (doc.exists) {
+            final data = doc.data()!;
+            final plantCount =
+                (data['plantDetails'] as List<dynamic>?)?.length ?? 0;
+            final uniquePlants =
+                (data['uniquePlants'] as List<dynamic>?)?.length ?? 0;
+            final level = (data['currentLevel'] as int?) ?? 0;
+
+            summaries.add({
+              'weekStart': previousWeekStart,
+              'weekId': weekId,
+              'plantCount': plantCount,
+              'uniquePlants': uniquePlants,
+              'level': level,
+            });
+          }
+        } catch (e) {
+          debugPrint('Error loading week $weekId: $e');
+          // Continue to next week even if one fails
+        }
+      }
+
+      // Sort by weekStart descending (most recent first)
+      summaries.sort((a, b) =>
+          (b['weekStart'] as DateTime).compareTo(a['weekStart'] as DateTime));
+
+      return summaries;
+    } catch (e) {
+      debugPrint('Error getting previous weeks summary: $e');
+      return [];
+    }
+  }
 }

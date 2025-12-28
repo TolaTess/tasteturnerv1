@@ -27,6 +27,7 @@ class _RainbowTrackerDetailScreenState
   PlantCategory? _selectedCategory; // Track selected category filter
   List<String> _triggerIngredients =
       []; // List of trigger ingredient names (lowercase)
+  List<Map<String, dynamic>> _previousWeeksSummary = []; // Previous weeks data
 
   @override
   void initState() {
@@ -53,7 +54,7 @@ class _RainbowTrackerDetailScreenState
         return;
       }
 
-      // Load plant data and trigger ingredients in parallel
+      // Load plant data, trigger ingredients, and previous weeks summary in parallel
       final score = await plantDetectionService.getPlantDiversityScore(
         userId,
         widget.weekStart,
@@ -61,6 +62,11 @@ class _RainbowTrackerDetailScreenState
       final plants = await plantDetectionService.getUniquePlantsForWeek(
         userId,
         widget.weekStart,
+      );
+      final previousWeeks = await plantDetectionService.getPreviousWeeksSummary(
+        userId,
+        widget.weekStart,
+        numberOfWeeks: 4,
       );
 
       // Load trigger ingredients from symptom analysis
@@ -86,6 +92,7 @@ class _RainbowTrackerDetailScreenState
           _diversityScore = score;
           _plants = plants;
           _triggerIngredients = triggerIngredients;
+          _previousWeeksSummary = previousWeeks;
           _isLoading = false;
         });
       }
@@ -361,6 +368,116 @@ class _RainbowTrackerDetailScreenState
                       ),
 
                       SizedBox(height: getPercentageHeight(3, context)),
+
+                      // Previous Weeks Summary
+                      if (_previousWeeksSummary.isNotEmpty) ...[
+                        Text(
+                          'Previous Weeks',
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? kWhite : kBlack,
+                          ),
+                        ),
+                        SizedBox(height: getPercentageHeight(2, context)),
+                        Container(
+                          padding:
+                              EdgeInsets.all(getPercentageWidth(3, context)),
+                          decoration: BoxDecoration(
+                            color: isDarkMode
+                                ? kDarkGrey.withValues(alpha: 0.5)
+                                : kBackgroundColor.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: kAccent.withValues(alpha: 0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            children: _previousWeeksSummary.map((weekData) {
+                              final weekStart =
+                                  weekData['weekStart'] as DateTime;
+                              final plantCount = weekData['plantCount'] as int;
+                              final level = weekData['level'] as int;
+
+                              // Format week range (Monday to Sunday)
+                              final weekEnd =
+                                  weekStart.add(const Duration(days: 6));
+                              final weekRange =
+                                  '${weekStart.day}/${weekStart.month} - ${weekEnd.day}/${weekEnd.month}/${weekStart.year}';
+
+                              return Container(
+                                margin: EdgeInsets.only(
+                                  bottom: getPercentageHeight(1, context),
+                                ),
+                                padding: EdgeInsets.all(
+                                  getPercentageWidth(3, context),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDarkMode ? kDarkGrey : kWhite,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            weekRange,
+                                            style:
+                                                textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color:
+                                                  isDarkMode ? kWhite : kBlack,
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            height: getPercentageHeight(
+                                                0.5, context),
+                                          ),
+                                          Text(
+                                            '$plantCount unique plants',
+                                            style:
+                                                textTheme.bodySmall?.copyWith(
+                                              color: kAccent,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (level > 0)
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal:
+                                              getPercentageWidth(2.5, context),
+                                          vertical:
+                                              getPercentageHeight(0.8, context),
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _getLevelColor(level)
+                                              .withValues(alpha: 0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          _getLevelName(level),
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: _getLevelColor(level),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        SizedBox(height: getPercentageHeight(3, context)),
+                      ],
 
                       // Category Breakdown
                       if (_diversityScore!.categoryBreakdown.isNotEmpty) ...[

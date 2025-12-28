@@ -13,6 +13,7 @@ import '../widgets/primary_button.dart';
 import '../constants.dart';
 import '../screens/createrecipe_screen.dart';
 import '../screens/user_profile_screen.dart';
+import '../service/plant_detection_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -258,6 +259,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 meal: _meal!,
               ),
 
+              // Plant diversity preview (informational)
+              if (_meal!.ingredients.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _buildPlantDiversityPreview(context),
+                ),
+
               // Turner's Notes section
               if (_meal != null) ..._buildTurnersNotes(context),
 
@@ -502,6 +509,78 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     }
 
     return spans;
+  }
+
+  /// Build plant diversity preview widget (informational)
+  Widget _buildPlantDiversityPreview(BuildContext context) {
+    if (_meal == null || _meal!.ingredients.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final textTheme = Theme.of(context).textTheme;
+
+    // Calculate plant count from ingredients
+    final plantService = PlantDetectionService.instance;
+    final detectedPlants = plantService.detectPlantsFromIngredients(
+      _meal!.ingredients,
+      DateTime.now(),
+    );
+
+    final plantCount = detectedPlants.length;
+    if (plantCount == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: EdgeInsets.only(
+        left: getPercentageWidth(3, context),
+        right: getPercentageWidth(3, context),
+        top: getPercentageHeight(2, context),
+      ),
+      padding: EdgeInsets.all(getPercentageWidth(4, context)),
+      decoration: BoxDecoration(
+        color: kAccent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: kAccent.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.eco,
+            color: kAccent,
+            size: getIconScale(5, context),
+          ),
+          SizedBox(width: getPercentageWidth(2, context)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Plant Diversity Preview',
+                  style: textTheme.titleSmall?.copyWith(
+                    color: kAccent,
+                    fontWeight: FontWeight.w600,
+                    fontSize: getTextScale(3.5, context),
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(0.5, context)),
+                Text(
+                  'This recipe contains $plantCount ${plantCount == 1 ? 'plant' : 'plants'}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: isDarkMode ? kWhite.withValues(alpha: 0.8) : kDarkGrey,
+                    fontSize: getTextScale(3, context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Build Turner's Notes section widget
