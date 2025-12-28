@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../constants.dart';
+
 // NOTE: This file is intentionally lightweight. The main onboarding logic and
 // state live in `onboarding_screen.dart`. This widget exists only to keep the
 // UI for the cycle syncing slide structured if we ever want to reuse it.
@@ -53,6 +55,8 @@ class OnboardingCycleSyncScreen extends StatelessWidget {
               ),
             ),
             Switch(
+              activeColor: kAccent,
+              activeTrackColor: kAccent.withValues(alpha: 0.5),
               value: isEnabled,
               onChanged: (_) => onToggle(),
             ),
@@ -68,6 +72,7 @@ class OnboardingCycleSyncScreen extends StatelessWidget {
           OutlinedButton(
             onPressed: onPickDate,
             child: Text(
+              style: const TextStyle(color: kAccent),
               lastPeriodStart != null
                   ? '${lastPeriodStart!.day.toString().padLeft(2, '0')}-'
                       '${lastPeriodStart!.month.toString().padLeft(2, '0')}-'

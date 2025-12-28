@@ -22,8 +22,6 @@ import 'onboarding_cycle_sync_screen.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-import 'splash_screen.dart';
-
 class OnboardingScreen extends StatefulWidget {
   final String userId;
   final String? displayName;
@@ -67,6 +65,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // Track if a form is currently being shown/loaded to prevent concurrent calls
   bool _isFormLoading = false;
 
+  // Scroll controller for lingo walkthrough slide
+  final ScrollController _lingoScrollController = ScrollController();
+
   // List<Map<String, String>> familyMembers = [];
 
   @override
@@ -97,6 +98,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _bounceController.dispose();
     _controller.dispose();
     nameController.dispose();
+    _lingoScrollController.dispose();
     super.dispose();
   }
 
@@ -109,7 +111,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   /// Get the total number of pages (excluding name page if skipped)
-  int get _totalPages => _shouldSkipNamePage() ? 7 : 8;
+  int get _totalPages => _shouldSkipNamePage() ? 9 : 10;
 
   /// Build the list of pages for PageView, conditionally excluding name page
   List<Widget> _buildPageViewChildren() {
@@ -128,7 +130,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       _buildGenderSlide(),
       _buildCycleSyncSlide(),
       _buildUMPConsentSlide(),
+      _buildFreeTrialSlide(),
       _buildSettingsSlide(),
+      _buildLingualWalkthroughSlide(),
     ]);
 
     return children;
@@ -274,8 +278,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           break;
         case 6:
           if (skipNamePage) {
-            // Page 6 is now Settings slide
-            _isNextEnabled = true; // Settings slide
+            // Page 6 is now Free Trial slide
+            _isNextEnabled = true; // Free Trial slide - always enabled
           } else {
             // Page 6 is UMP Consent slide
             // Next button is only enabled after consent is obtained
@@ -283,8 +287,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           }
           break;
         case 7:
-          // Only reached if name page is NOT skipped
-          _isNextEnabled = true; // Settings slide
+          if (skipNamePage) {
+            // Page 7 is now Settings slide
+            _isNextEnabled = true; // Settings slide
+          } else {
+            // Page 7 is Free Trial slide
+            _isNextEnabled = true; // Free Trial slide - always enabled
+          }
+          break;
+        case 8:
+          if (skipNamePage) {
+            // Page 8 is now Lingual Walkthrough (New last page)
+            _isNextEnabled = true;
+          } else {
+            // Page 8 is Settings
+            _isNextEnabled = true;
+          }
+          break;
+        case 9:
+          // Page 9 is Lingual Walkthrough (New last page)
+          _isNextEnabled = true;
           break;
         default:
           _isNextEnabled = false;
@@ -882,7 +904,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: getPercentageHeight(2, context)),
+            SizedBox(height: getPercentageHeight(0.5, context)),
+            Text(
+              "These are some things we can do together.",
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: getTextScale(3, context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: getPercentageHeight(1, context)),
             // Feature boxes in 2x2 grid
             Column(
               children: [
@@ -891,13 +922,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   children: [
                     _buildFeatureBox(
                       context,
-                      "Programs",
+                      "Join a Programs",
                       kPurple.withValues(alpha: 0.5), // Green
                       Icons.restaurant_menu,
                     ),
                     _buildFeatureBox(
                       context,
-                      "Calender",
+                      "Share your Calender with Family",
                       kBlue.withValues(alpha: 0.5), // Blue
                       Icons.calendar_month,
                     ),
@@ -915,7 +946,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                     _buildFeatureBox(
                       context,
-                      "Spin Wheel",
+                      "Spin the Wheel",
                       kAccent.withValues(alpha: 0.5), // Purple
                       Icons.casino,
                     ),
@@ -962,7 +993,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           children: [
             SizedBox(height: getPercentageHeight(3, context)),
             Text(
-              "At Your Service!", // My expertise at your service.
+              "I'm at your Service!", // My expertise at your service.
               style: TextStyle(
                 color: Colors.white,
                 fontSize: getTextScale(5, context),
@@ -970,7 +1001,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: getPercentageHeight(2, context)),
+
+            SizedBox(height: getPercentageHeight(0.5, context)),
+            Text(
+              "These are some things I can do for you.",
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: getTextScale(3, context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: getPercentageHeight(1, context)),
             // Feature boxes in 2x2 grid
             Column(
               children: [
@@ -985,9 +1026,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                     _buildFeatureBox(
                       context,
-                      "Instant Insights",
+                      "Get daily insights on your meals",
                       kBlue.withValues(alpha: 0.5), // Cyan
-                      Icons.lightbulb,
+                      Icons.insights,
                     ),
                   ],
                 ),
@@ -997,15 +1038,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   children: [
                     _buildFeatureBox(
                       context,
-                      "Chat",
+                      "Chat with me, your Sous Chef",
                       kAccentLight.withValues(alpha: 0.5), // Deep Orange
                       Icons.chat,
                     ),
                     _buildFeatureBox(
                       context,
-                      "Nutrition Summary",
+                      "Get your Symptoms Tracked",
                       kAccent.withValues(alpha: 0.5), // Deep Purple
-                      Icons.recommend,
+                      Icons.health_and_safety,
                     ),
                   ],
                 ),
@@ -1058,7 +1099,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: getPercentageHeight(2, context)),
+            SizedBox(height: getPercentageHeight(0.5, context)),
+            Text(
+              "More things we can do together",
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: getTextScale(3.5, context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: getPercentageHeight(1, context)),
             // Feature boxes in 2x2 grid
             Column(
               children: [
@@ -1067,13 +1117,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   children: [
                     _buildFeatureBox(
                       context,
-                      "Track Macros",
+                      "Track your Macros and Calories",
                       kPurple.withValues(alpha: 0.5), // Green
                       Icons.track_changes,
                     ),
                     _buildFeatureBox(
                       context,
-                      "Weight Progress",
+                      "Track your Weight Progress",
                       kBlue.withValues(alpha: 0.5), // Blue
                       Icons.monitor_weight,
                     ),
@@ -1085,13 +1135,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   children: [
                     _buildFeatureBox(
                       context,
-                      "Shopping Lists",
+                      "Generate Shopping Lists",
                       kPink.withValues(alpha: 0.5), // Orange
                       Icons.shopping_cart,
                     ),
                     _buildFeatureBox(
                       context,
-                      "Visual Tracking",
+                      "Check your Health and Food Intake",
                       kAccent.withValues(alpha: 0.5), // Purple
                       Icons.bar_chart,
                     ),
@@ -1192,6 +1242,134 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                 ),
               ),
+            SizedBox(height: getPercentageHeight(2, context)),
+          ],
+        ),
+      ),
+      child2: const SizedBox.shrink(),
+      child3: const SizedBox.shrink(),
+    );
+  }
+
+  /// Free Trial Slide: 30-Day Free Access
+  Widget _buildFreeTrialSlide() {
+    final userName = nameController.text.trim().isNotEmpty
+        ? nameController.text.trim()
+        : (widget.displayName != null && widget.displayName!.isNotEmpty
+            ? widget.displayName!
+            : "there");
+
+    // Calculate free trial end date (30 days from now)
+    final freeTrialEndDate = DateTime.now().add(const Duration(days: 30));
+    final formattedDate = DateFormat('MMM d, yyyy').format(freeTrialEndDate);
+
+    return _buildPage(
+      textTheme: Theme.of(context).textTheme,
+      title: "Your 30-Day Free Trial,\nChef $userName!",
+      description:
+          "You get full access to all features for 30 days. Explore everything TasteTurner has to offer!",
+      child1: Container(
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [kAccentLight, kAccentLight.withValues(alpha: 0.5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: kAccentLight.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: getPercentageHeight(2, context)),
+            Icon(
+              Icons.celebration,
+              color: Colors.white,
+              size: getIconScale(12, context),
+            ),
+            SizedBox(height: getPercentageHeight(3, context)),
+            Text(
+              "Full Access for 30 Days",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: getTextScale(5, context),
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: getPercentageHeight(0.5, context)),
+            Text(
+              "You will see ads during your free trial.",
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: getTextScale(3, context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: getPercentageHeight(1, context)),
+
+            Container(
+              padding: EdgeInsets.all(getPercentageWidth(4, context)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    "Your free trial ends on",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: getTextScale(3.5, context),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: getPercentageHeight(1, context)),
+                  Text(
+                    formattedDate,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: getTextScale(5, context),
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(3, context)),
+            Container(
+              padding: EdgeInsets.all(getPercentageWidth(4, context)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.white,
+                    size: getIconScale(6, context),
+                  ),
+                  SizedBox(width: getPercentageWidth(3, context)),
+                  Expanded(
+                    child: Text(
+                      "After your free trial ends, upgrade to Executive Chef to continue enjoying all premium features.",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: getTextScale(3.2, context),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             SizedBox(height: getPercentageHeight(2, context)),
           ],
         ),
@@ -1351,12 +1529,213 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
+  /// New Slide: Lingual Walkthrough / Chef Terminology
+  Widget _buildLingualWalkthroughSlide() {
+    return _buildPage(
+      textTheme: Theme.of(context).textTheme,
+      title: "Speaking the Lingo",
+      description:
+          "Before we start service, let's learn the language of the kitchen. Here is how we run things.",
+      child1: Container(
+        padding: EdgeInsets.all(getPercentageWidth(5, context)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              kAccent,
+              kPurple.withValues(alpha: 0.7)
+            ], // Teal to Blue gradient
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: kAccent.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              controller: _lingoScrollController,
+              child: Column(
+                children: [
+                  SizedBox(height: getPercentageHeight(2, context)),
+                  _buildTermRow(
+                    context,
+                    "Head Chef",
+                    "That's You! You're in charge of your kitchen and nutrition goals.",
+                    Icons.person,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Sous Chef",
+                    "That's Me (Turner). I'm your AI assistant here to help with meal planning and tracking.",
+                    Icons.smart_toy,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "The Pass",
+                    "Your Food Diary. Log meals, track macros, and review your daily nutrition here.",
+                    Icons.assignment,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Dine In",
+                    "Cook with what you have. Get recipe suggestions based on ingredients in your fridge.",
+                    Icons.kitchen,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Kitchen",
+                    "Your main dashboard. Track daily nutrition, view goals, and access quick actions.",
+                    Icons.home,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Menus",
+                    "Meal programs and plans tailored to your dietary needs.",
+                    Icons.restaurant_menu,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Inspiration",
+                    "Community feed where chefs share recipes and tips.",
+                    Icons.explore,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Spin",
+                    "Spin the wheel for spontaneous recipe discovery when you can't decide.",
+                    Icons.casino,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Schedule",
+                    "Your meal planning calendar. Plan ahead and organize your week.",
+                    Icons.calendar_month,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Inventory",
+                    "Your shopping list. Auto-generated from planned meals.",
+                    Icons.shopping_cart,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Cookbook",
+                    "Your recipe collection. Save and browse favorite dishes.",
+                    Icons.menu_book,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Brigade",
+                    "Your friends and community. Connect with other chefs.",
+                    Icons.people,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Station",
+                    "Your profile and kitchen settings. Customize your experience.",
+                    Icons.settings,
+                  ),
+                  _buildDivider(context),
+                  _buildTermRow(
+                    context,
+                    "Order Fire",
+                    "Log meals and track what you've eaten.",
+                    Icons.restaurant,
+                  ),
+                  SizedBox(height: getPercentageHeight(2, context)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      child2: const SizedBox.shrink(),
+      child3: const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildTermRow(
+      BuildContext context, String term, String definition, IconData icon) {
+    return Padding(
+      padding:
+          EdgeInsets.symmetric(vertical: getPercentageHeight(1.5, context)),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start, // Align to top for longer text
+        children: [
+          Container(
+            padding: EdgeInsets.all(getPercentageWidth(2, context)),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: getIconScale(5, context),
+            ),
+          ),
+          SizedBox(width: getPercentageWidth(4, context)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  term,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: getTextScale(4, context),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: getPercentageHeight(0.5, context)),
+                Text(
+                  definition,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: getTextScale(3.2, context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivider(BuildContext context) {
+    return Divider(
+      color: Colors.white.withOpacity(0.2),
+      thickness: 1,
+      height: 1,
+    );
+  }
+
   /// Build square feature box with icon and title
   Widget _buildFeatureBox(
       BuildContext context, String text, Color color, IconData icon) {
     return Container(
       width: getPercentageWidth(22, context), // Even smaller width
-      height: getPercentageWidth(22, context), // Even smaller height
+      height: getPercentageWidth(25, context), // Even smaller height
       padding:
           EdgeInsets.all(getPercentageWidth(2.5, context)), // Reduced padding
       decoration: BoxDecoration(
@@ -1388,7 +1767,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
-            maxLines: 2,
+            maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -1886,6 +2265,27 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   initialDate: initialDate,
                   firstDate: now.subtract(const Duration(days: 90)),
                   lastDate: now,
+                  builder: (context, child) {
+                    return Theme(
+                      data: getDatePickerTheme(context, isDarkMode).copyWith(
+                        colorScheme: isDarkMode
+                            ? ColorScheme.dark(
+                                surface: kDarkGrey,
+                                primary: kAccent,
+                                onPrimary: kWhite.withValues(
+                                    alpha: 0.5), // Selected date text color
+                                onSurface: kAccent,
+                              )
+                            : ColorScheme.light(
+                                primary: kAccent,
+                                onPrimary: kDarkGrey.withValues(
+                                    alpha: 0.5), // Selected date text color
+                                onSurface: kDarkGrey,
+                              ),
+                      ),
+                      child: child!,
+                    );
+                  },
                 );
                 if (picked != null && mounted) {
                   setState(() {
