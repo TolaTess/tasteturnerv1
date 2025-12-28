@@ -1094,14 +1094,17 @@ class _ProgramScreenState extends State<ProgramScreen> {
                 ),
                 SizedBox(height: getPercentageHeight(2.5, context)),
 
-                Text(
-                  'See the Cookbook for $userDiet meals, Chef',
-                  maxLines: 2,
-                  style: textTheme.headlineMedium?.copyWith(
-                    color: kAccent,
-                    fontWeight: FontWeight.w400,
-                    fontSize: getTextScale(5, context),
-                    overflow: TextOverflow.ellipsis,
+                Center(
+                  child: Text(
+                    'See the Cookbook for $userDiet meals, Chef',
+                    maxLines: 2,
+                    style: textTheme.headlineMedium?.copyWith(
+                      color: kAccent,
+                      fontWeight: FontWeight.w400,
+                      fontSize: getTextScale(5, context),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 SizedBox(height: getPercentageHeight(1.5, context)),

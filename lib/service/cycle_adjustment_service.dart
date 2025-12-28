@@ -125,12 +125,12 @@ class CycleAdjustmentService extends GetxController {
           'description':
               'Nourish your body with comforting, restorative dishes during this time, Chef.',
           'foods': [
-            'Iron-Rich Plates: Replenish your body\'s stores with hearty, warming dishes',
-            'Dark Chocolate: A little sweetness to ease tension and lift your spirits',
-            'Warm, Cooked Meals: Gentle on your system and soothing for digestion',
-            'Avocado: Creamy, healthy fats to keep your mood steady and hormones balanced',
-            'Hydrating Broths & Teas: Keep your body well-hydrated while you rest',
-            'Simple, Clean Ingredients: Avoid heavy, processed foods that can cause discomfort',
+            'Dark Chocolate (70%+ cocoa): Satisfies chocolate cravings while providing magnesium',
+            'Soups & Broths: Addresses salty cravings, provides hydration and comfort',
+            'Iron-rich foods: Spinach, kale, lentils, red meat, eggs - replenish iron stores',
+            'Vitamin C foods: Oranges, bell peppers, strawberries - aid iron absorption',
+            'Healthy fats: Avocados, walnuts, chia seeds - support mood and hormones',
+            'Herbal teas: Ginger or chamomile - help ease cramps and provide comfort',
           ],
         };
       case CyclePhase.follicular:
@@ -139,12 +139,12 @@ class CycleAdjustmentService extends GetxController {
           'description':
               'Fuel your body\'s natural renewal with fresh, vibrant ingredients, Chef.',
           'foods': [
-            'Avocado: Rich, creamy texture that supports your body\'s natural processes',
-            'Fresh Berries: Bright, antioxidant-packed gems for cell renewal',
-            'Lemon: Bright, zesty flavor that supports your body\'s natural detox',
-            'Green Tea: A gentle, warming brew that energizes without overwhelming',
-            'Flaxseeds: Nutty, grounding seeds that help balance your system',
-            'Wild Salmon: Rich, omega-packed fish that fuels your brain and energy',
+            'Leafy greens: Spinach, arugula, Swiss chard - boost energy and hormone production',
+            'Proteins: Salmon, chicken, eggs, chickpeas - support cell renewal',
+            'Complex carbs: Quinoa, oats, sweet potatoes - provide sustained energy',
+            'Healthy fats: Olive oil, flaxseeds, pumpkin seeds - support hormone balance',
+            'B vitamins: Bananas, almonds, sunflower seeds - boost energy levels',
+            'Antioxidants: Blueberries, raspberries, dark chocolate (70%+) - support cell renewal',
           ],
         };
       case CyclePhase.ovulation:
@@ -153,12 +153,12 @@ class CycleAdjustmentService extends GetxController {
           'description':
               'Keep your energy at peak with light, hydrating, and energizing dishes, Chef.',
           'foods': [
-            'Fresh Spinach: Light, leafy greens that support your body without weighing you down',
-            'Avocado: Creamy, satisfying fats that keep your mood elevated',
-            'Cooling Cucumber: Refreshing, hydrating, and gentle on your system',
-            'Citrus Fruits: Bright, zesty flavors that boost your natural defenses',
-            'Watermelon: Ultra-hydrating, refreshing, and perfect for peak energy',
-            'Papaya: Tropical, digestive-friendly fruit that supports your glow',
+            'Cruciferous vegetables: Broccoli, Brussels sprouts, cauliflower - support egg release',
+            'Zinc-rich foods: Pumpkin seeds, chickpeas, oysters - boost energy and fertility',
+            'Fruits: Grapes, watermelon, grapefruit - provide hydration and antioxidants',
+            'Proteins: Turkey, eggs, lentils - support peak energy needs',
+            'Omega-3 fats: Salmon, chia seeds, walnuts - support hormone balance',
+            'Cooling foods: Cucumbers, leafy greens, smoothies - keep you refreshed',
           ],
         };
       case CyclePhase.luteal:
@@ -167,12 +167,13 @@ class CycleAdjustmentService extends GetxController {
           'description':
               'Support your body\'s recovery and balance with nutrient-dense, satisfying meals, Chef.',
           'foods': [
-            'Broccoli: Earthy, cruciferous greens that help your body process naturally',
-            'Avocado: Rich, satisfying fats that keep your mood stable and hormones balanced',
-            'Spinach: Iron-rich greens that restore your body\'s natural stores',
-            'Eggs: Protein-packed, versatile ingredients that fuel your recovery',
-            'Salmon: Rich, omega-packed fish that supports mood and natural balance',
-            'Berries: Antioxidant-rich fruits that help your body process and recover',
+            'Dark Chocolate (70%+): Satisfies chocolate cravings while providing magnesium',
+            'Magnesium-rich foods: Almonds, spinach, pumpkin seeds - ease PMS symptoms',
+            'Complex carbs: Brown rice, sweet potatoes, whole-grain bread - maintain stable blood sugar',
+            'Calcium-rich foods: Yogurt, cheese, fortified plant milk - support bone health',
+            'Hormone-balancing foods: Avocados, sesame seeds, sunflower seeds - support mood stability',
+            'Anti-inflammatory foods: Turmeric, ginger tea, fatty fish - reduce bloating and discomfort',
+            'Herbal teas: Peppermint (for bloating) or chamomile (for relaxation)',
           ],
         };
     }
@@ -230,5 +231,97 @@ class CycleAdjustmentService extends GetxController {
     final daysUntilNext = cycleLength - dayInCycle + 1;
 
     return daysUntilNext;
+  }
+
+  /// Get expected cravings for a cycle phase
+  List<Map<String, String>> getExpectedCravings(CyclePhase phase) {
+    switch (phase) {
+      case CyclePhase.luteal:
+        return [
+          {'craving': 'Chocolate', 'emoji': '🍫'},
+          {'craving': 'Salty Foods', 'emoji': '🧂'},
+          {'craving': 'Carbs', 'emoji': '🍞'},
+          {'craving': 'Sweet Treats', 'emoji': '🍰'},
+          {'craving': 'Comfort Foods', 'emoji': '🍝'},
+        ];
+      case CyclePhase.menstrual:
+        return [
+          {'craving': 'Chocolate', 'emoji': '🍫'},
+          {'craving': 'Sweet Things', 'emoji': '🍬'},
+          {'craving': 'Salty Foods', 'emoji': '🧂'},
+          {'craving': 'Comfort Foods', 'emoji': '🍲'},
+          {'craving': 'Warm Beverages', 'emoji': '☕'},
+        ];
+      case CyclePhase.follicular:
+        return [
+          {'craving': 'Fresh Fruits', 'emoji': '🍎'},
+          {'craving': 'Light Meals', 'emoji': '🥗'},
+          {'craving': 'Hydrating Foods', 'emoji': '💧'},
+          {'craving': 'Energy Foods', 'emoji': '⚡'},
+        ];
+      case CyclePhase.ovulation:
+        return [
+          {'craving': 'Fresh Foods', 'emoji': '🥬'},
+          {'craving': 'Light Proteins', 'emoji': '🥩'},
+          {'craving': 'Hydrating Fruits', 'emoji': '🍉'},
+          {'craving': 'Energizing Snacks', 'emoji': '🥜'},
+        ];
+    }
+  }
+
+  /// Get enhanced recommendations including tips and macro adjustments
+  Map<String, dynamic> getEnhancedRecommendations(CyclePhase phase) {
+    final baseRecommendations = getPhaseRecommendations(phase);
+
+    List<String> tips = [];
+    String? macroInfo;
+
+    switch (phase) {
+      case CyclePhase.luteal:
+        tips = [
+          'Hydration: Increase water intake to help with bloating',
+          'Exercise: Moderate intensity activities can help with mood',
+          'Sleep: Prioritize 7-9 hours of quality sleep',
+          'Self-care: Practice stress-reducing activities like meditation',
+        ];
+        macroInfo =
+            'Your goals are adjusted: +200 calories, +20g carbs to support your body\'s needs';
+        break;
+      case CyclePhase.menstrual:
+        tips = [
+          'Hydration: Stay well-hydrated, especially with warm beverages',
+          'Exercise: Gentle movement like walking or meditation',
+          'Rest: Listen to your body and prioritize rest',
+          'Self-care: Warm baths and comfort can help ease discomfort',
+        ];
+        macroInfo =
+            'Your goals are adjusted: +100 calories to support recovery';
+        break;
+      case CyclePhase.follicular:
+        tips = [
+          'Hydration: Maintain regular water intake',
+          'Exercise: This is a great time for higher intensity workouts',
+          'Energy: Your energy levels are naturally higher',
+          'Nutrition: Focus on fresh, nutrient-dense foods',
+        ];
+        macroInfo =
+            'Your goals are at baseline - perfect time for balanced nutrition';
+        break;
+      case CyclePhase.ovulation:
+        tips = [
+          'Hydration: Extra hydration supports peak energy',
+          'Exercise: Take advantage of peak energy for challenging workouts',
+          'Energy: You\'re at your peak - fuel accordingly',
+          'Nutrition: Light, energizing meals work best',
+        ];
+        macroInfo = 'Your goals are at baseline - maintain balanced nutrition';
+        break;
+    }
+
+    return {
+      ...baseRecommendations,
+      'tips': tips,
+      'macroInfo': macroInfo,
+    };
   }
 }

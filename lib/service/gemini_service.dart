@@ -18,6 +18,7 @@ import '../constants.dart';
 import '../data_models/meal_model.dart';
 import '../data_models/user_meal.dart';
 import '../data_models/ingredient_data.dart';
+import '../data_models/cycle_tracking_model.dart';
 import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import '../helper/ingredient_utils.dart';
@@ -3537,7 +3538,6 @@ class GeminiService {
 
       extractedData['mealPlan'] = mealPlan;
       extractedData['distribution'] = distribution;
-
     } catch (e) {
       debugPrint('Error extracting partial data: $e');
     }
@@ -6811,6 +6811,207 @@ Generate completely new and different meal ideas using the same ingredients.
     } catch (e) {
       debugPrint('Error saving basic meals to Firestore: $e');
       rethrow;
+    }
+  }
+
+  /// Suggest healthier alternatives for cravings based on cycle phase and user context
+  /// Returns a list of alternative suggestions with explanations
+  Future<List<Map<String, dynamic>>> suggestCravingAlternatives(
+    String craving,
+    CyclePhase phase,
+  ) async {
+    try {
+      // Initialize model if not already done
+      if (_activeModel == null) {
+        final initialized = await initializeModel();
+        if (!initialized) {
+          throw Exception('No suitable AI model available');
+        }
+      }
+
+      // Get comprehensive user context
+      final aiContext = await _buildAIContext();
+      final userContext = await _getUserContext();
+
+      // Get phase name for context
+      final phaseName = _getCyclePhaseName(phase);
+
+      final prompt = '''
+$aiContext
+
+$userContext
+
+The user is currently in the $phaseName phase of their menstrual cycle and is craving: $craving
+
+Please suggest exactly 2 healthier alternatives that:
+1. Satisfy the craving in a nutritious way
+2. Are appropriate for the $phaseName phase (considering hormonal needs)
+3. Align with the user's dietary preferences and program goals
+4. Provide similar satisfaction but with better nutritional value
+
+For each alternative, provide:
+- The alternative food/item name
+- A brief explanation of why it's a good alternative
+- Key nutritional benefits
+- How it addresses the craving
+
+Return ONLY valid JSON in this exact format (no markdown, no code blocks):
+{
+  "alternatives": [
+    {
+      "name": "alternative name",
+      "why": "brief explanation",
+      "benefits": "nutritional benefits",
+      "satisfies": "how it addresses the craving"
+    }
+  ]
+}
+''';
+
+      // Build request body
+      final body = {
+        'contents': [
+          {
+            'parts': [
+              {'text': prompt}
+            ]
+          }
+        ],
+        'generationConfig': {
+          'temperature': 0.7,
+          'topK': 40,
+          'topP': 0.95,
+          'maxOutputTokens': 2000,
+        },
+      };
+
+      // Make API call with retry
+      final response = await _makeApiCallWithRetry(
+        endpoint: '${_activeModel}:generateContent',
+        body: body,
+        operation: 'suggest craving alternatives',
+        retryCount: 0,
+      );
+
+      // Parse response
+      String responseText = '';
+      if (response['candidates'] != null && response['candidates'].isNotEmpty) {
+        final candidate = response['candidates'][0];
+        if (candidate['content'] != null &&
+            candidate['content']['parts'] != null &&
+            candidate['content']['parts'].isNotEmpty) {
+          responseText = candidate['content']['parts'][0]['text'] ?? '';
+        }
+      }
+
+      if (responseText.isEmpty) {
+        throw Exception('Empty response from AI');
+      }
+
+      // Clean response text (remove markdown if present)
+      responseText = responseText
+          .replaceAll(RegExp(r'```json\s*'), '')
+          .replaceAll(RegExp(r'```\s*'), '')
+          .trim();
+
+      // Parse JSON
+      final jsonData = jsonDecode(responseText) as Map<String, dynamic>;
+      final alternatives = jsonData['alternatives'] as List<dynamic>? ?? [];
+
+      final allAlternatives = alternatives
+          .map((alt) => Map<String, dynamic>.from(alt as Map))
+          .toList();
+
+      // Limit to 2 alternatives
+      return allAlternatives.take(2).toList();
+    } catch (e) {
+      debugPrint('Error suggesting craving alternatives: $e');
+      // Return fallback suggestions
+      return _getFallbackCravingAlternatives(craving, phase);
+    }
+  }
+
+  /// Get fallback craving alternatives when AI is unavailable
+  List<Map<String, dynamic>> _getFallbackCravingAlternatives(
+    String craving,
+    CyclePhase phase,
+  ) {
+    final lowerCraving = craving.toLowerCase();
+    final alternatives = <Map<String, dynamic>>[];
+
+    // Common fallback alternatives
+    if (lowerCraving.contains('chocolate')) {
+      alternatives.addAll([
+        {
+          'name': 'Dark Chocolate (70%+ cacao)',
+          'why': 'Higher antioxidants and less sugar',
+          'benefits': 'Rich in magnesium and flavonoids',
+          'satisfies': 'Provides chocolate satisfaction with better nutrition',
+        },
+        {
+          'name': 'Cacao Nibs',
+          'why': 'Pure chocolate flavor without added sugar',
+          'benefits': 'High in antioxidants and fiber',
+          'satisfies': 'Intense chocolate flavor, naturally sweet',
+        },
+      ]);
+    } else if (lowerCraving.contains('sweet') ||
+        lowerCraving.contains('sugar')) {
+      alternatives.addAll([
+        {
+          'name': 'Fresh Berries',
+          'why': 'Natural sweetness with fiber',
+          'benefits': 'High in antioxidants and vitamins',
+          'satisfies': 'Satisfies sweet tooth naturally',
+        },
+        {
+          'name': 'Dates',
+          'why': 'Naturally sweet and satisfying',
+          'benefits': 'Rich in fiber, potassium, and minerals',
+          'satisfies': 'Caramel-like sweetness',
+        },
+      ]);
+    } else if (lowerCraving.contains('salty') ||
+        lowerCraving.contains('salt')) {
+      alternatives.addAll([
+        {
+          'name': 'Nuts and Seeds',
+          'why': 'Satisfying crunch with healthy fats',
+          'benefits': 'Protein, healthy fats, and minerals',
+          'satisfies': 'Salty, crunchy, and satisfying',
+        },
+        {
+          'name': 'Roasted Chickpeas',
+          'why': 'Crunchy and savory',
+          'benefits': 'High in protein and fiber',
+          'satisfies': 'Salty snack alternative',
+        },
+      ]);
+    } else {
+      // Generic fallback
+      alternatives.add({
+        'name': 'Fresh Fruits',
+        'why': 'Natural and nutritious',
+        'benefits': 'Vitamins, fiber, and natural sugars',
+        'satisfies': 'Satisfies cravings with nutrition',
+      });
+    }
+
+    // Limit to 2 alternatives
+    return alternatives.take(2).toList();
+  }
+
+  /// Helper to get cycle phase name for AI context
+  String _getCyclePhaseName(CyclePhase phase) {
+    switch (phase) {
+      case CyclePhase.menstrual:
+        return 'menstrual';
+      case CyclePhase.follicular:
+        return 'follicular';
+      case CyclePhase.ovulation:
+        return 'ovulation';
+      case CyclePhase.luteal:
+        return 'luteal';
     }
   }
 }

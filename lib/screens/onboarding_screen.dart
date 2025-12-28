@@ -67,6 +67,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   // Scroll controller for lingo walkthrough slide
   final ScrollController _lingoScrollController = ScrollController();
+  bool _hasScrolledToBottom = false;
+  Timer? _lingualTimer; // Timer to enable button after 6 seconds
 
   // List<Map<String, String>> familyMembers = [];
 
@@ -91,6 +93,33 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     // Get current theme preference
     _darkModeEnabled = getThemeProvider(context).isDarkMode;
+
+    // Scroll listener is no longer needed for button enabling
+    // Timer-based approach is used instead
+  }
+
+  void _startLingualTimer() {
+    // Cancel any existing timer
+    _lingualTimer?.cancel();
+
+    // Reset scroll state
+    _hasScrolledToBottom = false;
+    _validateInputs();
+
+    // Start 6-second timer
+    _lingualTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() {
+          _hasScrolledToBottom = true;
+        });
+        _validateInputs();
+      }
+    });
+  }
+
+  void _cancelLingualTimer() {
+    _lingualTimer?.cancel();
+    _lingualTimer = null;
   }
 
   @override
@@ -99,6 +128,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _controller.dispose();
     nameController.dispose();
     _lingoScrollController.dispose();
+    _lingualTimer?.cancel();
     super.dispose();
   }
 
@@ -298,7 +328,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         case 8:
           if (skipNamePage) {
             // Page 8 is now Lingual Walkthrough (New last page)
-            _isNextEnabled = true;
+            _isNextEnabled = _hasScrolledToBottom;
           } else {
             // Page 8 is Settings
             _isNextEnabled = true;
@@ -306,7 +336,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           break;
         case 9:
           // Page 9 is Lingual Walkthrough (New last page)
-          _isNextEnabled = true;
+          _isNextEnabled = _hasScrolledToBottom;
           break;
         default:
           _isNextEnabled = false;
@@ -731,12 +761,30 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     onPageChanged: (value) {
                       // Dismiss keyboard when changing pages
                       FocusScope.of(context).unfocus();
+                      final skipNamePage = _shouldSkipNamePage();
+                      final isLingualPage = (skipNamePage && value == 8) ||
+                          (!skipNamePage && value == 9);
+
                       setState(() {
                         _currentPage = value;
+                        // Handle lingual walkthrough page
+                        if (!isLingualPage) {
+                          // Leaving lingual page - cancel timer and reset
+                          _cancelLingualTimer();
+                          _hasScrolledToBottom = false;
+                        } else {
+                          // Entering lingual page - start 6-second timer
+                          _hasScrolledToBottom = false;
+                        }
                       });
+
+                      // Start timer after state is set
+                      if (isLingualPage) {
+                        _startLingualTimer();
+                      }
+
                       // Reset consent obtained flag when navigating to UMP page
                       // User must interact with the form to enable next button
-                      final skipNamePage = _shouldSkipNamePage();
                       final isUMPPage = (skipNamePage && value == 5) ||
                           (!skipNamePage && value == 6);
                       if (isUMPPage) {
@@ -750,6 +798,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           }
                         });
                       }
+
+                      // Validate inputs to update button state (especially for lingual page)
+                      // This ensures button is disabled when entering lingual page
                       _validateInputs();
                     },
                     children: _buildPageViewChildren(),
@@ -845,6 +896,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               debugPrint('Ads initialized successfully during onboarding');
             } catch (e) {
               debugPrint('Error initializing ads during onboarding: $e');
+              // Handle Google Play services errors gracefully
+              final errorString = e.toString();
+              if (errorString.contains('Google Play services') ||
+                  errorString.contains('out of date')) {
+                debugPrint(
+                    'Google Play services may be outdated. This is expected on emulators or older devices.');
+                debugPrint(
+                    'The app will continue to function, but ads may not load until Google Play services is updated.');
+              }
               // Don't show error to user - ads are not critical for onboarding
             }
           } else {
@@ -859,6 +919,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 'Ads initialized successfully during onboarding (premium check failed)');
           } catch (initError) {
             debugPrint('Error initializing ads during onboarding: $initError');
+            // Handle Google Play services errors gracefully
+            final errorString = initError.toString();
+            if (errorString.contains('Google Play services') ||
+                errorString.contains('out of date')) {
+              debugPrint(
+                  'Google Play services may be outdated. This is expected on emulators or older devices.');
+            }
           }
         }
       });
@@ -1313,7 +1380,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               textAlign: TextAlign.center,
             ),
             SizedBox(height: getPercentageHeight(1, context)),
-
             Container(
               padding: EdgeInsets.all(getPercentageWidth(4, context)),
               decoration: BoxDecoration(
@@ -1838,6 +1904,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
+  /// Get button text based on current page and scroll state
+  String _getButtonText() {
+    if (_currentPage == _totalPages - 1) {
+      // Last page (lingual walkthrough)
+      return _hasScrolledToBottom ? "Get Started" : "Please scroll";
+    }
+    return "Next";
+  }
+
   /// Navigation Buttons
   Widget _buildNavigationButtons({required TextTheme textTheme}) {
     return Padding(
@@ -1848,13 +1923,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         style: ElevatedButton.styleFrom(
           minimumSize: Size.fromHeight(getPercentageHeight(7, context)),
           backgroundColor: _isNextEnabled ? kAccent : kLightGrey,
+          disabledBackgroundColor: kLightGrey,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(50),
           ),
         ),
         onPressed: _isNextEnabled ? _nextPage : null,
         child: Text(
-          _currentPage == _totalPages - 1 ? "Get Started" : "Next",
+          _getButtonText(),
           textAlign: TextAlign.center,
           style: textTheme.displayMedium?.copyWith(
               fontWeight: FontWeight.w500,

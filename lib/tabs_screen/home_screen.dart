@@ -47,8 +47,9 @@ import '../service/symptom_analysis_service.dart';
 import '../service/symptom_service.dart';
 import '../data_models/symptom_entry.dart';
 import '../screens/symptom_insights_screen.dart';
+import '../service/cycle_adjustment_service.dart';
 import '../widgets/tutorial_blocker.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'meal_design_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1892,52 +1893,69 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     // Quick Stats Row (Streak, Badges, Points, Rainbow Tracker)
                     _buildQuickStatsRow(context, isDarkMode, textTheme),
                     SizedBox(height: getPercentageHeight(1, context)),
-                    // Daily Summary Link
+                    // Combined Daily Summary Link and Cycle Phase Indicator
                     Padding(
                       key: _todaySummaryKey,
                       padding: EdgeInsets.symmetric(
                           horizontal: getPercentageWidth(4, context)),
-                      child: GestureDetector(
-                        onTap: () {
-                          final date = DateTime.now();
-                          Get.to(() => DailySummaryScreen(date: date));
-                        },
-                        child: Container(
-                          padding:
-                              EdgeInsets.all(getPercentageWidth(3, context)),
-                          decoration: BoxDecoration(
-                            color: kAccentLight.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: kAccentLight.withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Icon(
-                                Icons.insights,
-                                color: kAccentLight,
-                                size: getIconScale(4, context),
-                              ),
-                              SizedBox(width: getPercentageWidth(2, context)),
-                              Text(
-                                'View Today\'s Service',
-                                style: textTheme.titleMedium?.copyWith(
-                                  color: kAccentLight,
-                                  fontWeight: FontWeight.w600,
+                      child: Row(
+                        children: [
+                          // View Today's Service - 3/4 of space
+                          Expanded(
+                            flex: 3,
+                            child: GestureDetector(
+                              onTap: () {
+                                final date = DateTime.now();
+                                Get.to(() => DailySummaryScreen(date: date));
+                              },
+                              child: Container(
+                                padding: EdgeInsets.all(
+                                    getPercentageWidth(3, context)),
+                                decoration: BoxDecoration(
+                                  color: kAccentLight.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: kAccentLight.withValues(alpha: 0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Icon(
+                                      Icons.insights,
+                                      color: kAccentLight,
+                                      size: getIconScale(4, context),
+                                    ),
+                                    Text(
+                                      'View Today\'s Service',
+                                      style: textTheme.titleMedium?.copyWith(
+                                        color: kAccentLight,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: kAccentLight,
+                                      size: getIconScale(4, context),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              SizedBox(width: getPercentageWidth(1, context)),
-                              Icon(
-                                Icons.arrow_forward_ios,
-                                color: kAccentLight,
-                                size: getIconScale(3.5, context),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                          // Cycle Phase Indicator - 1/4 of space (only if enabled)
+                          if (_shouldShowCyclePhase() &&
+                              showCaloriesAndGoal) ...[
+                            SizedBox(width: getPercentageWidth(2, context)),
+                            Expanded(
+                              flex: 1,
+                              child: _buildCompactCyclePhaseIndicator(
+                                  context, isDarkMode, textTheme),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
 
@@ -2223,5 +2241,128 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       );
     });
+  }
+
+  /// Check if cycle phase should be shown
+  bool _shouldShowCyclePhase() {
+    final user = userService.currentUser.value;
+    if (user == null) return false;
+
+    final genderRaw = user.settings['gender'] as String?;
+    final gender = genderRaw?.toLowerCase() ?? '';
+    if (gender == 'male') return false;
+
+    final cycleDataRaw = user.settings['cycleTracking'];
+    if (cycleDataRaw == null) return false;
+
+    if (cycleDataRaw is Map) {
+      final cycleData = Map<String, dynamic>.from(cycleDataRaw);
+      return cycleData['isEnabled'] as bool? ?? false;
+    }
+
+    return false;
+  }
+
+  /// Get cycle data from user settings
+  Map<String, dynamic>? _getCycleData() {
+    final user = userService.currentUser.value;
+    if (user == null) return null;
+
+    final cycleDataRaw = user.settings['cycleTracking'];
+    if (cycleDataRaw == null) return null;
+
+    if (cycleDataRaw is Map) {
+      return Map<String, dynamic>.from(cycleDataRaw);
+    }
+
+    return null;
+  }
+
+  /// Build compact cycle phase indicator widget (emoji with day number stacked)
+  Widget _buildCompactCyclePhaseIndicator(
+    BuildContext context,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    final cycleData = _getCycleData();
+    if (cycleData == null) return const SizedBox.shrink();
+
+    final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
+    if (lastPeriodStartStr == null) return const SizedBox.shrink();
+
+    final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
+    if (lastPeriodStart == null) return const SizedBox.shrink();
+
+    final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
+    final cycleService = CycleAdjustmentService.instance;
+    final today = DateTime.now();
+    final phase = cycleService.getCurrentPhase(
+      lastPeriodStart,
+      cycleLength,
+      today,
+    );
+
+    final phaseColor = cycleService.getPhaseColor(phase);
+    final phaseEmoji = cycleService.getPhaseEmoji(phase);
+
+    // Calculate day number
+    final daysSincePeriod = today.difference(lastPeriodStart).inDays;
+    final dayInCycle = (daysSincePeriod % cycleLength) + 1;
+
+    return GestureDetector(
+      onTap: () {
+        // Navigate to meal design screen to show cycle goals
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 0),
+          ),
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.all(getPercentageWidth(2, context)),
+        decoration: BoxDecoration(
+          color: phaseColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: phaseColor.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Phase emoji
+            Text(
+              phaseEmoji,
+              style: TextStyle(fontSize: getTextScale(5, context)),
+            ),
+            // Day number stacked on top
+            Positioned(
+              bottom: 0,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(1.5, context),
+                  vertical: getPercentageHeight(0.2, context),
+                ),
+                decoration: BoxDecoration(
+                  color: phaseColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$dayInCycle',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: getTextScale(2.2, context),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

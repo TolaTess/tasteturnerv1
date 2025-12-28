@@ -30,7 +30,10 @@ import 'buddy_tab.dart';
 import '../helper/calendar_sharing_controller.dart';
 import '../service/calendar_sharing_service.dart';
 import '../service/cycle_adjustment_service.dart';
+import '../service/gemini_service.dart';
 import '../data_models/cycle_tracking_model.dart';
+import '../service/meal_manager.dart';
+import '../service/meal_planning_service.dart';
 import 'shopping_tab.dart';
 
 class MealDesignScreen extends StatefulWidget {
@@ -2917,88 +2920,652 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final phaseColor = cycleAdjustmentService.getPhaseColor(phase);
     final phaseEmoji = cycleAdjustmentService.getPhaseEmoji(phase);
     final foods = cycleSuggestion['foods'] as List<String>;
+    final enhancedRecs = cycleAdjustmentService.getEnhancedRecommendations(phase);
+    final expectedCravings = cycleAdjustmentService.getExpectedCravings(phase);
+    final tips = enhancedRecs['tips'] as List<String>? ?? [];
+    final macroInfo = enhancedRecs['macroInfo'] as String?;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Row(
-          children: [
-            Text(
-              phaseEmoji,
-              style: TextStyle(fontSize: getPercentageWidth(6, context)),
-            ),
-            SizedBox(width: getPercentageWidth(2, context)),
-            Expanded(
-              child: Text(
-                cycleSuggestion['title'] as String,
-                style: textTheme.titleLarge?.copyWith(
-                  color: phaseColor,
-                  fontWeight: FontWeight.bold,
-                ),
+      builder: (context) => _CycleGoalsDialog(
+        phase: phase,
+        phaseColor: phaseColor,
+        phaseEmoji: phaseEmoji,
+        title: cycleSuggestion['title'] as String,
+        description: cycleSuggestion['description'] as String,
+        foods: foods,
+        expectedCravings: expectedCravings,
+        tips: tips,
+        macroInfo: macroInfo,
+        appAction: cycleSuggestion['appAction'] as String,
+        isDarkMode: isDarkMode,
+        textTheme: textTheme,
+        selectedDate: date,
+      ),
+    );
+  }
+}
+
+/// Enhanced Cycle Goals Dialog with cravings and AI alternatives
+class _CycleGoalsDialog extends StatefulWidget {
+  final CyclePhase phase;
+  final Color phaseColor;
+  final String phaseEmoji;
+  final String title;
+  final String description;
+  final List<String> foods;
+  final List<Map<String, String>> expectedCravings;
+  final List<String> tips;
+  final String? macroInfo;
+  final String appAction;
+  final bool isDarkMode;
+  final TextTheme textTheme;
+  final DateTime selectedDate;
+
+  const _CycleGoalsDialog({
+    required this.phase,
+    required this.phaseColor,
+    required this.phaseEmoji,
+    required this.title,
+    required this.description,
+    required this.foods,
+    required this.expectedCravings,
+    required this.tips,
+    this.macroInfo,
+    required this.appAction,
+    required this.isDarkMode,
+    required this.textTheme,
+    required this.selectedDate,
+  });
+
+  @override
+  State<_CycleGoalsDialog> createState() => _CycleGoalsDialogState();
+}
+
+class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
+  final TextEditingController _cravingController = TextEditingController();
+  List<Map<String, dynamic>> _aiAlternatives = [];
+  bool _isLoadingAlternatives = false;
+  final geminiService = GeminiService.instance;
+  final mealManager = MealManager.instance;
+  final mealPlanningService = MealPlanningService.instance;
+
+  @override
+  void dispose() {
+    _cravingController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleAlternativeTap(Map<String, dynamic> alternative) async {
+    final alternativeName = alternative['name'] as String? ?? '';
+    if (alternativeName.isEmpty) return;
+
+    // Show loading
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: CircularProgressIndicator(color: widget.phaseColor),
+      ),
+    );
+
+    try {
+      // Search for meals matching the alternative name (case-insensitive partial match)
+      final allMeals = await mealManager.fetchAllMeals();
+      final matchingMeals = allMeals
+          .where((meal) => meal.title
+              .toLowerCase()
+              .contains(alternativeName.toLowerCase()))
+          .take(5) // Limit to 5 matches
+          .toList();
+      
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+
+      if (matchingMeals.isNotEmpty) {
+        // Extract meal IDs from matching meals
+        final mealIds = matchingMeals
+            .map((meal) => meal.mealId)
+            .where((id) => id.isNotEmpty)
+            .toList();
+
+        if (mealIds.isNotEmpty) {
+          // Add meals to calendar
+          final success = await mealPlanningService.addMealToCalendar(
+            mealIds,
+            widget.selectedDate,
+          );
+
+          if (mounted) {
+            if (success) {
+              showTastySnackbar(
+                'Added to Calendar',
+                '$alternativeName added to ${DateFormat('MMM d').format(widget.selectedDate)}',
+                context,
+                backgroundColor: Colors.green,
+              );
+              // Close the cycle goals dialog
+              Navigator.pop(context);
+            } else {
+              showTastySnackbar(
+                'Error',
+                'Could not add meal to calendar',
+                context,
+                backgroundColor: Colors.red,
+              );
+            }
+          }
+        } else {
+          // No meal IDs found, create basic meal
+          await _createBasicMealAndAddToCalendar(alternativeName);
+        }
+      } else {
+        // No meals found, create basic meal
+        await _createBasicMealAndAddToCalendar(alternativeName);
+      }
+    } catch (e) {
+      debugPrint('Error handling alternative tap: $e');
+      if (mounted) {
+        Navigator.pop(context); // Close loading if still open
+        await _createBasicMealAndAddToCalendar(alternativeName);
+      }
+    }
+  }
+
+  Future<void> _createBasicMealAndAddToCalendar(String mealName) async {
+    try {
+      // Create basic meal document
+      final mealRef = FirebaseFirestore.instance.collection('meals').doc();
+      final mealId = mealRef.id;
+
+      // Create basic meal data structure (Firebase Functions will fill details later)
+      final basicMealData = {
+        'title': mealName,
+        'mealType': 'main',
+        'calories': 0, // Will be filled by Firebase Functions
+        'categories': ['general'],
+        'nutritionalInfo': {}, // Will be filled by Firebase Functions
+        'ingredients': {}, // Will be filled by Firebase Functions
+        'status': 'pending', // Firebase Functions will process this
+        'createdAt': FieldValue.serverTimestamp(),
+        'type': 'main',
+        'userId': tastyId,
+        'source': 'ai_generated',
+        'version': 'basic',
+        'processingAttempts': 0, // Track retry attempts
+        'lastProcessingAttempt': null, // Timestamp of last attempt
+        'processingPriority': DateTime.now().millisecondsSinceEpoch, // FIFO processing
+        'needsProcessing': true, // Flag for Firebase Functions
+      };
+
+      // Save basic meal to Firestore
+      await mealRef.set(basicMealData);
+      debugPrint('Created basic meal: $mealName with ID: $mealId');
+
+      // Add meal to calendar
+      final success = await mealPlanningService.addMealToCalendar(
+        [mealId],
+        widget.selectedDate,
+      );
+
+      if (mounted) {
+        if (success) {
+          showTastySnackbar(
+            'Added to Calendar',
+            '$mealName added to ${DateFormat('MMM d').format(widget.selectedDate)}',
+            context,
+            backgroundColor: Colors.green,
+          );
+          // Close the cycle goals dialog
+          Navigator.pop(context);
+        } else {
+          showTastySnackbar(
+            'Error',
+            'Could not add meal to calendar',
+            context,
+            backgroundColor: Colors.red,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error creating basic meal: $e');
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Could not create meal. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+    }
+  }
+
+  Future<void> _getCravingAlternatives() async {
+    final craving = _cravingController.text.trim();
+    if (craving.isEmpty) return;
+
+    setState(() {
+      _isLoadingAlternatives = true;
+      _aiAlternatives = [];
+    });
+
+    try {
+      final alternatives = await geminiService.suggestCravingAlternatives(
+        craving,
+        widget.phase,
+      );
+
+      if (mounted) {
+        setState(() {
+          _aiAlternatives = alternatives;
+          _isLoadingAlternatives = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error getting craving alternatives: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingAlternatives = false;
+        });
+        showTastySnackbar(
+          'Error',
+          'Could not get suggestions. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: widget.isDarkMode ? kDarkGrey : kWhite,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: Row(
+        children: [
+          Text(
+            widget.phaseEmoji,
+            style: TextStyle(fontSize: getPercentageWidth(6, context)),
+          ),
+          SizedBox(width: getPercentageWidth(2, context)),
+          Expanded(
+            child: Text(
+              widget.title,
+              style: widget.textTheme.titleLarge?.copyWith(
+                color: widget.phaseColor,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        ),
-        content: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.7,
-            maxWidth: MediaQuery.of(context).size.width * 0.9,
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+          maxWidth: MediaQuery.of(context).size.width * 0.9,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Description
+              Text(
+                widget.description,
+                style: widget.textTheme.bodyMedium?.copyWith(
+                  color: widget.isDarkMode ? kLightGrey : kDarkGrey,
+                  fontSize: getTextScale(3.5, context),
+                ),
+              ),
+              SizedBox(height: getPercentageHeight(2, context)),
+
+              // Expected Cravings Section
+              if (widget.expectedCravings.isNotEmpty) ...[
                 Text(
-                  cycleSuggestion['description'] as String,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: isDarkMode ? kLightGrey : kDarkGrey,
-                    fontSize: getPercentageWidth(3.5, context),
+                  'Expected Cravings:',
+                  style: widget.textTheme.titleSmall?.copyWith(
+                    color: widget.phaseColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: getTextScale(3.5, context),
                   ),
                 ),
+                SizedBox(height: getPercentageHeight(1, context)),
+                Wrap(
+                  spacing: getPercentageWidth(2, context),
+                  runSpacing: getPercentageHeight(1, context),
+                  children: widget.expectedCravings.map((craving) {
+                    return Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(3, context),
+                        vertical: getPercentageHeight(0.8, context),
+                      ),
+                      decoration: BoxDecoration(
+                        color: widget.phaseColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: widget.phaseColor.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            craving['emoji'] ?? '🍽️',
+                            style: TextStyle(
+                              fontSize: getTextScale(3.5, context),
+                            ),
+                          ),
+                          SizedBox(width: getPercentageWidth(1.5, context)),
+                          Text(
+                            craving['craving'] ?? '',
+                            style: widget.textTheme.bodySmall?.copyWith(
+                              color: widget.isDarkMode ? kWhite : kDarkGrey,
+                              fontSize: getTextScale(2.8, context),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
                 SizedBox(height: getPercentageHeight(2, context)),
-                Container(
-                  padding: EdgeInsets.all(getPercentageWidth(2, context)),
-                  decoration: BoxDecoration(
-                    color: phaseColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+              ],
+
+              // Recommended Foods Section
+              Container(
+                padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                decoration: BoxDecoration(
+                  color: widget.phaseColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Recommended Foods:',
+                      style: widget.textTheme.titleSmall?.copyWith(
+                        color: widget.phaseColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(3.5, context),
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    ...widget.foods.map((food) => Padding(
+                          padding: EdgeInsets.only(
+                              bottom: getPercentageHeight(0.8, context)),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.check_circle_outline,
+                                size: getIconScale(3, context),
+                                color: widget.phaseColor,
+                              ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Expanded(
+                                child: Text(
+                                  food,
+                                  style: widget.textTheme.bodySmall?.copyWith(
+                                    color: widget.isDarkMode
+                                        ? kLightGrey
+                                        : kDarkGrey,
+                                    fontSize: getTextScale(3, context),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: getPercentageHeight(2, context)),
+
+              // Enter Your Craving Section
+              Container(
+                padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                decoration: BoxDecoration(
+                  color: kAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: kAccent.withValues(alpha: 0.3),
+                    width: 1,
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Enter Your Craving:',
+                      style: widget.textTheme.titleSmall?.copyWith(
+                        color: kAccent,
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(3.5, context),
+                      ),
+                    ),
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _cravingController,
+                            decoration: InputDecoration(
+                              hintText: 'e.g., chocolate, pizza, ice cream',
+                              hintStyle: widget.textTheme.bodySmall?.copyWith(
+                                color: widget.isDarkMode
+                                    ? kLightGrey.withValues(alpha: 0.5)
+                                    : kDarkGrey.withValues(alpha: 0.5),
+                              ),
+                              filled: true,
+                              fillColor: widget.isDarkMode
+                                  ? kDarkGrey.withValues(alpha: 0.5)
+                                  : kWhite,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: kAccent.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: kAccent.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: kAccent,
+                                  width: 2,
+                                ),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: getPercentageWidth(3, context),
+                                vertical: getPercentageHeight(1.2, context),
+                              ),
+                            ),
+                            style: widget.textTheme.bodyMedium?.copyWith(
+                              color: widget.isDarkMode ? kWhite : kDarkGrey,
+                              fontSize: getTextScale(3, context),
+                            ),
+                            onSubmitted: (_) => _getCravingAlternatives(),
+                          ),
+                        ),
+                        SizedBox(width: getPercentageWidth(2, context)),
+                        ElevatedButton(
+                          onPressed: _isLoadingAlternatives
+                              ? null
+                              : _getCravingAlternatives,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kAccent,
+                            foregroundColor: kWhite,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(3, context),
+                              vertical: getPercentageHeight(1.2, context),
+                            ),
+                          ),
+                          child: _isLoadingAlternatives
+                              ? SizedBox(
+                                  width: getIconScale(4, context),
+                                  height: getIconScale(4, context),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      kWhite,
+                                    ),
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.search,
+                                  size: getIconScale(4, context),
+                                ),
+                        ),
+                      ],
+                    ),
+                    // AI Alternatives Display
+                    if (_isLoadingAlternatives) ...[
+                      SizedBox(height: getPercentageHeight(2, context)),
+                      Center(
+                        child: CircularProgressIndicator(color: kAccent),
+                      ),
+                    ] else if (_aiAlternatives.isNotEmpty) ...[
+                      SizedBox(height: getPercentageHeight(2, context)),
                       Text(
-                        'Recommended Foods:',
-                        style: textTheme.titleSmall?.copyWith(
-                          color: phaseColor,
+                        'Turner\'s Suggestions:',
+                        style: widget.textTheme.titleSmall?.copyWith(
+                          color: kAccent,
                           fontWeight: FontWeight.w600,
-                          fontSize: getPercentageWidth(3.5, context),
+                          fontSize: getTextScale(3.2, context),
                         ),
                       ),
                       SizedBox(height: getPercentageHeight(1, context)),
-                      ...foods.map((food) => Padding(
+                      ..._aiAlternatives.take(2).map((alt) => GestureDetector(
+                            onTap: () => _handleAlternativeTap(alt),
+                            child: Container(
+                            margin: EdgeInsets.only(
+                              bottom: getPercentageHeight(1, context),
+                            ),
+                            padding: EdgeInsets.all(
+                              getPercentageWidth(2.5, context),
+                            ),
+                            decoration: BoxDecoration(
+                              color: kAccent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: kAccent.withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  alt['name'] ?? 'Alternative',
+                                  style: widget.textTheme.bodyMedium?.copyWith(
+                                    color: kAccent,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: getTextScale(3.2, context),
+                                  ),
+                                ),
+                                if (alt['why'] != null) ...[
+                                  SizedBox(
+                                      height: getPercentageHeight(0.5, context)),
+                                  Text(
+                                    alt['why'] ?? '',
+                                    style: widget.textTheme.bodySmall?.copyWith(
+                                      color: widget.isDarkMode
+                                          ? kLightGrey
+                                          : kDarkGrey,
+                                      fontSize: getTextScale(2.8, context),
+                                    ),
+                                  ),
+                                ],
+                                if (alt['benefits'] != null) ...[
+                                  SizedBox(
+                                      height: getPercentageHeight(0.5, context)),
+                                  Text(
+                                    'Benefits: ${alt['benefits'] ?? ''}',
+                                    style: widget.textTheme.bodySmall?.copyWith(
+                                      color: widget.isDarkMode
+                                          ? kLightGrey.withValues(alpha: 0.8)
+                                          : kDarkGrey.withValues(alpha: 0.8),
+                                      fontSize: getTextScale(2.6, context),
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          )),
+                    ],
+                  ],
+                ),
+              ),
+
+              SizedBox(height: getPercentageHeight(2, context)),
+
+              // Enhanced Recommendations (Tips)
+              if (widget.tips.isNotEmpty) ...[
+                Container(
+                  padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                  decoration: BoxDecoration(
+                    color: widget.phaseColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.tips_and_updates,
+                            color: widget.phaseColor,
+                            size: getIconScale(4, context),
+                          ),
+                          SizedBox(width: getPercentageWidth(2, context)),
+                          Text(
+                            'Tips & Recommendations:',
+                            style: widget.textTheme.titleSmall?.copyWith(
+                              color: widget.phaseColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: getTextScale(3.5, context),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: getPercentageHeight(1, context)),
+                      ...widget.tips.map((tip) => Padding(
                             padding: EdgeInsets.only(
                                 bottom: getPercentageHeight(0.8, context)),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(
-                                  Icons.check_circle_outline,
-                                  size: getPercentageWidth(3, context),
-                                  color: phaseColor,
+                                  Icons.circle,
+                                  size: getIconScale(2, context),
+                                  color: widget.phaseColor,
                                 ),
                                 SizedBox(width: getPercentageWidth(2, context)),
                                 Expanded(
                                   child: Text(
-                                    food,
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color:
-                                          isDarkMode ? kLightGrey : kDarkGrey,
-                                      fontSize: getPercentageWidth(3, context),
+                                    tip,
+                                    style: widget.textTheme.bodySmall?.copyWith(
+                                      color: widget.isDarkMode
+                                          ? kLightGrey
+                                          : kDarkGrey,
+                                      fontSize: getTextScale(3, context),
                                     ),
                                   ),
                                 ),
@@ -3008,7 +3575,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     ],
                   ),
                 ),
-                SizedBox(height: getPercentageHeight(1.5, context)),
+                SizedBox(height: getPercentageHeight(2, context)),
+              ],
+
+              // Macro Adjustments Info
+              if (widget.macroInfo != null) ...[
                 Container(
                   padding: EdgeInsets.all(getPercentageWidth(2, context)),
                   decoration: BoxDecoration(
@@ -3019,17 +3590,17 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
-                        Icons.lightbulb_outline,
+                        Icons.info_outline,
                         color: kAccent,
-                        size: getPercentageWidth(4, context),
+                        size: getIconScale(4, context),
                       ),
                       SizedBox(width: getPercentageWidth(2, context)),
                       Expanded(
                         child: Text(
-                          cycleSuggestion['appAction'] as String,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: isDarkMode ? kLightGrey : kDarkGrey,
-                            fontSize: getPercentageWidth(3, context),
+                          widget.macroInfo!,
+                          style: widget.textTheme.bodySmall?.copyWith(
+                            color: widget.isDarkMode ? kLightGrey : kDarkGrey,
+                            fontSize: getTextScale(3, context),
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -3037,23 +3608,54 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                     ],
                   ),
                 ),
+                SizedBox(height: getPercentageHeight(2, context)),
               ],
+
+              // App Action Tip
+              Container(
+                padding: EdgeInsets.all(getPercentageWidth(2, context)),
+                decoration: BoxDecoration(
+                  color: kAccentLight.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      color: kAccent,
+                      size: getIconScale(4, context),
+                    ),
+                    SizedBox(width: getPercentageWidth(2, context)),
+                    Expanded(
+                      child: Text(
+                        widget.appAction,
+                        style: widget.textTheme.bodySmall?.copyWith(
+                          color: widget.isDarkMode ? kLightGrey : kDarkGrey,
+                          fontSize: getTextScale(3, context),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Got it',
+            style: widget.textTheme.bodyMedium?.copyWith(
+              color: widget.phaseColor,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Got it',
-              style: textTheme.bodyMedium?.copyWith(
-                color: phaseColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }

@@ -96,6 +96,15 @@ class _PremiumSectionState extends State<PremiumSection> {
             debugPrint('Banner ad failed to load: $error');
             debugPrint('Ad unit ID: $_bannerId');
             debugPrint('Can request ads: $_canRequestAds');
+            
+            // Handle Google Play services errors gracefully
+            final errorMessage = error.message;
+            if (errorMessage.contains('Google Play services') || 
+                errorMessage.contains('out of date')) {
+              debugPrint('Google Play services may be outdated. This is expected on emulators or older devices.');
+              debugPrint('The app will continue to function, but ads may not load until Google Play services is updated.');
+            }
+            
             setState(() {
               _adsInitialized = true;
               _bannerAd = null; // Ensure bannerAd is null on failure

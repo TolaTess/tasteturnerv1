@@ -871,7 +871,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                           color: kAccent,
                         ),
                       ),
-                      trailing: const Icon(Icons.calendar_today),
+                      trailing: const Icon(Icons.calendar_today, color: kAccent),
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
@@ -879,6 +879,21 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                           firstDate: DateTime.now()
                               .subtract(const Duration(days: 365)),
                           lastDate: DateTime.now(),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: getDatePickerTheme(context, isDarkMode).colorScheme,
+                                textButtonTheme: getDatePickerTheme(context, isDarkMode).textButtonTheme,
+                                inputDecorationTheme: getDatePickerTheme(context, isDarkMode).inputDecorationTheme,
+                                cardTheme: getDatePickerTheme(context, isDarkMode).cardTheme,
+                                dialogTheme: getDatePickerTheme(context, isDarkMode).dialogTheme,
+                                elevatedButtonTheme: getDatePickerTheme(context, isDarkMode).elevatedButtonTheme,
+                                outlinedButtonTheme: getDatePickerTheme(context, isDarkMode).outlinedButtonTheme,
+                                textTheme: getDatePickerTheme(context, isDarkMode).textTheme,
+                              ),
+                              child: child!,
+                            );
+                          },
                         );
                         if (picked != null) {
                           setState(() {

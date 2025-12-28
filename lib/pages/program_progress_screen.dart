@@ -1403,7 +1403,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
         return Icons.air;
       case 'healthy_recipes':
         return Icons.restaurant_menu;
-      case 'yoga_classes':
+      case 'meditation_classes':
         return Icons.accessibility_new;
       default:
         return Icons.circle;

@@ -15,6 +15,9 @@ import '../data_models/symptom_entry.dart';
 import '../screens/rainbow_tracker_detail_screen.dart';
 import '../screens/add_food_screen.dart';
 import '../screens/symptom_insights_screen.dart';
+import '../service/cycle_adjustment_service.dart';
+import '../data_models/cycle_tracking_model.dart';
+import '../tabs_screen/meal_design_screen.dart';
 import 'rainbow_tracker_widget.dart';
 
 class DailySummaryWidget extends StatefulWidget {
@@ -548,6 +551,12 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           // Symptom Input Section
           SizedBox(height: getPercentageHeight(2, context)),
           _buildSymptomInputSection(context, isDarkMode, textTheme),
+
+          // Cycle Phase Display (if enabled)
+          if (_shouldShowCyclePhase()) ...[
+            SizedBox(height: getPercentageHeight(2, context)),
+            _buildCyclePhaseCard(context, isDarkMode, textTheme),
+          ],
 
           // Rainbow Tracker Widget
           SizedBox(height: getPercentageHeight(2, context)),
@@ -2399,5 +2408,240 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       debugPrint('Error getting pending meals: $e');
       return [];
     }
+  }
+
+  /// Check if cycle phase should be shown
+  bool _shouldShowCyclePhase() {
+    final user = userService.currentUser.value;
+    if (user == null) return false;
+
+    final genderRaw = user.settings['gender'] as String?;
+    final gender = genderRaw?.toLowerCase() ?? '';
+    if (gender == 'male') return false;
+
+    final cycleDataRaw = user.settings['cycleTracking'];
+    if (cycleDataRaw == null) return false;
+
+    if (cycleDataRaw is Map) {
+      final cycleData = Map<String, dynamic>.from(cycleDataRaw);
+      return cycleData['isEnabled'] as bool? ?? false;
+    }
+
+    return false;
+  }
+
+  /// Get cycle data from user settings
+  Map<String, dynamic>? _getCycleData() {
+    final user = userService.currentUser.value;
+    if (user == null) return null;
+
+    final cycleDataRaw = user.settings['cycleTracking'];
+    if (cycleDataRaw == null) return null;
+
+    if (cycleDataRaw is Map) {
+      return Map<String, dynamic>.from(cycleDataRaw);
+    }
+
+    return null;
+  }
+
+  /// Build cycle phase card
+  Widget _buildCyclePhaseCard(
+    BuildContext context,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    final cycleData = _getCycleData();
+    if (cycleData == null) return const SizedBox.shrink();
+
+    final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
+    if (lastPeriodStartStr == null) return const SizedBox.shrink();
+
+    final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
+    if (lastPeriodStart == null) return const SizedBox.shrink();
+
+    final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
+    final cycleService = CycleAdjustmentService.instance;
+    final phase = cycleService.getCurrentPhase(
+      lastPeriodStart,
+      cycleLength,
+      widget.date,
+    );
+
+    final phaseColor = cycleService.getPhaseColor(phase);
+    final phaseEmoji = cycleService.getPhaseEmoji(phase);
+    final phaseName = cycleService.getPhaseName(phase);
+    final expectedCravings = cycleService.getExpectedCravings(phase);
+    final enhancedRecs = cycleService.getEnhancedRecommendations(phase);
+    final macroInfo = enhancedRecs['macroInfo'] as String?;
+
+    return GestureDetector(
+      onTap: () {
+        // Navigate to meal design screen and show cycle goals dialog
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => MealDesignScreen(initialTabIndex: 0),
+          ),
+        ).then((_) {
+          // After returning, show cycle goals dialog if still on daily summary
+          if (mounted) {
+            // Use a small delay to ensure navigation is complete
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                // The dialog will be shown from meal design screen
+                // For now, we'll show a simplified version here
+                _showCyclePhaseDialog(
+                  context,
+                  phase,
+                  phaseColor,
+                  phaseEmoji,
+                  phaseName,
+                  expectedCravings,
+                  macroInfo,
+                  isDarkMode,
+                  textTheme,
+                );
+              }
+            });
+          }
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.all(getPercentageWidth(4, context)),
+        decoration: BoxDecoration(
+          color: phaseColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: phaseColor.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  phaseEmoji,
+                  style: TextStyle(fontSize: getTextScale(6, context)),
+                ),
+                SizedBox(width: getPercentageWidth(2, context)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cycle Phase: $phaseName',
+                        style: textTheme.titleMedium?.copyWith(
+                          color: phaseColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: getTextScale(4, context),
+                        ),
+                      ),
+                      if (macroInfo != null) ...[
+                        SizedBox(height: getPercentageHeight(0.5, context)),
+                        Text(
+                          macroInfo,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: isDarkMode
+                                ? kLightGrey.withValues(alpha: 0.8)
+                                : kDarkGrey.withValues(alpha: 0.8),
+                            fontSize: getTextScale(2.8, context),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: phaseColor,
+                  size: getIconScale(3.5, context),
+                ),
+              ],
+            ),
+            if (expectedCravings.isNotEmpty) ...[
+              SizedBox(height: getPercentageHeight(1.5, context)),
+              Text(
+                'Expected Cravings:',
+                style: textTheme.bodySmall?.copyWith(
+                  color: isDarkMode ? kLightGrey : kDarkGrey,
+                  fontWeight: FontWeight.w600,
+                  fontSize: getTextScale(3, context),
+                ),
+              ),
+              SizedBox(height: getPercentageHeight(0.8, context)),
+              Wrap(
+                spacing: getPercentageWidth(2, context),
+                runSpacing: getPercentageHeight(0.8, context),
+                children: expectedCravings.take(3).map((craving) {
+                  return Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: getPercentageWidth(2.5, context),
+                      vertical: getPercentageHeight(0.6, context),
+                    ),
+                    decoration: BoxDecoration(
+                      color: phaseColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          craving['emoji'] ?? '🍽️',
+                          style: TextStyle(
+                            fontSize: getTextScale(3, context),
+                          ),
+                        ),
+                        SizedBox(width: getPercentageWidth(1, context)),
+                        Text(
+                          craving['craving'] ?? '',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: isDarkMode ? kWhite : kDarkGrey,
+                            fontSize: getTextScale(2.6, context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            SizedBox(height: getPercentageHeight(1, context)),
+            Text(
+              'Tap to view full cycle goals and recommendations',
+              style: textTheme.bodySmall?.copyWith(
+                color: phaseColor,
+                fontSize: getTextScale(2.6, context),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show simplified cycle phase dialog from daily summary
+  void _showCyclePhaseDialog(
+    BuildContext context,
+    CyclePhase phase,
+    Color phaseColor,
+    String phaseEmoji,
+    String phaseName,
+    List<Map<String, String>> expectedCravings,
+    String? macroInfo,
+    bool isDarkMode,
+    TextTheme textTheme,
+  ) {
+    // This is a simplified version - the full dialog is in meal_design_screen
+    // For now, just show a snackbar or navigate to meal design screen
+    // The full implementation would require duplicating the dialog code
+    // or extracting it to a shared widget
+    showTastySnackbar(
+      'Cycle Phase',
+      'View full cycle goals in Meal Planner',
+      context,
+    );
   }
 }
