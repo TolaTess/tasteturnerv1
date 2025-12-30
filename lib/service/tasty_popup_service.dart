@@ -23,6 +23,7 @@ class TutorialPopupService {
     'message_screen_tutorial',
     'profile_screen_tutorial',
     'inspiration_screen_tutorial',
+    'challenge_detail_screen_tutorial',
     // Add more as needed
   ];
 

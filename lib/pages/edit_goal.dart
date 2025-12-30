@@ -114,9 +114,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
             lastPeriodStart = lastPeriodStartValue.toDate();
           }
         }
-
-        debugPrint('Cycle tracking loaded: isEnabled=$isCycleTrackingEnabled, '
-            'lastPeriodStart=$lastPeriodStart, cycleLength=${cycleLengthController.text}');
       } else {
         cycleLengthController.text = '28'; // Default
         isCycleTrackingEnabled = false;
@@ -170,10 +167,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
         // Update both settings and familyMode
         await authController.updateUserData(
             {'settings': updatedSettings, 'familyMode': isFamilyModeEnabled});
-
-        debugPrint('Cycle tracking saved: isEnabled=$isCycleTrackingEnabled, '
-            'lastPeriodStart=${lastPeriodStart?.toIso8601String()}, '
-            'cycleLength=${cycleLengthController.text}');
 
         Get.snackbar('Service Approved', 'Specs updated successfully, Chef!',
             snackPosition: SnackPosition.BOTTOM);
@@ -845,10 +838,71 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                       ),
                     ),
                     value: isCycleTrackingEnabled,
-                    onChanged: (value) {
-                      setState(() {
-                        isCycleTrackingEnabled = value;
-                      });
+                    onChanged: (value) async {
+                      if (value) {
+                        // Check if gender is male when enabling cycle syncing
+                        final currentUser = userService.currentUser.value;
+                        final currentGender = currentUser?.settings['gender']
+                            ?.toString()
+                            .toLowerCase();
+
+                        if (currentGender == 'male') {
+                          // Show dialog asking to update gender to female
+                          final shouldUpdate = await showDialog<bool>(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => AlertDialog(
+                              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                              title: Text(
+                                'Update Gender?',
+                                style: textTheme.titleLarge?.copyWith(
+                                  color: isDarkMode ? kWhite : kDarkGrey,
+                                ),
+                              ),
+                              content: Text(
+                                'Cycle syncing is only available for females. Would you like to update your gender to female?',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode ? kWhite : kDarkGrey,
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(false),
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(color: kAccent),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(true),
+                                  child: Text(
+                                    'Update to Female',
+                                    style: TextStyle(
+                                      color: kAccent,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (shouldUpdate == true) {
+                            // Update gender to female
+                            await authController.updateUserData({
+                              'settings.gender': 'female',
+                            });
+
+                            if (mounted) {
+                              setState(() {
+                                isCycleTrackingEnabled = true;
+                              });
+                            }
+                          } 
+                        }
+                      }
                     },
                     activeColor: kAccent,
                   ),
@@ -871,7 +925,8 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                           color: kAccent,
                         ),
                       ),
-                      trailing: const Icon(Icons.calendar_today, color: kAccent),
+                      trailing:
+                          const Icon(Icons.calendar_today, color: kAccent),
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
@@ -882,14 +937,30 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                           builder: (context, child) {
                             return Theme(
                               data: Theme.of(context).copyWith(
-                                colorScheme: getDatePickerTheme(context, isDarkMode).colorScheme,
-                                textButtonTheme: getDatePickerTheme(context, isDarkMode).textButtonTheme,
-                                inputDecorationTheme: getDatePickerTheme(context, isDarkMode).inputDecorationTheme,
-                                cardTheme: getDatePickerTheme(context, isDarkMode).cardTheme,
-                                dialogTheme: getDatePickerTheme(context, isDarkMode).dialogTheme,
-                                elevatedButtonTheme: getDatePickerTheme(context, isDarkMode).elevatedButtonTheme,
-                                outlinedButtonTheme: getDatePickerTheme(context, isDarkMode).outlinedButtonTheme,
-                                textTheme: getDatePickerTheme(context, isDarkMode).textTheme,
+                                colorScheme:
+                                    getDatePickerTheme(context, isDarkMode)
+                                        .colorScheme,
+                                textButtonTheme:
+                                    getDatePickerTheme(context, isDarkMode)
+                                        .textButtonTheme,
+                                inputDecorationTheme:
+                                    getDatePickerTheme(context, isDarkMode)
+                                        .inputDecorationTheme,
+                                cardTheme:
+                                    getDatePickerTheme(context, isDarkMode)
+                                        .cardTheme,
+                                dialogTheme:
+                                    getDatePickerTheme(context, isDarkMode)
+                                        .dialogTheme,
+                                elevatedButtonTheme:
+                                    getDatePickerTheme(context, isDarkMode)
+                                        .elevatedButtonTheme,
+                                outlinedButtonTheme:
+                                    getDatePickerTheme(context, isDarkMode)
+                                        .outlinedButtonTheme,
+                                textTheme:
+                                    getDatePickerTheme(context, isDarkMode)
+                                        .textTheme,
                               ),
                               child: child!,
                             );

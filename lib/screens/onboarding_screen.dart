@@ -386,14 +386,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
       if (!mounted) return;
 
-      Get.dialog(
-        const Center(
-            child: CircularProgressIndicator(
-          color: kAccent,
-        )),
-        barrierDismissible: false,
-      );
-
       // Sanitize name before saving
       // Use displayName from widget if name page was skipped, otherwise use controller
       final nameToSave = _shouldSkipNamePage() &&
@@ -592,17 +584,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         if (!mounted) return;
 
-        // Close loading dialog
-        if (Get.isDialogOpen ?? false) {
-          Get.back();
-        }
-
         // Navigate to main app with bottom navigation
         Get.offAll(() => const BottomNavSec());
       } catch (e) {
         if (!mounted) return;
 
-        // Close loading dialog if open
+        // Close any open dialogs
         if (Get.isDialogOpen ?? false) {
           Get.back();
         }
@@ -624,7 +611,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     } catch (e) {
       debugPrint("Error in _submitOnboarding: $e");
       if (mounted) {
-        // Close loading dialog if open
+        // Close any open dialogs
         if (Get.isDialogOpen ?? false) {
           Get.back();
         }
@@ -1600,9 +1587,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
       title: "Speaking the Lingo",
+      isReducedHeight: true,
       description:
           "Before we start service, let's learn the language of the kitchen. Here is how we run things.",
-      child1: Container(
+      child1: Image.asset(
+        'assets/images/gif/loading.gif',
+        width: getPercentageWidth(70, context),
+        height: getPercentageHeight(15, context),
+        fit: BoxFit.contain,
+      ),
+      child2: Container(
         padding: EdgeInsets.all(getPercentageWidth(5, context)),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1622,118 +1616,112 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              controller: _lingoScrollController,
-              child: Column(
-                children: [
-                  SizedBox(height: getPercentageHeight(2, context)),
-                  _buildTermRow(
-                    context,
-                    "Head Chef",
-                    "That's You! You're in charge of your kitchen and nutrition goals.",
-                    Icons.person,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Sous Chef",
-                    "That's Me (Turner). I'm your AI assistant here to help with meal planning and tracking.",
-                    Icons.smart_toy,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "The Pass",
-                    "Your Food Diary. Log meals, track macros, and review your daily nutrition here.",
-                    Icons.assignment,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Dine In",
-                    "Cook with what you have. Get recipe suggestions based on ingredients in your fridge.",
-                    Icons.kitchen,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Kitchen",
-                    "Your main dashboard. Track daily nutrition, view goals, and access quick actions.",
-                    Icons.home,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Menus",
-                    "Meal programs and plans tailored to your dietary needs.",
-                    Icons.restaurant_menu,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Inspiration",
-                    "Community feed where chefs share recipes and tips.",
-                    Icons.explore,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Spin",
-                    "Spin the wheel for spontaneous recipe discovery when you can't decide.",
-                    Icons.casino,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Schedule",
-                    "Your meal planning calendar. Plan ahead and organize your week.",
-                    Icons.calendar_month,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Inventory",
-                    "Your shopping list. Auto-generated from planned meals.",
-                    Icons.shopping_cart,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Cookbook",
-                    "Your recipe collection. Save and browse favorite dishes.",
-                    Icons.menu_book,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Brigade",
-                    "Your friends and community. Connect with other chefs.",
-                    Icons.people,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Station",
-                    "Your profile and kitchen settings. Customize your experience.",
-                    Icons.settings,
-                  ),
-                  _buildDivider(context),
-                  _buildTermRow(
-                    context,
-                    "Order Fire",
-                    "Log meals and track what you've eaten.",
-                    Icons.restaurant,
-                  ),
-                  SizedBox(height: getPercentageHeight(2, context)),
-                ],
+        child: SingleChildScrollView(
+          controller: _lingoScrollController,
+          child: Column(
+            children: [
+              _buildTermRow(
+                context,
+                "Head Chef",
+                "That's You! You're in charge of your kitchen and nutrition goals.",
+                Icons.person,
               ),
-            ),
-          ],
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Sous Chef",
+                "That's Me (Turner). I'm your AI assistant here to help with meal planning and tracking.",
+                Icons.smart_toy,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "The Pass",
+                "Your Food Diary. Log meals, track macros, and review your daily nutrition here.",
+                Icons.assignment,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Dine In",
+                "Cook with what you have. Get recipe suggestions based on ingredients in your fridge.",
+                Icons.kitchen,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Kitchen",
+                "Your main dashboard. Track daily nutrition, view goals, and access quick actions.",
+                Icons.home,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Menus",
+                "Meal programs and plans tailored to your dietary needs.",
+                Icons.restaurant_menu,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Inspiration",
+                "Community feed where chefs share recipes and tips.",
+                Icons.explore,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Spin",
+                "Spin the wheel for spontaneous recipe discovery when you can't decide.",
+                Icons.casino,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Schedule",
+                "Your meal planning calendar. Plan ahead and organize your week.",
+                Icons.calendar_month,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Inventory",
+                "Your shopping list. Auto-generated from planned meals.",
+                Icons.shopping_cart,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Cookbook",
+                "Your recipe collection. Save and browse favorite dishes.",
+                Icons.menu_book,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Brigade",
+                "Your friends and community. Connect with other chefs.",
+                Icons.people,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Station",
+                "Your profile and kitchen settings. Customize your experience.",
+                Icons.settings,
+              ),
+              _buildDivider(context),
+              _buildTermRow(
+                context,
+                "Order Fire",
+                "Log meals and track what you've eaten.",
+                Icons.restaurant,
+              ),
+              SizedBox(height: getPercentageHeight(2, context)),
+            ],
+          ),
         ),
       ),
-      child2: const SizedBox.shrink(),
       child3: const SizedBox.shrink(),
     );
   }
@@ -1843,6 +1831,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   /// Reusable Page Wrapper
   Widget _buildPage({
+    bool isReducedHeight = false,
     required String title,
     required String description,
     required Widget child1,
@@ -1876,11 +1865,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
               ),
             ),
-            SizedBox(height: getPercentageHeight(5, context)),
+            SizedBox(
+                height:
+                    getPercentageHeight(isReducedHeight ? 0.5 : 5, context)),
             child1,
-            SizedBox(height: getPercentageHeight(2, context)),
+            SizedBox(
+                height:
+                    getPercentageHeight(isReducedHeight ? 0.5 : 2, context)),
             child2,
-            SizedBox(height: getPercentageHeight(2, context)),
+            SizedBox(
+                height:
+                    getPercentageHeight(isReducedHeight ? 0.5 : 2, context)),
             child3,
           ],
         ),

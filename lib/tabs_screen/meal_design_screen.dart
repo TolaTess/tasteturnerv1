@@ -1406,7 +1406,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
               accentColor: kAccentLight,
               darkModeAccentColor: kDarkModeAccent,
             ),
-          _buildEmptyState(normalizedSelectedDate, birthdayName, isDarkMode),
+          _buildEmptyState(
+              key: _addMealButtonKey,
+              date: normalizedSelectedDate,
+              birthdayName: birthdayName,
+              isDarkMode: isDarkMode,
+              normalizedSelectedDate: normalizedSelectedDate,
+              isSpecialDay: isPersonalSpecialDay),
         ],
       );
     }
@@ -1464,7 +1470,11 @@ class _MealDesignScreenState extends State<MealDesignScreen>
         ],
 
         if (!hasAnyMeals)
-          _buildEmptyState(normalizedSelectedDate, birthdayName, isDarkMode,
+          _buildEmptyState(
+              key: _addMealButtonKey,
+              date: normalizedSelectedDate,
+              birthdayName: birthdayName,
+              isDarkMode: isDarkMode,
               normalizedSelectedDate: normalizedSelectedDate,
               isSpecialDay: isPersonalSpecialDay),
 
@@ -2399,8 +2409,13 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     }
   }
 
-  Widget _buildEmptyState(DateTime date, String birthdayName, bool isDarkMode,
-      {DateTime? normalizedSelectedDate, bool? isSpecialDay}) {
+  Widget _buildEmptyState(
+      {required GlobalKey key,
+      required DateTime date,
+      required String birthdayName,
+      required bool isDarkMode,
+      required DateTime? normalizedSelectedDate,
+      required bool? isSpecialDay}) {
     final textTheme = Theme.of(context).textTheme;
     final currentDayType = _mealPlanController.dayTypes[date] ?? 'regular_day';
     return SizedBox(
@@ -2408,7 +2423,6 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       child: Center(
         child: SingleChildScrollView(
           child: Column(
-            key: _addMealButtonKey,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (birthdayName.isNotEmpty &&
@@ -2435,6 +2449,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                               : true),
                       icon: Icon(Icons.add, size: getIconScale(6, context)),
                       label: Text('Add Meal',
+                          key: key,
                           style: textTheme.bodyMedium?.copyWith(
                               fontSize: getPercentageWidth(3.5, context),
                               fontWeight: FontWeight.w400)),
@@ -2593,43 +2608,39 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                             ),
                           ),
                         ],
-                            // Cycle goals button - only show in personal calendar view and for non-past dates
-                    if (meals.isNotEmpty &&
-                        !_mealPlanController.showSharedCalendars.value) ...[
-                      Builder(
-                        builder: (context) {
-                          final isPastDate = date.isBefore(DateTime(
-                              DateTime.now().year,
-                              DateTime.now().month,
-                              DateTime.now().day));
-                          final cycleSuggestion = !isPastDate
-                              ? _getCycleSuggestionForDate(date)
-                              : null;
-                          if (cycleSuggestion == null)
-                            return const SizedBox.shrink();
+                        // Cycle goals button - only show in personal calendar view and for non-past dates
+                        if (meals.isNotEmpty &&
+                            !_mealPlanController.showSharedCalendars.value) ...[
+                          Builder(
+                            builder: (context) {
+                              final isPastDate = date.isBefore(DateTime(
+                                  DateTime.now().year,
+                                  DateTime.now().month,
+                                  DateTime.now().day));
+                              final cycleSuggestion = !isPastDate
+                                  ? _getCycleSuggestionForDate(date)
+                                  : null;
+                              if (cycleSuggestion == null)
+                                return const SizedBox.shrink();
 
-                          final phaseEmoji = _getCyclePhaseEmoji(date);
-                          final phaseColor = _getCyclePhaseColor(date);
+                              final phaseEmoji = _getCyclePhaseEmoji(date);
+                              final phaseColor = _getCyclePhaseColor(date);
 
-                          return Padding(
-                            padding: EdgeInsets.only(
-                                top: getPercentageHeight(0.5, context)),
-                            child: IconButton(
-                              onPressed: () =>
-                                  _showCycleGoalsDialog(context, date),
-                              icon: Text(
-                                phaseEmoji,
-                                style: TextStyle(
-                                  fontSize: getPercentageWidth(4, context),
-                                  color: phaseColor,
+                              return IconButton(
+                                onPressed: () =>
+                                    _showCycleGoalsDialog(context, date),
+                                icon: Text(
+                                  phaseEmoji,
+                                  style: TextStyle(
+                                    fontSize: getPercentageWidth(4, context),
+                                    color: phaseColor,
+                                  ),
                                 ),
-                              ),
-                              tooltip: 'View Cycle Goals',
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                                tooltip: 'View Cycle Goals',
+                              );
+                            },
+                          ),
+                        ],
                       ],
                     ),
                     if (isUserBirthday)
@@ -2800,9 +2811,16 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
     if (lastPeriodStart == null) return false;
 
-    // Only show indicator for current month dates
+    // Show indicator for current month and next month only
     final now = DateTime.now();
-    if (date.month != now.month || date.year != now.year) return false;
+    final currentMonth = DateTime(now.year, now.month);
+    final nextMonth = DateTime(now.year, now.month + 1);
+    final dateMonth = DateTime(date.year, date.month);
+
+    // Check if date is within the current month or next month
+    if (dateMonth.isBefore(currentMonth) || dateMonth.isAfter(nextMonth)) {
+      return false;
+    }
 
     return true;
   }
@@ -2920,7 +2938,8 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     final phaseColor = cycleAdjustmentService.getPhaseColor(phase);
     final phaseEmoji = cycleAdjustmentService.getPhaseEmoji(phase);
     final foods = cycleSuggestion['foods'] as List<String>;
-    final enhancedRecs = cycleAdjustmentService.getEnhancedRecommendations(phase);
+    final enhancedRecs =
+        cycleAdjustmentService.getEnhancedRecommendations(phase);
     final expectedCravings = cycleAdjustmentService.getExpectedCravings(phase);
     final tips = enhancedRecs['tips'] as List<String>? ?? [];
     final macroInfo = enhancedRecs['macroInfo'] as String?;
@@ -2986,6 +3005,8 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
   final TextEditingController _cravingController = TextEditingController();
   List<Map<String, dynamic>> _aiAlternatives = [];
   bool _isLoadingAlternatives = false;
+  final Set<int> _selectedAlternatives =
+      {}; // Track selected alternatives by index
   final geminiService = GeminiService.instance;
   final mealManager = MealManager.instance;
   final mealPlanningService = MealPlanningService.instance;
@@ -2996,9 +3017,26 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
     super.dispose();
   }
 
-  Future<void> _handleAlternativeTap(Map<String, dynamic> alternative) async {
-    final alternativeName = alternative['name'] as String? ?? '';
-    if (alternativeName.isEmpty) return;
+  void _toggleAlternativeSelection(int index) {
+    setState(() {
+      if (_selectedAlternatives.contains(index)) {
+        _selectedAlternatives.remove(index);
+      } else {
+        _selectedAlternatives.add(index);
+      }
+    });
+  }
+
+  Future<void> _addSelectedMealsToCalendar() async {
+    if (_selectedAlternatives.isEmpty) {
+      showTastySnackbar(
+        'No Selection',
+        'Please select at least one meal to add',
+        context,
+        backgroundColor: Colors.orange,
+      );
+      return;
+    }
 
     // Show loading
     if (!mounted) return;
@@ -3011,64 +3049,93 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
     );
 
     try {
-      // Search for meals matching the alternative name (case-insensitive partial match)
-      final allMeals = await mealManager.fetchAllMeals();
-      final matchingMeals = allMeals
-          .where((meal) => meal.title
-              .toLowerCase()
-              .contains(alternativeName.toLowerCase()))
-          .take(5) // Limit to 5 matches
-          .toList();
-      
+      final List<String> allMealIds = [];
+      final List<String> mealNamesToCreate = [];
+
+      // Process each selected alternative
+      for (final index in _selectedAlternatives) {
+        if (index >= _aiAlternatives.length) continue;
+
+        final alternative = _aiAlternatives[index];
+        final alternativeName = alternative['name'] as String? ?? '';
+        if (alternativeName.isEmpty) continue;
+
+        // Search for meals matching the alternative name
+        final allMeals = await mealManager.fetchAllMeals();
+        final matchingMeals = allMeals
+            .where((meal) => meal.title
+                .toLowerCase()
+                .contains(alternativeName.toLowerCase()))
+            .take(5)
+            .toList();
+
+        if (matchingMeals.isNotEmpty) {
+          // Extract meal IDs from matching meals
+          final mealIds = matchingMeals
+              .map((meal) => meal.mealId)
+              .where((id) => id.isNotEmpty)
+              .toList();
+
+          if (mealIds.isNotEmpty) {
+            allMealIds.addAll(mealIds);
+          } else {
+            mealNamesToCreate.add(alternativeName);
+          }
+        } else {
+          mealNamesToCreate.add(alternativeName);
+        }
+      }
+
       if (!mounted) return;
       Navigator.pop(context); // Close loading
 
-      if (matchingMeals.isNotEmpty) {
-        // Extract meal IDs from matching meals
-        final mealIds = matchingMeals
-            .map((meal) => meal.mealId)
-            .where((id) => id.isNotEmpty)
-            .toList();
+      // Add existing meals to calendar
+      if (allMealIds.isNotEmpty) {
+        final success = await mealPlanningService.addMealToCalendar(
+          allMealIds,
+          widget.selectedDate,
+        );
 
-        if (mealIds.isNotEmpty) {
-          // Add meals to calendar
-          final success = await mealPlanningService.addMealToCalendar(
-            mealIds,
-            widget.selectedDate,
+        if (!success && mounted) {
+          showTastySnackbar(
+            'Error',
+            'Could not add some meals to calendar',
+            context,
+            backgroundColor: Colors.red,
           );
-
-          if (mounted) {
-            if (success) {
-              showTastySnackbar(
-                'Added to Calendar',
-                '$alternativeName added to ${DateFormat('MMM d').format(widget.selectedDate)}',
-                context,
-                backgroundColor: Colors.green,
-              );
-              // Close the cycle goals dialog
-              Navigator.pop(context);
-            } else {
-              showTastySnackbar(
-                'Error',
-                'Could not add meal to calendar',
-                context,
-                backgroundColor: Colors.red,
-              );
-            }
-          }
-        } else {
-          // No meal IDs found, create basic meal
-          await _createBasicMealAndAddToCalendar(alternativeName);
         }
-      } else {
-        // No meals found, create basic meal
-        await _createBasicMealAndAddToCalendar(alternativeName);
+      }
+
+      // Create and add new meals
+      for (final mealName in mealNamesToCreate) {
+        await _createBasicMealAndAddToCalendar(mealName);
+      }
+
+      if (mounted) {
+        final selectedCount = _selectedAlternatives.length;
+        showTastySnackbar(
+          'Added to Calendar',
+          '$selectedCount meal${selectedCount > 1 ? 's' : ''} added to ${DateFormat('MMM d').format(widget.selectedDate)}',
+          context,
+          backgroundColor: Colors.green,
+        );
+
+        // Clear selections and close dialog
+        setState(() {
+          _selectedAlternatives.clear();
+        });
+        Navigator.pop(context);
       }
     } catch (e) {
-      debugPrint('Error handling alternative tap: $e');
+      debugPrint('Error adding selected meals: $e');
       if (mounted) {
         Navigator.pop(context); // Close loading if still open
-        await _createBasicMealAndAddToCalendar(alternativeName);
+        showTastySnackbar(
+          'Error',
+          'Could not add meals to calendar. Please try again.',
+          context,
+          backgroundColor: Colors.red,
+        );
       }
     }
   }
@@ -3095,7 +3162,8 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
         'version': 'basic',
         'processingAttempts': 0, // Track retry attempts
         'lastProcessingAttempt': null, // Timestamp of last attempt
-        'processingPriority': DateTime.now().millisecondsSinceEpoch, // FIFO processing
+        'processingPriority':
+            DateTime.now().millisecondsSinceEpoch, // FIFO processing
         'needsProcessing': true, // Flag for Firebase Functions
       };
 
@@ -3223,10 +3291,10 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
               ),
               SizedBox(height: getPercentageHeight(2, context)),
 
-              // Expected Cravings Section
+              // Common Cravings Section
               if (widget.expectedCravings.isNotEmpty) ...[
                 Text(
-                  'Expected Cravings:',
+                  'Common Cravings:',
                   style: widget.textTheme.titleSmall?.copyWith(
                     color: widget.phaseColor,
                     fontWeight: FontWeight.w600,
@@ -3314,7 +3382,8 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
                                   food,
                                   style: widget.textTheme.bodySmall?.copyWith(
                                     color: widget.isDarkMode
-                                        ? kLightGrey
+                                        ? kBackgroundColor.withValues(
+                                            alpha: 0.8)
                                         : kDarkGrey,
                                     fontSize: getTextScale(3, context),
                                   ),
@@ -3344,7 +3413,7 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Enter Your Craving:',
+                      'Check specific cravings?',
                       style: widget.textTheme.titleSmall?.copyWith(
                         color: kAccent,
                         fontWeight: FontWeight.w600,
@@ -3441,18 +3510,42 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
                       ),
                     ] else if (_aiAlternatives.isNotEmpty) ...[
                       SizedBox(height: getPercentageHeight(2, context)),
-                      Text(
-                        'Turner\'s Suggestions:',
-                        style: widget.textTheme.titleSmall?.copyWith(
-                          color: kAccent,
-                          fontWeight: FontWeight.w600,
-                          fontSize: getTextScale(3.2, context),
-                        ),
+                      Column(
+                        children: [
+                          Text(
+                            'Turner\'s Suggestions:',
+                            style: widget.textTheme.titleSmall?.copyWith(
+                              color: kAccent,
+                              fontWeight: FontWeight.w600,
+                              fontSize: getTextScale(3.2, context),
+                            ),
+                          ),
+                          Text(
+                            'Select meals to add to your calendar',
+                            style: widget.textTheme.labelSmall?.copyWith(
+                              color: widget.isDarkMode
+                                  ? kBackgroundColor.withValues(alpha: 0.6)
+                                  : kDarkGrey,
+                              fontSize: getTextScale(2, context),
+                            ),
+                          ),
+                        ],
                       ),
                       SizedBox(height: getPercentageHeight(1, context)),
-                      ..._aiAlternatives.take(2).map((alt) => GestureDetector(
-                            onTap: () => _handleAlternativeTap(alt),
-                            child: Container(
+                      ..._aiAlternatives
+                          .take(2)
+                          .toList()
+                          .asMap()
+                          .entries
+                          .map((entry) {
+                        final index = entry.key;
+                        final alt = entry.value;
+                        final isSelected =
+                            _selectedAlternatives.contains(index);
+
+                        return GestureDetector(
+                          onTap: () => _toggleAlternativeSelection(index),
+                          child: Container(
                             margin: EdgeInsets.only(
                               bottom: getPercentageHeight(1, context),
                             ),
@@ -3460,55 +3553,120 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
                               getPercentageWidth(2.5, context),
                             ),
                             decoration: BoxDecoration(
-                              color: kAccent.withValues(alpha: 0.1),
+                              color: isSelected
+                                  ? kAccent.withValues(alpha: 0.2)
+                                  : kAccent.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: kAccent.withValues(alpha: 0.2),
-                                width: 1,
+                                color: isSelected
+                                    ? kAccent
+                                    : kAccent.withValues(alpha: 0.2),
+                                width: isSelected ? 2 : 1,
                               ),
                             ),
-                            child: Column(
+                            child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  alt['name'] ?? 'Alternative',
-                                  style: widget.textTheme.bodyMedium?.copyWith(
-                                    color: kAccent,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: getTextScale(3.2, context),
+                                Checkbox(
+                                  value: isSelected,
+                                  onChanged: (value) =>
+                                      _toggleAlternativeSelection(index),
+                                  activeColor: kAccent,
+                                  checkColor: kWhite,
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        alt['name'] ?? 'Alternative',
+                                        style: widget.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: kAccent,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: getTextScale(3.2, context),
+                                        ),
+                                      ),
+                                      if (alt['why'] != null) ...[
+                                        SizedBox(
+                                            height: getPercentageHeight(
+                                                0.5, context)),
+                                        Text(
+                                          alt['why'] ?? '',
+                                          style: widget.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: widget.isDarkMode
+                                                ? kLightGrey
+                                                : kDarkGrey,
+                                            fontSize:
+                                                getTextScale(2.8, context),
+                                          ),
+                                        ),
+                                      ],
+                                      if (alt['benefits'] != null) ...[
+                                        SizedBox(
+                                            height: getPercentageHeight(
+                                                0.5, context)),
+                                        Text(
+                                          'Benefits: ${alt['benefits'] ?? ''}',
+                                          style: widget.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: widget.isDarkMode
+                                                ? kLightGrey.withValues(
+                                                    alpha: 0.8)
+                                                : kDarkGrey.withValues(
+                                                    alpha: 0.8),
+                                            fontSize:
+                                                getTextScale(2.6, context),
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
-                                if (alt['why'] != null) ...[
-                                  SizedBox(
-                                      height: getPercentageHeight(0.5, context)),
-                                  Text(
-                                    alt['why'] ?? '',
-                                    style: widget.textTheme.bodySmall?.copyWith(
-                                      color: widget.isDarkMode
-                                          ? kLightGrey
-                                          : kDarkGrey,
-                                      fontSize: getTextScale(2.8, context),
-                                    ),
-                                  ),
-                                ],
-                                if (alt['benefits'] != null) ...[
-                                  SizedBox(
-                                      height: getPercentageHeight(0.5, context)),
-                                  Text(
-                                    'Benefits: ${alt['benefits'] ?? ''}',
-                                    style: widget.textTheme.bodySmall?.copyWith(
-                                      color: widget.isDarkMode
-                                          ? kLightGrey.withValues(alpha: 0.8)
-                                          : kDarkGrey.withValues(alpha: 0.8),
-                                      fontSize: getTextScale(2.6, context),
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
                           ),
-                          )),
+                        );
+                      }),
+                      // Add selected meals button
+                      if (_selectedAlternatives.isNotEmpty) ...[
+                        SizedBox(height: getPercentageHeight(2, context)),
+                        ElevatedButton(
+                          onPressed: _addSelectedMealsToCalendar,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kAccent,
+                            foregroundColor: kWhite,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(4, context),
+                              vertical: getPercentageHeight(1.5, context),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.add_circle_outline,
+                                size: getIconScale(4, context),
+                              ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Text(
+                                'Add ${_selectedAlternatives.length} Selected Meal${_selectedAlternatives.length > 1 ? 's' : ''}',
+                                style: widget.textTheme.bodyMedium?.copyWith(
+                                  color: kWhite,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: getTextScale(3.2, context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ],
                 ),
@@ -3563,7 +3721,8 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
                                     tip,
                                     style: widget.textTheme.bodySmall?.copyWith(
                                       color: widget.isDarkMode
-                                          ? kLightGrey
+                                          ? kBackgroundColor.withValues(
+                                              alpha: 0.8)
                                           : kDarkGrey,
                                       fontSize: getTextScale(3, context),
                                     ),
@@ -3599,7 +3758,9 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
                         child: Text(
                           widget.macroInfo!,
                           style: widget.textTheme.bodySmall?.copyWith(
-                            color: widget.isDarkMode ? kLightGrey : kDarkGrey,
+                            color: widget.isDarkMode
+                                ? kBackgroundColor.withValues(alpha: 0.6)
+                                : kDarkGrey,
                             fontSize: getTextScale(3, context),
                             fontStyle: FontStyle.italic,
                           ),
@@ -3631,7 +3792,9 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
                       child: Text(
                         widget.appAction,
                         style: widget.textTheme.bodySmall?.copyWith(
-                          color: widget.isDarkMode ? kLightGrey : kDarkGrey,
+                          color: widget.isDarkMode
+                              ? kBackgroundColor.withValues(alpha: 0.6)
+                              : kDarkGrey,
                           fontSize: getTextScale(3, context),
                           fontStyle: FontStyle.italic,
                         ),

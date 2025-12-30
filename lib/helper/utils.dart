@@ -1330,7 +1330,7 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
             message,
             style: textTheme.displaySmall?.copyWith(
               fontWeight: FontWeight.w400,
-              fontSize: getTextScale(6, context),
+              fontSize: getTextScale(5, context),
               color: kAccentLight,
             ),
             textAlign: TextAlign.center,
@@ -1339,8 +1339,8 @@ Widget noItemTastyWidget(String message, String subtitle, BuildContext context,
           if (subtitle.isNotEmpty)
             Text(
               subtitle,
-              style: textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
+              style: textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
                 color: isLinked
                     ? kAccent
                     : themeProvider.isDarkMode

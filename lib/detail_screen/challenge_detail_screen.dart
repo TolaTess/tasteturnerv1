@@ -17,6 +17,7 @@ import '../screens/createrecipe_screen.dart';
 import '../screens/friend_screen.dart';
 import '../screens/user_profile_screen.dart';
 import '../screens/food_analysis_results_screen.dart';
+import '../service/tasty_popup_service.dart';
 import '../themes/theme_provider.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
@@ -51,7 +52,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fitAnimation;
-
+  final GlobalKey _chefsProfileButtonKey = GlobalKey();
+  final GlobalKey _addSharePostButtonKey = GlobalKey();
+  final GlobalKey _addScrollThroughPostsButtonKey = GlobalKey();
+  final GlobalKey _addFollowUserButtonKey = GlobalKey();
   bool isLiked = false;
   bool isFollowing = false;
   int likesCount = 0;
@@ -126,6 +130,49 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
     _loadFavoriteStatus();
     _loadMeal();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showChallengeDetailScreenTutorial();
+    });
+  }
+
+  void _showChallengeDetailScreenTutorial() {
+    tastyPopupService.showSequentialTutorials(
+      context: context,
+      sequenceKey: 'challenge_detail_screen_tutorial',
+      tutorials: [
+        TutorialStep(
+            tutorialId: 'add_scroll_through_posts_button',
+            message: 'Scroll left and right through the posts, Chef!',
+            targetKey: _addScrollThroughPostsButtonKey,
+            onComplete: () {
+              // Optional: Add any actions to perform after the tutorial is completed
+            }),
+        TutorialStep(
+          tutorialId: 'chefs_profile_button',
+          message: 'Tap here to view the chef\'s profile, Chef!',
+          targetKey: _chefsProfileButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_share_post_button',
+          message: 'Tap here to share the post, Chef!',
+          targetKey: _addSharePostButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_follow_user_button',
+          message: 'Tap here to follow the user, Chef!',
+          targetKey: _addFollowUserButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+      ],
+    );
   }
 
   Future<void> _loadMeal() async {
@@ -537,12 +584,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
     return value ?? 'Chef';
   }
 
-  Widget _buildMediaContent(String url,
-      {bool isCurrentPage = true, int? pageIndex}) {
-    return _buildImageContent(url);
+  Widget _buildMediaContent({required GlobalKey key, required String url,
+      required bool isCurrentPage, required int pageIndex}) {
+    return _buildImageContent(key: key, url: url);
   }
 
-  Widget _buildImageContent(String url) {
+  Widget _buildImageContent({required GlobalKey key, required String url}) {
     return Stack(
       children: [
         // Blurred background
@@ -561,6 +608,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         ),
         // Main image with natural aspect ratio
         Center(
+          key: key,
           child: Container(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width,
@@ -742,7 +790,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                       );
                     },
                     child: _buildMediaContent(
-                      mediaUrl,
+                      key: _addScrollThroughPostsButtonKey,
+                      url: mediaUrl,
                       isCurrentPage: isCurrentPage && isAdjacentPage,
                       pageIndex: index,
                     ),
@@ -786,6 +835,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                             ),
                           ),
                           child: CircleAvatar(
+                            key: _chefsProfileButtonKey,
                             radius: getResponsiveBoxSize(context, 19, 19),
                             backgroundColor:
                                 kAccent.withValues(alpha: kOpacity),
@@ -824,6 +874,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           );
                         },
                         child: Icon(
+                          key: _addSharePostButtonKey,
                           Icons.ios_share,
                           color: kWhite,
                           size: getResponsiveBoxSize(context, 23, 23),
@@ -927,6 +978,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                           return GestureDetector(
                             onTap: toggleFollow,
                             child: CircleAvatar(
+                              key: _addFollowUserButtonKey,
                               radius: getResponsiveBoxSize(context, 17, 17),
                               backgroundColor:
                                   kAccent.withValues(alpha: kOpacity),

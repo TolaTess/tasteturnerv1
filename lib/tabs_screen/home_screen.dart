@@ -49,7 +49,6 @@ import '../data_models/symptom_entry.dart';
 import '../screens/symptom_insights_screen.dart';
 import '../service/cycle_adjustment_service.dart';
 import '../widgets/tutorial_blocker.dart';
-import 'meal_design_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -75,6 +74,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlobalKey _addRecipeButtonKey = GlobalKey();
   final GlobalKey _addMessageButtonKey = GlobalKey();
   final GlobalKey _todaySummaryKey = GlobalKey();
+  final GlobalKey _addMilestoneTrackerButtonKey = GlobalKey();
+  final GlobalKey _addUserControlsButtonKey = GlobalKey();
   String? _shoppingDay;
   int selectedUserIndex = 0;
   bool hasMealPlan = true;
@@ -465,6 +466,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           tutorialId: 'add_message_button',
           message: 'Tap here to check your messages, Chef!',
           targetKey: _addMessageButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_milestone_tracker_button',
+          message: 'Tap here to view your milestone tracker, Chef!',
+          targetKey: _addMilestoneTrackerButtonKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_today_summary_button',
+          message: 'Tap here to view your today\'s summary, Chef!',
+          targetKey: _todaySummaryKey,
+          onComplete: () {
+            // Optional: Add any actions to perform after the tutorial is completed
+          },
+        ),
+        TutorialStep(
+          tutorialId: 'add_user_controls_button',
+          message:
+              'Tap here to view your user controls, and disable calories and sensitive content Chef!',
+          targetKey: _addUserControlsButtonKey,
           onComplete: () {
             // Optional: Add any actions to perform after the tutorial is completed
           },
@@ -1398,10 +1424,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Build quick stats row (streak, badges, points, rainbow tracker)
   Widget _buildQuickStatsRow(
-      BuildContext context, bool isDarkMode, TextTheme textTheme) {
+      {required GlobalKey key,
+      required BuildContext context,
+      required bool isDarkMode,
+      required TextTheme textTheme}) {
     return Obx(() {
       final badgeService = BadgeService.instance;
       return Container(
+        key: key,
         margin:
             EdgeInsets.symmetric(horizontal: getPercentageWidth(4.5, context)),
         padding: EdgeInsets.symmetric(
@@ -1891,7 +1921,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     SizedBox(height: getPercentageHeight(1, context)),
 
                     // Quick Stats Row (Streak, Badges, Points, Rainbow Tracker)
-                    _buildQuickStatsRow(context, isDarkMode, textTheme),
+                    _buildQuickStatsRow(
+                        key: _addMilestoneTrackerButtonKey,
+                        context: context,
+                        isDarkMode: isDarkMode,
+                        textTheme: textTheme),
                     SizedBox(height: getPercentageHeight(1, context)),
                     // Combined Daily Summary Link and Cycle Phase Indicator
                     Padding(
@@ -2072,6 +2106,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       width: 1.5),
                                 ),
                                 child: UserDetailsSection(
+                                  key: _addUserControlsButtonKey,
                                   user: user,
                                   isDarkMode: isDarkMode,
                                   showCaloriesAndGoal: showCaloriesAndGoal,

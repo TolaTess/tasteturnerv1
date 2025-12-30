@@ -234,7 +234,7 @@ class _InspirationScreenState extends State<InspirationScreen>
           message: 'Tap here to browse the post with dishes only, Chef!',
           targetKey: _addRecipeButtonKey,
           onComplete: () {
-            // Optional: Add any actions to perform after the tutorial is completed
+           
           },
         ),
 
@@ -285,9 +285,12 @@ class _InspirationScreenState extends State<InspirationScreen>
 
   /// Build recipe filter button
   Widget _buildRecipeFilterButton(
-      BuildContext context, TextTheme textTheme, bool isDarkMode) {
+      {required GlobalKey key,
+      required BuildContext context,
+      required TextTheme textTheme,
+      required bool isDarkMode}) {
     return IconButton(
-      key: _addRecipeButtonKey, // Place the key here on the IconButton itself
+      key: key, // Place the key here on the IconButton itself
       icon: Icon(
         filterByRecipe ? Icons.restaurant_menu : Icons.restaurant_menu_outlined,
         color: filterByRecipe
@@ -374,7 +377,7 @@ class _InspirationScreenState extends State<InspirationScreen>
               tooltip: 'Station Guide, Chef',
             ),
             SizedBox(width: getPercentageWidth(2, context)),
-            _buildRecipeFilterButton(context, textTheme, isDarkMode),
+            _buildRecipeFilterButton(key: _addRecipeButtonKey, context: context, textTheme: textTheme, isDarkMode: isDarkMode),
           ],
         ),
       ],
