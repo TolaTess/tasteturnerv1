@@ -16,6 +16,7 @@ import '../service/food_api_service.dart';
 import '../service/meal_api_service.dart';
 import '../service/calorie_adjustment_service.dart';
 import '../service/reverse_pantry_search_service.dart';
+import '../service/cycle_adjustment_service.dart';
 
 import '../widgets/daily_routine_list_horizontal.dart';
 import '../widgets/meal_detail_widget.dart';
@@ -902,14 +903,56 @@ class _AddFoodScreenState extends State<AddFoodScreen>
 
     // Get current totals and goals
     final settings = userService.currentUser.value?.settings ?? {};
-    final targetCalories =
+    double baseTargetCalories =
         double.tryParse(settings['foodGoal']?.toString() ?? '0') ?? 0.0;
-    final targetProtein =
+    double baseTargetProtein =
         double.tryParse(settings['proteinGoal']?.toString() ?? '0') ?? 0.0;
-    final targetCarbs =
+    double baseTargetCarbs =
         double.tryParse(settings['carbsGoal']?.toString() ?? '0') ?? 0.0;
-    final targetFat =
+    double baseTargetFat =
         double.tryParse(settings['fatGoal']?.toString() ?? '0') ?? 0.0;
+
+    // Apply cycle adjustments if enabled
+    double targetCalories = baseTargetCalories;
+    double targetProtein = baseTargetProtein;
+    double targetCarbs = baseTargetCarbs;
+    double targetFat = baseTargetFat;
+    String? cycleAdjustmentNote;
+
+    final cycleDataRaw = settings['cycleTracking'];
+    if (cycleDataRaw != null && cycleDataRaw is Map) {
+      final cycleData = Map<String, dynamic>.from(cycleDataRaw);
+      if (cycleData['isEnabled'] as bool? ?? false) {
+        final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
+        if (lastPeriodStartStr != null) {
+          final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
+          if (lastPeriodStart != null) {
+            final cycleLength =
+                (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
+            final cycleService = CycleAdjustmentService.instance;
+            final targetDate = widget.date ?? DateTime.now();
+            final phase = cycleService.getCurrentPhase(
+                lastPeriodStart, cycleLength, targetDate);
+
+            final baseGoals = {
+              'calories': baseTargetCalories,
+              'protein': baseTargetProtein,
+              'carbs': baseTargetCarbs,
+              'fat': baseTargetFat,
+            };
+
+            final adjustedGoals =
+                cycleService.getAdjustedGoals(baseGoals, phase);
+            targetCalories = adjustedGoals['calories'] ?? baseTargetCalories;
+            targetCarbs = adjustedGoals['carbs'] ?? baseTargetCarbs;
+
+            // Get adjustment note
+            final enhancedRecs = cycleService.getEnhancedRecommendations(phase);
+            cycleAdjustmentNote = enhancedRecs['macroInfo'] as String?;
+          }
+        }
+      }
+    }
 
     final currentCalories = dailyDataController.totalCalories.value;
 
@@ -976,6 +1019,40 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                       fontSize: getTextScale(3.5, context),
                     ),
                   ),
+                  if (cycleAdjustmentNote != null) ...[
+                    SizedBox(height: getPercentageHeight(1, context)),
+                    Container(
+                      padding: EdgeInsets.all(getPercentageWidth(2.5, context)),
+                      decoration: BoxDecoration(
+                        color: kAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: kAccent.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: kAccent,
+                            size: getIconScale(4, context),
+                          ),
+                          SizedBox(width: getPercentageWidth(2, context)),
+                          Expanded(
+                            child: Text(
+                              cycleAdjustmentNote,
+                              style: TextStyle(
+                                color: kAccent,
+                                fontSize: getTextScale(2.8, context),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   SizedBox(height: getPercentageHeight(2, context)),
 
                   // Calories input

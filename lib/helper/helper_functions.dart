@@ -1554,7 +1554,7 @@ Widget buildFullWidthHomeButton({
                       style: textTheme.displaySmall?.copyWith(
                         color: canUseAI() ? kAccentLight : Colors.grey,
                         fontWeight: FontWeight.w600,
-                        fontSize: getTextScale(3.8, context),
+                        fontSize: getTextScale(3.9, context),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -1609,7 +1609,7 @@ Widget buildFullWidthHomeButton({
                       style: textTheme.displaySmall?.copyWith(
                         color: canUseAI() ? kAccentLight : Colors.grey,
                         fontWeight: FontWeight.w600,
-                        fontSize: getTextScale(3.8, context),
+                        fontSize: getTextScale(3.9, context),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -2239,15 +2239,28 @@ class _RotatingLoadingDialogState extends State<_RotatingLoadingDialog> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
-      content: Row(
+      content: Stack(
+        alignment: Alignment.center,
         children: [
-          const CircularProgressIndicator(color: kAccent),
-          SizedBox(width: getPercentageWidth(5, context)),
-          Text(
-            widget.messages[_currentIndex],
-            style: textTheme.displaySmall?.copyWith(
-              color: widget.isDarkMode ? kWhite : kBlack,
-              fontSize: getTextScale(4.5, context),
+          Image.asset(
+            'assets/images/gif/loading.gif',
+            width: getPercentageWidth(80, context),
+            height: getPercentageHeight(20, context),
+            fit: BoxFit.contain,
+          ),
+          Positioned(
+            bottom: getPercentageHeight(2, context),
+            left: 0,
+            right: 0,
+            child: Text(
+              widget.messages[_currentIndex],
+              textAlign: TextAlign.center,
+              style: textTheme.displaySmall?.copyWith(
+                color: widget.isDarkMode
+                    ? kWhite.withValues(alpha: 0.8)
+                    : kBlack.withValues(alpha: 0.8),
+                fontSize: getTextScale(5, context),
+              ),
             ),
           ),
         ],

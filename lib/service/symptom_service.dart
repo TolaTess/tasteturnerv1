@@ -159,4 +159,54 @@ class SymptomService extends GetxController {
       return Stream.value(<SymptomEntry>[]);
     }
   }
+
+  /// Get symptom triggers from Firestore
+  /// Returns trigger data with highConfidence and mediumConfidence lists for each symptom type
+  /// Falls back to null if Firestore is unavailable
+  /// Tries to get document with ID 'triggers' first, then any document in the collection
+  Future<Map<String, dynamic>?> getSymptomTriggers() async {
+    try {
+      // First try to get document with ID 'triggers'
+      var docRef = firestore.collection('commonTriggers').doc('triggers');
+      var docSnapshot = await docRef.get();
+
+      // If not found, try to get any document from the collection
+      if (!docSnapshot.exists) {
+        debugPrint(
+            '⚠️ Document "triggers" not found, trying to get any document from commonTriggers collection');
+        final querySnapshot =
+            await firestore.collection('commonTriggers').limit(1).get();
+
+        if (querySnapshot.docs.isEmpty) {
+          debugPrint('⚠️ No documents found in commonTriggers collection');
+          return null;
+        }
+
+        docSnapshot = querySnapshot.docs.first;
+        debugPrint('✅ Found document with ID: ${docSnapshot.id}');
+      } else {
+        debugPrint('✅ Found document with ID: triggers');
+      }
+
+      final data = docSnapshot.data()!;
+
+      // The document structure is: { triggers: {...}, version: "...", lastUpdated: "..." }
+      // Return the triggers field if it exists, otherwise return the whole document
+      if (data.containsKey('triggers')) {
+        debugPrint('✅ Found triggers field in document');
+        return {
+          'triggers': data['triggers'],
+          'version': data['version'],
+          'lastUpdated': data['lastUpdated'],
+        };
+      }
+
+      // Fallback: return the whole document (for backward compatibility)
+      debugPrint('⚠️ No triggers field found, returning entire document');
+      return Map<String, dynamic>.from(data);
+    } catch (e) {
+      debugPrint('Error fetching symptom triggers from Firestore: $e');
+      return null;
+    }
+  }
 }

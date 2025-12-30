@@ -17,7 +17,7 @@ import '../screens/add_food_screen.dart';
 import '../screens/symptom_insights_screen.dart';
 import '../service/cycle_adjustment_service.dart';
 import '../data_models/cycle_tracking_model.dart';
-import '../tabs_screen/meal_design_screen.dart';
+import 'bottom_nav.dart';
 import 'rainbow_tracker_widget.dart';
 
 class DailySummaryWidget extends StatefulWidget {
@@ -64,6 +64,46 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   List<Map<String, dynamic>> _pendingMeals = [];
   // GlobalKey for scrolling to symptom section
   final GlobalKey _symptomSectionKey = GlobalKey();
+
+  // Ingredients that should NOT be flagged as triggers (healthy/common ingredients)
+  static const Set<String> _excludedIngredients = {
+    // Healthy oils
+    'olive oil',
+    'extra virgin olive oil',
+    'avocado oil',
+    'coconut oil',
+    'canola oil',
+    'sunflower oil',
+    'vegetable oil',
+    'grapeseed oil',
+    'sesame oil',
+    'walnut oil',
+    'flaxseed oil',
+    // Basic seasonings (unless specifically triggering)
+    'salt',
+    'pepper',
+    'black pepper',
+    'sea salt',
+    'table salt',
+    'kosher salt',
+    'herbs',
+    'basil',
+    'oregano',
+    'thyme',
+    'rosemary',
+    'parsley',
+    'cilantro',
+    'dill',
+    'chives',
+    // Water and basic liquids
+    'water',
+    'ice',
+    'ice water',
+    'tap water',
+    'mineral water',
+    'sparkling water',
+    'still water',
+  };
 
   @override
   void initState() {
@@ -1765,18 +1805,25 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       }
 
       final now = DateTime.now();
-      List<String> ingredients = [];
+      List<String> allIngredients = [];
 
       // If meal context is provided, get ingredients from that specific meal
       if (_currentMealId != null && _currentMealId!.isNotEmpty) {
-        ingredients = await _getIngredientsFromMeal(_currentMealId!);
+        allIngredients = await _getIngredientsFromMeal(_currentMealId!);
       } else {
         // Fallback: Get meals eaten 2-4 hours before now
         final fourHoursAgo = now.subtract(const Duration(hours: 4));
         final twoHoursAgo = now.subtract(const Duration(hours: 2));
-        ingredients = await _getIngredientsFromRecentMeals(
+        allIngredients = await _getIngredientsFromRecentMeals(
             userId, twoHoursAgo, fourHoursAgo);
       }
+
+      // Analyze triggers - save ALL matched triggers (1+ occurrences) so they can accumulate across meals
+      // This allows triggers with 1 occurrence to reach 2+ when they appear in multiple meals
+      final allMatchedTriggers =
+          await _analyzeCommonTriggers(symptomType, allIngredients);
+      debugPrint(
+          '💾 Saving symptom with ${allMatchedTriggers.length} triggers (1+ occurrences) for future accumulation (out of ${allIngredients.length} total ingredients)');
 
       // Use meal context if provided, otherwise determine from time
       String? mealContext = _currentMealType;
@@ -1792,12 +1839,15 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         }
       }
 
+      // Save all matched triggers (1+ occurrences) so they can accumulate across meals
+      // The long-term analysis will count occurrences across multiple symptoms
       final symptom = SymptomEntry(
         type: symptomType,
         severity: severity,
         timestamp: now,
         mealContext: mealContext,
-        ingredients: ingredients,
+        ingredients:
+            allMatchedTriggers, // All triggers (1+ occurrences) for accumulation
         mealId: _currentMealId,
         instanceId: _currentInstanceId,
         mealName: _currentMealName,
@@ -1836,8 +1886,16 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       }
 
       if (mounted) {
-        // Show enhanced feedback with insights
-        await _showSymptomInsights(symptomType, severity, ingredients, symptom);
+        // Show enhanced feedback with insights (separate matched vs tracked triggers for display)
+        final triggerAnalysis =
+            await _analyzeTriggersForDisplay(symptomType, allIngredients);
+        await _showSymptomInsights(
+          symptomType,
+          severity,
+          triggerAnalysis['matched'] ?? [],
+          triggerAnalysis['tracked'] ?? [],
+          symptom,
+        );
       }
     } catch (e) {
       debugPrint('Error saving symptom: $e');
@@ -2179,25 +2237,41 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
   }
 
   /// Show symptom insights after saving
+  /// matchedTriggers: Triggers with 2+ occurrences (displayed)
+  /// trackedTriggers: Triggers with 1 occurrence (tracked but not displayed)
   Future<void> _showSymptomInsights(
     String symptomType,
     int severity,
-    List<String> ingredients,
+    List<String> matchedTriggers,
+    List<String> trackedTriggers,
     SymptomEntry symptom,
   ) async {
     if (!mounted) return;
 
-    // Analyze common triggers
-    final triggers = _analyzeCommonTriggers(symptomType, ingredients);
     final isNegative = symptomType != 'good' && symptomType != 'energy';
+    String message;
+
+    if (matchedTriggers.isNotEmpty) {
+      // Show matched triggers (2+ occurrences)
+      message = 'Common triggers detected: ${matchedTriggers.join(", ")}';
+      if (trackedTriggers.isNotEmpty) {
+        message += '\n\nSome ingredients noted but below threshold for now.';
+      }
+    } else if (trackedTriggers.isNotEmpty) {
+      // Only tracked triggers (1 occurrence) - show message
+      message =
+          'Some ingredients noted but currently below threshold. They\'ll be displayed once they reach 2 occurrences.';
+    } else {
+      // No triggers
+      message =
+          'Symptom saved. Tap to view symptom insights to view personalized recommendations.';
+    }
 
     // Show enhanced snackbar with action button
     Get.snackbar(
       isNegative ? 'Symptom Logged' : 'Great to Hear!',
       isNegative
-          ? (triggers.isNotEmpty
-              ? 'Common triggers detected: ${triggers.join(", ")}'
-              : 'Symptom saved. Tap to view symptom insights to view personalized recommendations.')
+          ? message
           : 'Keep tracking to identify what makes you feel great!',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: isNegative
@@ -2206,62 +2280,384 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
               : Colors.orange.withValues(alpha: 0.7))
           : Colors.green.withValues(alpha: 0.7),
       colorText: kWhite,
-      duration: const Duration(seconds: 4),
+      duration:
+          const Duration(seconds: 5), // Longer duration for multi-line messages
       margin: EdgeInsets.all(getPercentageWidth(3, context)),
       borderRadius: 12,
     );
   }
 
   /// Analyze common trigger ingredients
-  List<String> _analyzeCommonTriggers(
-      String symptomType, List<String> ingredients) {
-    final triggers = <String>[];
-    final ingredientsLower = ingredients.map((i) => i.toLowerCase()).toList();
+  /// Fetches triggers from Firestore with fallback to hardcoded map
+  /// Requires minimum 2 occurrences of an ingredient to flag as trigger
+  /// Filters out excluded ingredients (healthy oils, basic seasonings, etc.)
+  Future<List<String>> _analyzeCommonTriggers(
+      String symptomType, List<String> ingredients) async {
+    if (ingredients.isEmpty) return [];
 
-    // Common trigger mappings
-    final triggerMap = {
-      'bloating': [
-        'dairy',
-        'milk',
-        'cheese',
-        'lactose',
-        'beans',
-        'legumes',
-        'onion',
-        'garlic',
-        'cruciferous',
-        'cabbage',
-        'broccoli'
-      ],
-      'headache': [
-        'caffeine',
-        'chocolate',
-        'alcohol',
-        'aged cheese',
-        'processed meat',
-        'nitrates',
-        'msg',
-        'artificial sweetener'
-      ],
-      'fatigue': [
-        'sugar',
-        'refined',
-        'processed',
-        'white bread',
-        'pasta',
-        'high glycemic'
-      ],
-      'nausea': ['greasy', 'fried', 'fatty', 'spicy', 'acidic', 'citrus'],
-    };
+    debugPrint(
+        '🔍 Analyzing triggers for symptom: $symptomType with ${ingredients.length} ingredients');
+    debugPrint('📝 Ingredients: ${ingredients.join(", ")}');
 
-    final relevantTriggers = triggerMap[symptomType] ?? [];
+    // Count ingredient occurrences in the meal (case-insensitive)
+    final ingredientCounts = <String, int>{};
+    for (final ingredient in ingredients) {
+      final lower = ingredient.toLowerCase().trim();
+      ingredientCounts[lower] = (ingredientCounts[lower] ?? 0) + 1;
+    }
+    debugPrint('📊 Ingredient counts: $ingredientCounts');
+
+    // Filter out excluded ingredients
+    final filteredIngredients = ingredientCounts.keys.where((ing) {
+      // Check if ingredient is in excluded list (exact match)
+      if (_excludedIngredients.contains(ing)) {
+        debugPrint('🚫 Excluded ingredient (exact match): $ing');
+        return false;
+      }
+
+      // Check if ingredient contains excluded terms (case-insensitive, word boundaries)
+      for (final excluded in _excludedIngredients) {
+        final excludedLower = excluded.toLowerCase();
+        final ingLower = ing.toLowerCase();
+
+        // Exact match
+        if (ingLower == excludedLower) {
+          debugPrint('🚫 Excluded ingredient (case-insensitive match): $ing');
+          return false;
+        }
+
+        // Word boundary matches (e.g., "olive oil" in "extra virgin olive oil")
+        if (ingLower == excludedLower ||
+            ingLower.startsWith('$excludedLower ') ||
+            ingLower.endsWith(' $excludedLower') ||
+            ingLower.contains(' $excludedLower ')) {
+          debugPrint(
+              '🚫 Excluded ingredient (word boundary match): $ing matches $excluded');
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+
+    debugPrint(
+        '📊 Filtered ingredients: ${filteredIngredients.length} of ${ingredientCounts.length} (excluded: ${ingredientCounts.length - filteredIngredients.length})');
+
+    // Get trigger list from Firestore or fallback to hardcoded map
+    Map<String, List<String>> triggerList = {};
+
+    try {
+      final firestoreData = await symptomService.getSymptomTriggers();
+      if (firestoreData != null && firestoreData.containsKey('triggers')) {
+        debugPrint('✅ Firestore data retrieved successfully');
+        final triggersData = firestoreData['triggers'] as Map<String, dynamic>?;
+        if (triggersData != null && triggersData.containsKey(symptomType)) {
+          final symptomTriggers =
+              triggersData[symptomType] as Map<String, dynamic>?;
+          if (symptomTriggers != null) {
+            // Combine high and medium confidence triggers
+            final highConfidence =
+                (symptomTriggers['highConfidence'] as List<dynamic>?)
+                        ?.map((e) => e.toString().toLowerCase())
+                        .toList() ??
+                    [];
+            final mediumConfidence =
+                (symptomTriggers['mediumConfidence'] as List<dynamic>?)
+                        ?.map((e) => e.toString().toLowerCase())
+                        .toList() ??
+                    [];
+            triggerList[symptomType] = [...highConfidence, ...mediumConfidence];
+            debugPrint(
+                '✅ Loaded ${highConfidence.length} high + ${mediumConfidence.length} medium confidence triggers from Firestore for $symptomType');
+          } else {
+            debugPrint('⚠️ Symptom triggers data is null for $symptomType');
+          }
+        } else {
+          debugPrint(
+              '⚠️ No triggers data found for symptom type: $symptomType');
+        }
+      } else {
+        debugPrint(
+            '⚠️ Firestore data does not contain "triggers" key, using fallback');
+      }
+    } catch (e) {
+      debugPrint('❌ Error fetching triggers from Firestore: $e');
+    }
+
+    // Fallback to hardcoded trigger map if Firestore data is unavailable
+    if (triggerList.isEmpty || triggerList[symptomType] == null) {
+      debugPrint('⚠️ Using fallback hardcoded trigger map for $symptomType');
+      triggerList = {
+        'bloating': [
+          'dairy',
+          'milk',
+          'cheese',
+          'lactose',
+          'beans',
+          'legumes',
+          'onion',
+          'onions',
+          'garlic',
+          'cruciferous',
+          'cabbage',
+          'broccoli',
+          'cauliflower',
+          'brussels sprouts',
+          'artificial sweetener',
+          'sorbitol',
+          'mannitol',
+          'xylitol',
+          'carbonated beverages',
+          'soda',
+          'cola',
+          'sparkling water',
+          'champagne',
+        ],
+        'headache': [
+          'caffeine',
+          'chocolate',
+          'alcohol',
+          'red wine',
+          'beer',
+          'aged cheese',
+          'processed meat',
+          'nitrates',
+          'msg',
+          'monosodium glutamate',
+          'artificial sweetener',
+          'aspartame',
+          'soy sauce',
+          'miso',
+          'anchovies',
+          'pickles',
+          'sauerkraut',
+          'kimchi',
+        ],
+        'fatigue': [
+          'sugar',
+          'refined sugar',
+          'white sugar',
+          'brown sugar',
+          'high fructose corn syrup',
+          'white bread',
+          'pasta',
+          'white flour',
+          'energy drinks',
+          'soda',
+          'cola',
+          'fruit juice',
+        ],
+        'nausea': [
+          'greasy',
+          'fried',
+          'fatty',
+          'spicy',
+          'acidic',
+          'citrus',
+          'vinegar',
+          'tomatoes'
+        ],
+      };
+    }
+
+    final relevantTriggers = triggerList[symptomType] ?? [];
+    debugPrint(
+        '🔍 Checking ${relevantTriggers.length} triggers against ${filteredIngredients.length} filtered ingredients');
+    final matchedTriggers = <String>[];
+
+    // Match triggers with improved logic
     for (final trigger in relevantTriggers) {
-      if (ingredientsLower.any((ing) => ing.contains(trigger))) {
-        triggers.add(trigger);
+      final triggerLower = trigger.toLowerCase().trim();
+      int occurrenceCount = 0;
+
+      // Count how many times this trigger appears in ingredients
+      for (final ingredient in filteredIngredients) {
+        // Exact match (preferred)
+        if (ingredient == triggerLower) {
+          occurrenceCount += ingredientCounts[ingredient]!;
+        }
+        // Contains match (secondary)
+        else if (ingredient.contains(triggerLower) ||
+            triggerLower.contains(ingredient)) {
+          occurrenceCount += ingredientCounts[ingredient]!;
+        }
+      }
+
+      // Save all triggers with 1+ occurrences (so they can accumulate across meals)
+      if (occurrenceCount >= 1) {
+        matchedTriggers.add(trigger);
+        if (occurrenceCount >= 2) {
+          debugPrint(
+              '✅ Trigger matched (display): $trigger (occurrences: $occurrenceCount)');
+        } else {
+          debugPrint(
+              '📝 Trigger tracked (below threshold): $trigger (occurrences: $occurrenceCount, will display after 2nd occurrence)');
+        }
       }
     }
 
-    return triggers;
+    debugPrint(
+        '✅ Final triggers saved (1+ occurrences): ${matchedTriggers.length} - $matchedTriggers');
+    return matchedTriggers; // Returns all triggers (1+ occurrences) for saving
+  }
+
+  /// Get triggers for display (2+ occurrences) and tracked triggers (1 occurrence)
+  /// Returns: {matched: [2+ occurrences], tracked: [1 occurrence]}
+  Future<Map<String, List<String>>> _analyzeTriggersForDisplay(
+      String symptomType, List<String> ingredients) async {
+    if (ingredients.isEmpty) return {'matched': [], 'tracked': []};
+
+    // Count ingredient occurrences in the meal (case-insensitive)
+    final ingredientCounts = <String, int>{};
+    for (final ingredient in ingredients) {
+      final lower = ingredient.toLowerCase().trim();
+      ingredientCounts[lower] = (ingredientCounts[lower] ?? 0) + 1;
+    }
+
+    // Filter out excluded ingredients
+    final filteredIngredients = ingredientCounts.keys.where((ing) {
+      if (_excludedIngredients.contains(ing)) return false;
+      for (final excluded in _excludedIngredients) {
+        final excludedLower = excluded.toLowerCase();
+        final ingLower = ing.toLowerCase();
+        if (ingLower == excludedLower ||
+            ingLower.startsWith('$excludedLower ') ||
+            ingLower.endsWith(' $excludedLower') ||
+            ingLower.contains(' $excludedLower ')) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+
+    // Get trigger list from Firestore or fallback (reuse logic from _analyzeCommonTriggers)
+    Map<String, List<String>> triggerList = {};
+
+    try {
+      final firestoreData = await symptomService.getSymptomTriggers();
+      if (firestoreData != null && firestoreData.containsKey('triggers')) {
+        final triggersData = firestoreData['triggers'] as Map<String, dynamic>?;
+        if (triggersData != null && triggersData.containsKey(symptomType)) {
+          final symptomTriggers =
+              triggersData[symptomType] as Map<String, dynamic>?;
+          if (symptomTriggers != null) {
+            final highConfidence =
+                (symptomTriggers['highConfidence'] as List<dynamic>?)
+                        ?.map((e) => e.toString().toLowerCase())
+                        .toList() ??
+                    [];
+            final mediumConfidence =
+                (symptomTriggers['mediumConfidence'] as List<dynamic>?)
+                        ?.map((e) => e.toString().toLowerCase())
+                        .toList() ??
+                    [];
+            triggerList[symptomType] = [...highConfidence, ...mediumConfidence];
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching triggers from Firestore: $e');
+    }
+
+    // Fallback to hardcoded trigger map if Firestore data is unavailable
+    if (triggerList.isEmpty || triggerList[symptomType] == null) {
+      triggerList = {
+        'bloating': [
+          'dairy',
+          'milk',
+          'cheese',
+          'lactose',
+          'beans',
+          'legumes',
+          'onion',
+          'onions',
+          'garlic',
+          'cruciferous',
+          'cabbage',
+          'broccoli',
+          'cauliflower',
+          'brussels sprouts',
+          'artificial sweetener',
+          'sorbitol',
+          'mannitol',
+          'xylitol',
+          'carbonated beverages',
+          'soda',
+          'cola',
+          'sparkling water',
+          'champagne',
+        ],
+        'headache': [
+          'caffeine',
+          'chocolate',
+          'alcohol',
+          'red wine',
+          'beer',
+          'aged cheese',
+          'processed meat',
+          'nitrates',
+          'msg',
+          'monosodium glutamate',
+          'artificial sweetener',
+          'aspartame',
+          'soy sauce',
+          'miso',
+          'anchovies',
+          'pickles',
+          'sauerkraut',
+          'kimchi',
+        ],
+        'fatigue': [
+          'sugar',
+          'refined sugar',
+          'white sugar',
+          'brown sugar',
+          'high fructose corn syrup',
+          'white bread',
+          'pasta',
+          'white flour',
+          'energy drinks',
+          'soda',
+          'cola',
+          'fruit juice',
+        ],
+        'nausea': [
+          'greasy',
+          'fried',
+          'fatty',
+          'spicy',
+          'acidic',
+          'citrus',
+          'vinegar',
+          'tomatoes'
+        ],
+      };
+    }
+
+    final relevantTriggers = triggerList[symptomType] ?? [];
+    final matchedTriggers = <String>[]; // 2+ occurrences
+    final trackedTriggers = <String>[]; // 1 occurrence
+
+    for (final trigger in relevantTriggers) {
+      final triggerLower = trigger.toLowerCase().trim();
+      int occurrenceCount = 0;
+
+      for (final ingredient in filteredIngredients) {
+        if (ingredient == triggerLower) {
+          occurrenceCount += ingredientCounts[ingredient]!;
+        } else if (ingredient.contains(triggerLower) ||
+            triggerLower.contains(ingredient)) {
+          occurrenceCount += ingredientCounts[ingredient]!;
+        }
+      }
+
+      if (occurrenceCount >= 2) {
+        matchedTriggers.add(trigger);
+      } else if (occurrenceCount == 1) {
+        trackedTriggers.add(trigger);
+      }
+    }
+
+    return {'matched': matchedTriggers, 'tracked': trackedTriggers};
   }
 
   /// Build list of pending meals that need symptom input
@@ -2478,11 +2874,14 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     return GestureDetector(
       onTap: () {
         // Navigate to meal design screen and show cycle goals dialog
-        Navigator.of(context).push(
+        Navigator.of(context)
+            .push(
           MaterialPageRoute(
-            builder: (context) => MealDesignScreen(initialTabIndex: 0),
+            builder: (context) =>
+                const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 0),
           ),
-        ).then((_) {
+        )
+            .then((_) {
           // After returning, show cycle goals dialog if still on daily summary
           if (mounted) {
             // Use a small delay to ensure navigation is complete
@@ -2563,7 +2962,7 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
             if (expectedCravings.isNotEmpty) ...[
               SizedBox(height: getPercentageHeight(1.5, context)),
               Text(
-                'Expected Cravings:',
+                'Common Cravings:',
                 style: textTheme.bodySmall?.copyWith(
                   color: isDarkMode ? kLightGrey : kDarkGrey,
                   fontWeight: FontWeight.w600,

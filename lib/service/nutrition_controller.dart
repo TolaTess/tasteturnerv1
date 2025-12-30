@@ -414,9 +414,8 @@ class NutritionController extends GetxController {
 
           final adjustedGoals = cycleService.getAdjustedGoals(baseGoals, phase);
           targetCalories.value = adjustedGoals['calories'] ?? baseCalories;
-
-          // Update macro goals if needed (for future use)
-          // Note: Currently only calories are adjusted in the UI
+          // Note: Carbs are also adjusted in cycle phases (luteal: +20g), 
+          // but stored in base settings. Adjusted values are calculated on-demand.
           return;
         }
       }

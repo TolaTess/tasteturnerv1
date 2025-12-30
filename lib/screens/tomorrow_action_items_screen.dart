@@ -7,6 +7,7 @@ import '../service/symptom_analysis_service.dart';
 import '../service/symptom_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/primary_button.dart';
+import '../service/cycle_adjustment_service.dart';
 
 // Constants for action item thresholds
 class ActionItemConstants {
@@ -363,6 +364,14 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       _addSymptomActionItems(actionItems, isTomorrow: isTomorrow);
     }
 
+    // Cycle syncing recommendations
+    // Use actual current date for cycle calculations
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+    final targetDateForCycle =
+        isTomorrow ? todayDate : todayDate.add(const Duration(days: 1));
+    _addCycleActionItems(actionItems, targetDate: targetDateForCycle);
+
     // Meal planning suggestions
     if (!widget.hasMealPlan) {
       actionItems.add({
@@ -541,6 +550,85 @@ class _TomorrowActionItemsScreenState extends State<TomorrowActionItemsScreen> {
       }
     } catch (e) {
       debugPrint('Error processing positive patterns: $e');
+    }
+  }
+
+  /// Add cycle syncing recommendations to action items
+  void _addCycleActionItems(
+    List<Map<String, dynamic>> actionItems, {
+    required DateTime targetDate,
+  }) {
+    try {
+      final user = userService.currentUser.value;
+      if (user == null) return;
+
+      final genderRaw = user.settings['gender'] as String?;
+      final gender = genderRaw?.toLowerCase() ?? '';
+      if (gender == 'male') return;
+
+      final cycleDataRaw = user.settings['cycleTracking'];
+      if (cycleDataRaw == null) return;
+
+      if (cycleDataRaw is Map) {
+        final cycleData = Map<String, dynamic>.from(cycleDataRaw);
+        if (cycleData['isEnabled'] as bool? ?? false) {
+          final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
+          if (lastPeriodStartStr != null) {
+            final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
+            if (lastPeriodStart != null) {
+              final cycleLength =
+                  (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
+              final cycleService = CycleAdjustmentService.instance;
+
+              // Use the actual target date passed to the method
+              final phase = cycleService.getCurrentPhase(
+                  lastPeriodStart, cycleLength, targetDate);
+
+              final enhancedRecs =
+                  cycleService.getEnhancedRecommendations(phase);
+              final tips = enhancedRecs['tips'] as List<String>? ?? [];
+              final macroInfo = enhancedRecs['macroInfo'] as String?;
+              final phaseName = cycleService.getPhaseName(phase);
+              final phaseEmoji = cycleService.getPhaseEmoji(phase);
+              final phaseColor = cycleService.getPhaseColor(phase);
+
+              // Build description with macro info and tips combined
+              String description = '';
+              if (macroInfo != null && macroInfo.isNotEmpty) {
+                description = macroInfo;
+              }
+
+              // Add top 2-3 tips to the description
+              if (tips.isNotEmpty) {
+                final topTips = tips.take(2).toList();
+                if (description.isNotEmpty) {
+                  description += '\n\n';
+                }
+                description += 'Tips:\n';
+                for (int i = 0; i < topTips.length; i++) {
+                  description += '• ${topTips[i]}';
+                  if (i < topTips.length - 1) {
+                    description += '\n';
+                  }
+                }
+              }
+
+              // Add single cycle phase action item with combined info
+              if (description.isNotEmpty) {
+                actionItems.add({
+                  'title': 'Cycle Sync: $phaseEmoji $phaseName Phase',
+                  'description': description,
+                  'icon': Icons.favorite,
+                  'color': phaseColor,
+                  'priority': 'medium',
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error adding cycle action items: $e');
     }
   }
 

@@ -19,6 +19,7 @@ import '../widgets/info_icon_widget.dart';
 import '../widgets/tutorial_blocker.dart';
 import '../helper/onboarding_prompt_helper.dart';
 import '../widgets/onboarding_prompt.dart';
+import '../widgets/bottom_nav.dart';
 
 class ProgramScreen extends StatefulWidget {
   const ProgramScreen({super.key});
@@ -192,9 +193,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
           'programDetails': List<String>.from(data['programDetails'] ?? []),
         };
       }).toList();
-
-      debugPrint(
-          'Loaded ${types.length} public programs from ${snapshot.docs.length} total (excluding private and custom type)');
 
       if (mounted) {
         // Always set programTypes, even if empty, to stop loading indicator
@@ -1127,7 +1125,6 @@ class _ProgramScreenState extends State<ProgramScreen> {
                       style: textTheme.labelLarge?.copyWith(color: kWhite)),
                 ),
                 SizedBox(height: getPercentageHeight(1.5, context)),
-
                 // AI Coach Section
                 Text(
                   'Speak to Sous Chef Turner',

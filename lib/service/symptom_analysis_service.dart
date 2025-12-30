@@ -59,6 +59,8 @@ class SymptomAnalysisService extends GetxController {
           topTriggers,
           symptomFrequency,
           mealTypePatterns,
+          days,
+          ingredientCorrelations,
         ),
       };
     } catch (e) {
@@ -126,10 +128,25 @@ class SymptomAnalysisService extends GetxController {
 
       final avgSeverity = totalSeverity / relatedSymptoms.length;
       final correlation = relatedSymptoms.length / allSymptoms.length;
+      final occurrences = relatedSymptoms.length;
+
+      // Only return data if ingredient has 2+ occurrences (same threshold as immediate analysis)
+      // This prevents false positives in correlation analysis
+      if (occurrences < 2) {
+        return {
+          'ingredient': ingredient,
+          'occurrences': occurrences,
+          'correlation': 0.0, // Set to 0 to indicate below threshold
+          'averageSeverity': avgSeverity,
+          'symptoms': symptomCounts,
+          'message':
+              'This ingredient has been noted but needs 2+ occurrences to be displayed as a trigger.',
+        };
+      }
 
       return {
         'ingredient': ingredient,
-        'occurrences': relatedSymptoms.length,
+        'occurrences': occurrences,
         'correlation': correlation,
         'averageSeverity': avgSeverity,
         'symptoms': symptomCounts,
@@ -502,13 +519,18 @@ class SymptomAnalysisService extends GetxController {
       final data = entry.value;
       final isNegative = data['mostCommonSymptom'] != 'good' &&
           data['mostCommonSymptom'] != 'energy';
+      final occurrences = data['occurrences'] as int;
 
-      if (isNegative && data['correlation'] as double > 0.1) {
+      // Only show triggers with 2+ occurrences (same threshold as immediate analysis)
+      // This prevents false positives like "olive oil: 50% correlation with 1 occurrence"
+      if (isNegative &&
+          data['correlation'] as double > 0.1 &&
+          occurrences >= 2) {
         triggers.add({
           'ingredient': entry.key,
           'correlation': data['correlation'],
           'averageSeverity': data['averageSeverity'],
-          'occurrences': data['occurrences'],
+          'occurrences': occurrences,
           'mostCommonSymptom': data['mostCommonSymptom'],
           'mostCommonSymptomCount': data['mostCommonSymptomCount'],
         });
@@ -619,6 +641,8 @@ class SymptomAnalysisService extends GetxController {
     List<Map<String, dynamic>> topTriggers,
     Map<String, int> symptomFrequency,
     Map<String, dynamic> mealTypePatterns,
+    int daysAnalyzed,
+    Map<String, Map<String, dynamic>> ingredientCorrelations,
   ) {
     final recommendations = <String>[];
 
@@ -640,9 +664,49 @@ class SymptomAnalysisService extends GetxController {
         ..sort((a, b) => b.value.compareTo(a.value));
 
       if (mostCommon.isNotEmpty) {
-        recommendations.add(
-          '${mostCommon.first.key} is your most common symptom. Track which meals trigger it.',
-        );
+        final symptomType = mostCommon.first.key;
+        final occurrenceCount = mostCommon.first.value;
+        final symptomName =
+            symptomType[0].toUpperCase() + symptomType.substring(1);
+
+        // Determine time period text
+        String timePeriod;
+        if (daysAnalyzed == 7) {
+          timePeriod = 'this week';
+        } else if (daysAnalyzed == 30) {
+          timePeriod = 'in the last 30 days';
+        } else if (daysAnalyzed == 1) {
+          timePeriod = 'today';
+        } else {
+          timePeriod = 'in the last $daysAnalyzed days';
+        }
+
+        // Count ingredients with 1 occurrence (waiting for 2nd occurrence to be displayed)
+        int trackedIngredientsCount = 0;
+        for (final entry in ingredientCorrelations.entries) {
+          final occurrences = entry.value['occurrences'] as int? ?? 0;
+          final mostCommonSymptom = entry.value['mostCommonSymptom'] as String?;
+          // Count ingredients with exactly 1 occurrence that are negative symptoms
+          if (occurrences == 1 &&
+              mostCommonSymptom != null &&
+              mostCommonSymptom != 'good' &&
+              mostCommonSymptom != 'energy') {
+            trackedIngredientsCount++;
+          }
+        }
+
+        String recommendationMessage =
+            '$symptomName is your most common symptom with $occurrenceCount occurrence${occurrenceCount == 1 ? '' : 's'} $timePeriod.';
+
+        if (trackedIngredientsCount > 0) {
+          recommendationMessage +=
+              ' Some ingredients have been saved but below threshold for now.';
+        }
+
+        recommendationMessage +=
+            ' Continue to track your meals to identify patterns.';
+
+        recommendations.add(recommendationMessage);
       }
     }
 
@@ -657,8 +721,16 @@ class SymptomAnalysisService extends GetxController {
       }
 
       if (problematicMeals.isNotEmpty) {
+        // Normalize meal types to lowercase, remove duplicates, then capitalize
+        final normalizedMeals = problematicMeals
+            .map((meal) => meal.toLowerCase())
+            .toSet()
+            .map((meal) =>
+                meal.isEmpty ? meal : meal[0].toUpperCase() + meal.substring(1))
+            .toList();
+
         recommendations.add(
-          'Symptoms are more severe after ${problematicMeals.join(" and ")}. Consider lighter options.',
+          'Symptoms are more severe after ${normalizedMeals.join(" and ")}. Consider lighter options.',
         );
       }
     }

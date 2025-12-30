@@ -213,9 +213,9 @@ class CycleAdjustmentService extends GetxController {
       case CyclePhase.follicular:
         return Colors.green;
       case CyclePhase.ovulation:
-        return Colors.pink;
+        return const Color.fromARGB(255, 245, 164, 191);
       case CyclePhase.luteal:
-        return Colors.purple;
+        return const Color.fromARGB(255, 240, 222, 59);
       case CyclePhase.menstrual:
         return Colors.red;
     }
@@ -233,7 +233,7 @@ class CycleAdjustmentService extends GetxController {
     return daysUntilNext;
   }
 
-  /// Get expected cravings for a cycle phase
+  /// Get common cravings for a cycle phase
   List<Map<String, String>> getExpectedCravings(CyclePhase phase) {
     switch (phase) {
       case CyclePhase.luteal:

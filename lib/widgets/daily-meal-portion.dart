@@ -5,6 +5,7 @@ import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../helper/helper_functions.dart';
 import '../data_models/program_model.dart';
+import '../service/cycle_adjustment_service.dart';
 
 class DailyMealPortion extends StatefulWidget {
   final Program? userProgram;
@@ -252,6 +253,35 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
       default:
         adjustedTotalTarget = baseTargetCalories; // 100% for maintenance
         break;
+    }
+
+    // Apply cycle adjustments if enabled (only for current user, not family members)
+    if (selectedUser == null && currentUser != null) {
+      final cycleDataRaw = currentUser.settings['cycleTracking'];
+      if (cycleDataRaw != null && cycleDataRaw is Map) {
+        final cycleData = Map<String, dynamic>.from(cycleDataRaw);
+        if (cycleData['isEnabled'] as bool? ?? false) {
+          final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
+          if (lastPeriodStartStr != null) {
+            final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
+            if (lastPeriodStart != null) {
+              final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
+              final cycleService = CycleAdjustmentService.instance;
+              final phase = cycleService.getCurrentPhase(lastPeriodStart, cycleLength);
+              
+              final baseGoals = {
+                'calories': adjustedTotalTarget,
+                'protein': 0.0,
+                'carbs': 0.0,
+                'fat': 0.0,
+              };
+              
+              final adjustedGoals = cycleService.getAdjustedGoals(baseGoals, phase);
+              adjustedTotalTarget = adjustedGoals['calories'] ?? adjustedTotalTarget;
+            }
+          }
+        }
+      }
     }
 
     // Updated calorie distribution for 3 main meals only (no separate snack allocation)
