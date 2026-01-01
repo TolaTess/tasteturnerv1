@@ -150,6 +150,15 @@ class _FriendScreenState extends State<FriendScreen> {
                             ),
                           );
                         } else {
+                          // Debug: Log data being passed to ChatScreen
+                          debugPrint('=== FRIEND SCREEN -> CHAT SCREEN DEBUG ===');
+                          debugPrint('Friend ID: $friendId');
+                          debugPrint('Data Src: ${widget.dataSrc}');
+                          debugPrint('Data Src ID: ${widget.dataSrc?['id']}');
+                          debugPrint('Data Src Keys: ${widget.dataSrc?.keys.toList()}');
+                          debugPrint('Screen: ${widget.screen}');
+                          debugPrint('==========================================');
+                          
                           Navigator.push(
                             context,
                             MaterialPageRoute(

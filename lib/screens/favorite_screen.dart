@@ -94,7 +94,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text('Favorites',
+        title: Text('Your Favorite Dishes',
             style: textTheme.displaySmall?.copyWith(
                 fontSize: getPercentageWidth(7, context),
                 fontWeight: FontWeight.w500)),

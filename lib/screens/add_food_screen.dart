@@ -32,6 +32,7 @@ class AddFoodScreen extends StatefulWidget {
   final String? notAllowedMealType;
   final bool isShowSummary;
   final String? initialMealType;
+  final bool scrollToQuickUpdate;
 
   const AddFoodScreen({
     super.key,
@@ -40,6 +41,7 @@ class AddFoodScreen extends StatefulWidget {
     this.notAllowedMealType,
     this.isShowSummary = false,
     this.initialMealType,
+    this.scrollToQuickUpdate = false,
   });
 
   @override
@@ -201,6 +203,16 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     return total;
   }
 
+  // Helper function to get unit options based on item type
+  List<String> _getUnitOptionsForItem(dynamic item) {
+    if (item is Meal) {
+      return ['servings'];
+    } else if (item is MacroData || item is IngredientData) {
+      return ['servings', 'g'];
+    }
+    return ['servings']; // Default fallback
+  }
+
   @override
   void initState() {
     super.initState();
@@ -226,6 +238,18 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
       _loadCalorieAdjustments();
+
+      // Scroll to quick update section if requested (e.g., from water reminder notification)
+      if (widget.scrollToQuickUpdate) {
+        // Add a small delay to ensure the widget tree is fully built
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _scrollToSection(_quickUpdateKey);
+            debugPrint(
+                '💧 Scrolled to Quick Service Update section for water tracking');
+          }
+        });
+      }
     });
 
     _getAllDisabled().then((value) {
@@ -866,6 +890,98 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     } catch (e) {
       debugPrint('Error fetching current macros: $e');
       return {'protein': 0.0, 'carbs': 0.0, 'fat': 0.0};
+    }
+  }
+
+  /// Show dialog to manually remove adjustment for a meal type
+  Future<void> _showRemoveAdjustmentDialog(
+      BuildContext context, String mealType) async {
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final adjustment = _calorieAdjustmentService.getAdjustmentForMeal(mealType);
+
+    if (adjustment <= 0) {
+      // No adjustment to remove
+      return;
+    }
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+        title: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: kAccent,
+              size: getIconScale(6, context),
+            ),
+            SizedBox(width: getPercentageWidth(2, context)),
+            Expanded(
+              child: Text(
+                'Remove Adjustment?',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'This will restore $mealType calories to the original recommendation (removing the $adjustment kcal adjustment).',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: isDarkMode ? kWhite : kBlack,
+              ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              'Cancel',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kAccent,
+              foregroundColor: kWhite,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Remove Adjustment',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: kWhite,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      // Remove the adjustment
+      await _calorieAdjustmentService.removeAdjustmentForMeal(mealType);
+
+      // Show confirmation
+      showTastySnackbar(
+        'Adjustment Removed',
+        '$mealType calories restored to original recommendation',
+        context,
+        backgroundColor: kAccentLight,
+      );
+
+      // Refresh the UI by triggering a rebuild
+      setState(() {});
     }
   }
 
@@ -2127,12 +2243,9 @@ class _AddFoodScreenState extends State<AddFoodScreen>
               color: isDarkMode ? kWhite : kBlack,
             ),
           ),
-          content: SingleChildScrollView(
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.9,
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.6,
-              ),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2161,37 +2274,43 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                         SizedBox(height: getPercentageHeight(1, context)),
                         ...entry.value.map((meal) {
                           final isSelected = selectedMeals.contains(meal);
-                          return CheckboxListTile(
-                            title: Text(
-                              meal.name,
-                              style: TextStyle(
-                                color: isDarkMode ? kWhite : kBlack,
-                              ),
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              unselectedWidgetColor:
+                                  isDarkMode ? kWhite : kDarkGrey,
                             ),
-                            subtitle: showCaloriesAndGoal
-                                ? Text(
-                                    '${meal.calories} kcal',
-                                    style: TextStyle(
-                                      color:
-                                          isDarkMode ? kLightGrey : kDarkGrey,
-                                    ),
-                                  )
-                                : null,
-                            value: isSelected,
-                            onChanged: (value) {
-                              setDialogState(() {
-                                if (value == true) {
-                                  selectedMeals.add(meal);
-                                  selectedMealTypes
-                                      .putIfAbsent(entry.key, () => [])
-                                      .add(meal);
-                                } else {
-                                  selectedMeals.remove(meal);
-                                  selectedMealTypes[entry.key]?.remove(meal);
-                                }
-                              });
-                            },
-                            activeColor: kAccent,
+                            child: CheckboxListTile(
+                              title: Text(
+                                meal.name,
+                                style: TextStyle(
+                                  color: isDarkMode ? kWhite : kBlack,
+                                ),
+                              ),
+                              subtitle: showCaloriesAndGoal
+                                  ? Text(
+                                      '${meal.calories} kcal',
+                                      style: TextStyle(
+                                        color:
+                                            isDarkMode ? kLightGrey : kDarkGrey,
+                                      ),
+                                    )
+                                  : null,
+                              value: isSelected,
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  if (value == true) {
+                                    selectedMeals.add(meal);
+                                    selectedMealTypes
+                                        .putIfAbsent(entry.key, () => [])
+                                        .add(meal);
+                                  } else {
+                                    selectedMeals.remove(meal);
+                                    selectedMealTypes[entry.key]?.remove(meal);
+                                  }
+                                });
+                              },
+                              activeColor: kAccent,
+                            ),
                           );
                         }),
                         SizedBox(height: getPercentageHeight(1, context)),
@@ -2362,6 +2481,13 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     int selectedNumber = 0;
     int selectedUnit = 0;
 
+    // Get available units for this item type
+    final availableUnits = _getUnitOptionsForItem(result);
+    // Ensure selectedUnit is within bounds
+    if (selectedUnit >= availableUnits.length) {
+      selectedUnit = 0;
+    }
+
     if (result is Meal) {
     } else if (result is MacroData) {
     } else if (result is IngredientData) {}
@@ -2377,12 +2503,31 @@ class _AddFoodScreenState extends State<AddFoodScreen>
     // Helper function to calculate calories and macros based on selected number and unit
     Map<String, dynamic> calculateAdjustedNutrition() {
       if (result is Meal) {
-        // For meals, use the macros from the meal object
+        // For meals, multiply by serving count when unit is "servings"
+        final availableUnits = _getUnitOptionsForItem(result);
+        final selectedUnitStr = availableUnits[selectedUnit].toLowerCase();
+
+        // Get base macros from the meal object
         Map<String, double> mealMacros = {};
         if (result.macros.isNotEmpty) {
           mealMacros = result.macros.map(
               (key, value) => MapEntry(key, double.tryParse(value) ?? 0.0));
         }
+
+        // For servings, simply multiply by selectedNumber
+        if (selectedUnitStr == 'servings' || selectedUnitStr == 'serving') {
+          final multiplier = selectedNumber > 0 ? selectedNumber : 1;
+          final adjustedMacros = <String, double>{};
+          mealMacros.forEach((key, value) {
+            adjustedMacros[key] = value * multiplier;
+          });
+          return {
+            'calories': result.calories * multiplier,
+            'macros': adjustedMacros,
+          };
+        }
+
+        // Fallback: return base values if unit is not servings (shouldn't happen for meals)
         return {
           'calories': result.calories,
           'macros': mealMacros,
@@ -2407,6 +2552,24 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         };
       }
 
+      // Get available units for this item type
+      final availableUnits = _getUnitOptionsForItem(result);
+      final selectedUnitStr = availableUnits[selectedUnit].toLowerCase();
+
+      // For servings unit, simply multiply by selectedNumber
+      if (selectedUnitStr == 'servings' || selectedUnitStr == 'serving') {
+        final multiplier = selectedNumber > 0 ? selectedNumber : 1;
+        final adjustedMacros = <String, double>{};
+        baseMacros.forEach((key, value) {
+          adjustedMacros[key] = value * multiplier;
+        });
+        return {
+          'calories': baseCalories * multiplier,
+          'macros': adjustedMacros,
+        };
+      }
+
+      // For grams, use the existing gram conversion logic
       // Get the base unit from the data
       String baseUnit = '';
       if (result is MacroData) {
@@ -2415,9 +2578,6 @@ class _AddFoodScreenState extends State<AddFoodScreen>
       } else if (result is IngredientData) {
         baseUnit = result.servingSize.toLowerCase();
       }
-
-      // Selected unit from picker
-      String selectedUnitStr = unitOptions[selectedUnit].toLowerCase();
 
       // Convert everything to grams for calculation
       double baseAmount = 1.0; // Default to 1 unit
@@ -2503,8 +2663,8 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         final meal = UserMeal(
           name: result.title,
           quantity: '$selectedNumber',
-          servings: '${unitOptions[selectedUnit]}',
-          calories: result.calories,
+          servings: '${availableUnits[selectedUnit]}',
+          calories: adjustedCalories,
           mealId: result.mealId,
           macros: adjustedMacros,
           originalMealId: originalMealId ?? (isInstance ? result.mealId : null),
@@ -2517,7 +2677,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         final meal = UserMeal(
           name: result.title,
           quantity: '$selectedNumber',
-          servings: '${unitOptions[selectedUnit]}',
+          servings: '${availableUnits[selectedUnit]}',
           calories: adjustedCalories,
           mealId: mealId,
           macros: adjustedMacros,
@@ -2531,7 +2691,7 @@ class _AddFoodScreenState extends State<AddFoodScreen>
         final meal = UserMeal(
           name: result.title,
           quantity: '$selectedNumber',
-          servings: '${unitOptions[selectedUnit]}',
+          servings: '${availableUnits[selectedUnit]}',
           calories: adjustedCalories,
           mealId: mealId,
           macros: adjustedMacros,
@@ -2660,13 +2820,30 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                     width: 1,
                                   ),
                                 ),
-                                child: Text(
-                                  'Projected Total: ${_getCurrentCaloriesForMealType(mealType) + _getTotalPendingCalories()} kcal',
-                                  style: TextStyle(
-                                    color: kAccent,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: getTextScale(2.5, context),
-                                  ),
+                                child: Builder(
+                                  builder: (context) {
+                                    // Calculate current item calories dynamically
+                                    final currentItemNutrition =
+                                        calculateAdjustedNutrition();
+                                    final currentItemCalories =
+                                        currentItemNutrition['calories'] as int;
+
+                                    // Calculate projected total: current meal type + pending items + current item being added
+                                    final projectedTotal =
+                                        _getCurrentCaloriesForMealType(
+                                                mealType) +
+                                            _getTotalPendingCalories() +
+                                            currentItemCalories;
+
+                                    return Text(
+                                      'Projected Total: $projectedTotal kcal',
+                                      style: TextStyle(
+                                        color: kAccent,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: getTextScale(2.5, context),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ],
@@ -2701,12 +2878,12 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                                     MediaQuery.of(context).size.height * 0.28,
                                 child: buildPicker(
                                   context,
-                                  unitOptions.length,
+                                  availableUnits.length,
                                   selectedUnit,
                                   (index) =>
                                       setModalState(() => selectedUnit = index),
                                   isDarkMode ? true : false,
-                                  unitOptions,
+                                  availableUnits,
                                 ),
                               ),
                             ),
@@ -4076,27 +4253,47 @@ class _AddFoodScreenState extends State<AddFoodScreen>
                               ),
                               if (_calorieAdjustmentService
                                   .hasAdjustment(mealType))
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal:
-                                        getPercentageWidth(1.5, context),
-                                    vertical: getPercentageHeight(0.3, context),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color:
-                                          Colors.orange.withValues(alpha: 0.5),
-                                      width: 1,
+                                GestureDetector(
+                                  onTap: () => _showRemoveAdjustmentDialog(
+                                      context, mealType),
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal:
+                                          getPercentageWidth(1.5, context),
+                                      vertical:
+                                          getPercentageHeight(0.3, context),
                                     ),
-                                  ),
-                                  child: Text(
-                                    'Adjusted',
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: Colors.orange[700],
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: getTextScale(2.5, context),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.orange.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.orange
+                                            .withValues(alpha: 0.5),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Adjusted',
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: Colors.orange[700],
+                                            fontWeight: FontWeight.w500,
+                                            fontSize:
+                                                getTextScale(2.5, context),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                            width:
+                                                getPercentageWidth(1, context)),
+                                        Icon(
+                                          Icons.close,
+                                          color: Colors.orange[700],
+                                          size: getIconScale(3, context),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),

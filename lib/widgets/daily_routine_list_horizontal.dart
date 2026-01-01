@@ -82,17 +82,22 @@ class RoutineController extends GetxController {
           'completionPercentage': yesterdayCompletionPercentage,
           'timestamp': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        await notificationService.showNotification(
-          id: 2003,
-          title: '🏆 Daily Routine Champion!',
-          body:
-              'Amazing! You completed ${yesterdayCompletionPercentage.round()}% of your routine yesterday. Keep up the great work! 10 points awarded!',
-          payload: {
-            'type': 'daily_routine_champion',
-            'completionPercentage': yesterdayCompletionPercentage,
-            'date': yesterday,
-          },
-        );
+
+        // Show snackbar instead of notification (only when app is open)
+        final context = Get.context;
+        if (context != null) {
+          showTastySnackbar(
+            '🏆 Daily Routine Champion!',
+            'Amazing! You completed ${yesterdayCompletionPercentage.round()}% of your routine yesterday. Keep up the great work! 10 points awarded!',
+            context,
+            backgroundColor: kAccent,
+          );
+          debugPrint('✅ Daily routine champion snackbar shown');
+        } else {
+          debugPrint(
+              '⚠️ No context available, skipping routine champion snackbar (app may be closed)');
+        }
+
         await BadgeService.instance
             .awardPoints(userId, 10, reason: 'Daily Routine Champion');
       }
@@ -448,41 +453,45 @@ class _DailyRoutineListHorizontalState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  item.title == 'Water Intake'
-                      ? 'Water'
-                      : item.title == 'Nutrition Goal'
-                          ? 'Meals'
-                          : capitalizeFirstLetter(item.title),
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode
-                            ? isCompleted
-                                ? kWhite
-                                : kWhite.withValues(alpha: 0.5)
-                            : isCompleted
-                                ? kBlack
-                                : kBlack.withValues(alpha: 0.5),
-                      ),
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+                Flexible(
+                  child: Text(
+                    item.title == 'Water Intake'
+                        ? 'Water'
+                        : item.title == 'Nutrition Goal'
+                            ? 'Meals'
+                            : capitalizeFirstLetter(item.title),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode
+                              ? isCompleted
+                                  ? kWhite
+                                  : kWhite.withValues(alpha: 0.5)
+                              : isCompleted
+                                  ? kBlack
+                                  : kBlack.withValues(alpha: 0.5),
+                        ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
-                SizedBox(height: getPercentageHeight(0.4, context)),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode
-                            ? isCompleted
-                                ? kWhite
-                                : kWhite.withValues(alpha: 0.5)
-                            : isCompleted
-                                ? kBlack
-                                : kBlack.withValues(alpha: 0.5),
-                      ),
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+                SizedBox(height: getPercentageHeight(0.3, context)),
+                Flexible(
+                  child: Text(
+                    value,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: isDarkMode
+                              ? isCompleted
+                                  ? kWhite
+                                  : kWhite.withValues(alpha: 0.5)
+                              : isCompleted
+                                  ? kBlack
+                                  : kBlack.withValues(alpha: 0.5),
+                        ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
               ],
             ),

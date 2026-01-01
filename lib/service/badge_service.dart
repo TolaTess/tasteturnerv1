@@ -5,7 +5,7 @@ import 'package:flutter/material.dart' show debugPrint;
 import '../constants.dart';
 import '../data_models/badge_system_model.dart';
 import '../helper/utils.dart';
-import 'notification_service.dart';
+import 'goal_adjustment_service.dart';
 
 class BadgeService extends GetxController {
   static BadgeService get instance {
@@ -159,35 +159,26 @@ class BadgeService extends GetxController {
 
       await _updateUserPoints(userId, points);
 
-      // Show notification if reason provided
+      // Show snackbar if reason provided (only when app is open)
       if (reason != null) {
         try {
-          if (Get.isRegistered<NotificationService>()) {
-            final notificationService = Get.find<NotificationService>();
-            if (notificationService.isInitialized) {
-              await notificationService.showNotification(
-                id: DateTime.now().millisecondsSinceEpoch % 100000,
-                title: "Points Earned! 🏆",
-                body: "$reason $points points awarded!",
-                payload: {
-                  'type': 'points_earned',
-                  'reason': reason,
-                  'points': points,
-                },
-              );
-              debugPrint(
-                  '✅ Points notification sent: $reason - $points points');
-            } else {
-              debugPrint(
-                  '⚠️ NotificationService not initialized, skipping points notification');
-            }
+          final context = Get.context;
+          if (context != null) {
+            showTastySnackbar(
+              'Points Earned! 🏆',
+              '$reason $points points awarded!',
+              context,
+              backgroundColor: kAccent,
+            );
+            debugPrint(
+                '✅ Points snackbar shown: $reason - $points points');
           } else {
             debugPrint(
-                '⚠️ NotificationService not registered, skipping points notification');
+                '⚠️ No context available, skipping points snackbar (app may be closed)');
           }
         } catch (e) {
-          debugPrint('Error showing points notification: $e');
-          // Don't fail the points award if notification fails
+          debugPrint('Error showing points snackbar: $e');
+          // Don't fail the points award if snackbar fails
         }
 
         // Mark this award as given today
@@ -749,28 +740,55 @@ class BadgeService extends GetxController {
           .limit(consecutive ? 30 : 365)
           .get();
 
-      final userCalorieGoal = double.tryParse(
-              userService.currentUser.value?.settings['foodGoal']?.toString() ??
-                  '0') ??
-          0;
+      // Use GoalAdjustmentService to get adjusted calorie goal
+      final currentUser = userService.currentUser.value;
+      if (currentUser == null) return 0;
+
+      final goalService = GoalAdjustmentService.instance;
+      final adjustedGoals = goalService.getAdjustedGoals(
+        currentUser.settings,
+        DateTime.now(),
+      );
+      final userCalorieGoal = adjustedGoals['calories'] ?? 0.0;
 
       if (consecutive) {
         int consecutiveCount = 0;
         for (final doc in snapshot.docs) {
           final calories = doc.data()['calories'] as int? ?? 0;
-          if (calories >= userCalorieGoal * 0.9 &&
-              calories <= userCalorieGoal * 1.1) {
-            consecutiveCount++;
-          } else {
-            break;
+          // Calculate adjusted goal for the date of this summary
+          final dateStr = doc.id;
+          final date = DateTime.tryParse(dateStr);
+          if (date != null) {
+            final dateAdjustedGoals = goalService.getAdjustedGoals(
+              currentUser.settings,
+              date,
+            );
+            final dateCalorieGoal = dateAdjustedGoals['calories'] ?? userCalorieGoal;
+            if (calories >= dateCalorieGoal * 0.9 &&
+                calories <= dateCalorieGoal * 1.1) {
+              consecutiveCount++;
+            } else {
+              break;
+            }
           }
         }
         return consecutiveCount;
       } else {
         return snapshot.docs.where((doc) {
           final calories = doc.data()['calories'] as int? ?? 0;
-          return calories >= userCalorieGoal * 0.9 &&
-              calories <= userCalorieGoal * 1.1;
+          // Calculate adjusted goal for the date of this summary
+          final dateStr = doc.id;
+          final date = DateTime.tryParse(dateStr);
+          if (date != null) {
+            final dateAdjustedGoals = goalService.getAdjustedGoals(
+              currentUser.settings,
+              date,
+            );
+            final dateCalorieGoal = dateAdjustedGoals['calories'] ?? userCalorieGoal;
+            return calories >= dateCalorieGoal * 0.9 &&
+                calories <= dateCalorieGoal * 1.1;
+          }
+          return false;
         }).length;
       }
     } catch (e) {

@@ -614,23 +614,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                             ),
-                            CircleAvatar(
-                              radius: getResponsiveBoxSize(context, 63, 63),
-                              backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                            GestureDetector(
+                              onTap: () {
+                                Get.to(() => const ProfileEditScreen());
+                              },
                               child: CircleAvatar(
-                                backgroundImage: userService.currentUser.value
-                                                ?.profileImage !=
-                                            null &&
-                                        userService.currentUser.value!
-                                            .profileImage!.isNotEmpty &&
-                                        userService
-                                            .currentUser.value!.profileImage!
-                                            .contains('http')
-                                    ? CachedNetworkImageProvider(userService
-                                        .currentUser.value!.profileImage!)
-                                    : const AssetImage(intPlaceholderImage)
-                                        as ImageProvider,
-                                radius: getResponsiveBoxSize(context, 57, 57),
+                                radius: getResponsiveBoxSize(context, 63, 63),
+                                backgroundColor: isDarkMode ? kDarkGrey : kWhite,
+                                child: CircleAvatar(
+                                  backgroundImage: userService.currentUser.value
+                                                  ?.profileImage !=
+                                              null &&
+                                          userService.currentUser.value!
+                                              .profileImage!.isNotEmpty &&
+                                          userService
+                                              .currentUser.value!.profileImage!
+                                              .contains('http')
+                                      ? CachedNetworkImageProvider(userService
+                                          .currentUser.value!.profileImage!)
+                                      : const AssetImage(intPlaceholderImage)
+                                          as ImageProvider,
+                                  radius: getResponsiveBoxSize(context, 57, 57),
+                                ),
                               ),
                             ),
                           ],

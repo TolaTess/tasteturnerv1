@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../helper/helper_functions.dart';
@@ -387,10 +386,12 @@ class BuddyChatController extends GetxController {
       // Update chat summary
       final chatRef = firestore.collection('chats').doc(chatId);
       final timestamp = FieldValue.serverTimestamp();
+      // User messages don't need sanitization, but keep consistent
+      final lastMessageContent = messageContent?.isNotEmpty == true
+          ? messageContent
+          : (imageUrls != null && imageUrls.isNotEmpty ? 'Photo' : '');
       await chatRef.update({
-        'lastMessage': messageContent?.isNotEmpty == true
-            ? messageContent
-            : (imageUrls != null && imageUrls.isNotEmpty ? 'Photo' : ''),
+        'lastMessage': lastMessageContent,
         'lastMessageTime': timestamp,
         'lastMessageSender': currentUserId,
         'lastMessageMode': currentMode.value,
@@ -499,115 +500,6 @@ class BuddyChatController extends GetxController {
     };
   }
 
-  // Helper method to validate and handle food analysis data
-  Map<String, dynamic> _validateFoodAnalysisData(
-      Map<String, dynamic>? analysisData) {
-    if (analysisData == null) {
-      return {
-        'foodItems': [
-          {
-            'name': 'Unknown Food',
-            'estimatedWeight': '100g',
-            'confidence': 'low',
-            'nutritionalInfo': {
-              'calories': 200,
-              'protein': 10,
-              'carbs': 20,
-              'fat': 8,
-              'fiber': 2,
-              'sugar': 5,
-              'sodium': 200
-            }
-          }
-        ],
-        'totalNutrition': {
-          'calories': 200,
-          'protein': 10,
-          'carbs': 20,
-          'fat': 8,
-          'fiber': 2,
-          'sugar': 5,
-          'sodium': 200
-        },
-        'confidence': 'low',
-        'notes': 'Analysis data was invalid or missing'
-      };
-    }
-
-    // Ensure required fields exist
-    if (!analysisData.containsKey('foodItems') ||
-        !analysisData.containsKey('totalNutrition')) {
-      return _validateFoodAnalysisData(null); // Return fallback
-    }
-
-    // Validate food items structure
-    final foodItems = analysisData['foodItems'] as List?;
-    if (foodItems == null || foodItems.isEmpty) {
-      return _validateFoodAnalysisData(null); // Return fallback
-    }
-
-    // Validate each food item
-    final validatedFoodItems = <Map<String, dynamic>>[];
-    for (final item in foodItems) {
-      if (item is Map<String, dynamic>) {
-        final validatedItem = {
-          'name': item['name'] ?? 'Unknown Food',
-          'estimatedWeight': item['estimatedWeight'] ?? '100g',
-          'confidence': item['confidence'] ?? 'low',
-          'nutritionalInfo': {
-            'calories': item['nutritionalInfo']?['calories'] ?? 200,
-            'protein': item['nutritionalInfo']?['protein'] ?? 10,
-            'carbs': item['nutritionalInfo']?['carbs'] ?? 20,
-            'fat': item['nutritionalInfo']?['fat'] ?? 8,
-            'fiber': item['nutritionalInfo']?['fiber'] ?? 2,
-            'sugar': item['nutritionalInfo']?['sugar'] ?? 5,
-            'sodium': item['nutritionalInfo']?['sodium'] ?? 200,
-          }
-        };
-        validatedFoodItems.add(validatedItem);
-      }
-    }
-
-    // Validate total nutrition
-    final totalNutrition =
-        analysisData['totalNutrition'] as Map<String, dynamic>? ?? {};
-    final validatedTotalNutrition = {
-      'calories': totalNutrition['calories'] ?? 200,
-      'protein': totalNutrition['protein'] ?? 10,
-      'carbs': totalNutrition['carbs'] ?? 20,
-      'fat': totalNutrition['fat'] ?? 8,
-      'fiber': totalNutrition['fiber'] ?? 2,
-      'sugar': totalNutrition['sugar'] ?? 5,
-      'sodium': totalNutrition['sodium'] ?? 200,
-    };
-
-    return {
-      'foodItems': validatedFoodItems,
-      'totalNutrition': validatedTotalNutrition,
-      'mealType': analysisData['mealType'] ?? 'unknown',
-      'estimatedPortionSize': analysisData['estimatedPortionSize'] ?? 'medium',
-      'ingredients':
-          analysisData['ingredients'] ?? {'unknown ingredient': '1 portion'},
-      'cookingMethod': analysisData['cookingMethod'] ?? 'unknown',
-      'confidence': analysisData['confidence'] ?? 'low',
-      'healthScore': analysisData['healthScore'] ?? 5,
-      'notes': analysisData['notes'] ?? 'Analysis completed successfully'
-    };
-  }
-
-  // Helper method to extract ingredients from analysis data
-  String _extractIngredientsFromAnalysis(Map<String, dynamic> analysisData) {
-    if (analysisData.containsKey('foodItems') &&
-        analysisData['foodItems'] is List) {
-      final foods = analysisData['foodItems'] as List;
-      return foods
-          .take(5)
-          .map((food) => food['name'] ?? food.toString())
-          .join(', ');
-    }
-    return 'the meal items';
-  }
-
   // Main method to send message to AI
   Future<void> sendMessageToAI(String userInput, BuildContext context,
       {bool isHealthJourneyMode = false}) async {
@@ -618,160 +510,6 @@ class BuddyChatController extends GetxController {
     // Handle mode-specific message routing
     if (currentMode.value == 'meal') {
       await handleMealPlanModeMessage(userInput);
-      return;
-    }
-
-    // Check for various commands
-    final userInputLower = userInput.toLowerCase();
-
-    // Check for food analysis options
-    if (userInputLower.contains('option 3') ||
-        userInputLower.contains('3') ||
-        userInputLower.contains('analyze') ||
-        userInputLower.contains('analyse') ||
-        userInputLower.contains('detailed food analysis') ||
-        userInputLower.contains('food analysis')) {
-      FirebaseAnalytics.instance.logEvent(name: 'buddy_food_analysis');
-
-      final messageId = const Uuid().v4();
-      final userMessage = ChatScreenData(
-        messageContent: userInput,
-        senderId: currentUserId,
-        timestamp: Timestamp.now(),
-        imageUrls: [],
-        messageId: messageId,
-      );
-      messages.add(userMessage);
-
-      await saveMessageToMode(
-        mode: currentMode.value,
-        content: userInput,
-        senderId: currentUserId,
-        messageId: messageId,
-      );
-
-      // Trigger detailed food analysis
-      await handleDetailedFoodAnalysis(context, chatId);
-      return;
-    }
-
-    // Check for Option 2 - Optimize nutrition
-    if (userInputLower.contains('option 2') ||
-        userInputLower.contains('2') ||
-        userInputLower.contains('protein') ||
-        userInputLower.contains('optimize')) {
-      FirebaseAnalytics.instance.logEvent(name: 'buddy_optimize_nutrition');
-
-      final messageId = const Uuid().v4();
-      final userMessage = ChatScreenData(
-        messageContent: userInput,
-        senderId: currentUserId,
-        timestamp: Timestamp.now(),
-        imageUrls: [],
-        messageId: messageId,
-      );
-      messages.add(userMessage);
-
-      await saveMessageToMode(
-        mode: currentMode.value,
-        content: userInput,
-        senderId: currentUserId,
-        messageId: messageId,
-      );
-
-      // Get user context and food analysis data
-      final userContext = getUserContext();
-      final goal = userContext['fitnessGoal'] as String;
-      final isWeightLoss = goal.toLowerCase().contains('weight loss') ||
-          goal.toLowerCase().contains('lose');
-      final isMuscleBuild = goal.toLowerCase().contains('muscle') ||
-          goal.toLowerCase().contains('gain');
-
-      final analysisId = getLastFoodAnalysisId();
-
-      String optimizePrompt;
-      if (analysisId != null) {
-        final analysisData = await getFoodAnalysisData(analysisId);
-        final validatedData = _validateFoodAnalysisData(analysisData);
-        final totalNutrition =
-            validatedData['totalNutrition'] as Map<String, dynamic>? ?? {};
-        final calories = totalNutrition['calories'] ?? 'unknown';
-        final protein = totalNutrition['protein'] ?? 'unknown';
-        final carbs = totalNutrition['carbs'] ?? 'unknown';
-        final fat = totalNutrition['fat'] ?? 'unknown';
-        final ingredients = _extractIngredientsFromAnalysis(validatedData);
-
-        optimizePrompt = """
-User wants to optimize their meal containing: $ingredients
-Current nutrition: ${calories}cal, ${protein}g protein, ${carbs}g carbs, ${fat}g fat
-
-For their ${userContext['fitnessGoal']} goals.
-
-Focus on ${isWeightLoss ? 'reducing calories while keeping protein high' : isMuscleBuild ? 'adding more protein for muscle building' : 'optimizing nutritional balance'}.
-
-Give 3-4 specific improvements based on the actual nutrition data. Be encouraging!
-""";
-      } else {
-        optimizePrompt = """
-User wants to optimize their meal for ${userContext['fitnessGoal']} goals.
-
-Focus on ${isWeightLoss ? 'reducing calories while keeping protein high' : isMuscleBuild ? 'adding more protein for muscle building' : 'optimizing nutritional balance'}.
-
-Give 3-4 practical tips. Be encouraging!
-""";
-      }
-
-      // Set loading state
-      isResponding.value = true;
-      try {
-        final response = await geminiService.getResponse(
-          optimizePrompt,
-          maxTokens: 4096,
-          role: buddyAiRole,
-        );
-
-        // Filter out any AI instructions that may have leaked through
-        final cleanedResponse = filterSystemInstructions(response);
-
-        final message = ChatScreenData(
-          messageContent: cleanedResponse,
-          senderId: 'buddy',
-          timestamp: Timestamp.now(),
-          imageUrls: [],
-          messageId: '',
-        );
-        messages.add(message);
-
-        await saveMessageToMode(
-          mode: currentMode.value,
-          content: cleanedResponse,
-          senderId: 'buddy',
-        );
-      } catch (e) {
-        final fallbackMessage = isWeightLoss
-            ? "Great choice! To reduce calories while keeping protein high, try: using lean proteins like chicken breast or fish, adding more vegetables to increase volume, using cooking sprays instead of oils, and choosing Greek yogurt over regular yogurt. These swaps will help you feel full while staying on track! 💪"
-            : isMuscleBuild
-                ? "Perfect for muscle building! Try adding: a protein-rich side like cottage cheese or Greek yogurt, some nuts or seeds for healthy fats and extra protein, quinoa instead of rice for complete protein, or a protein smoothie as a post-meal boost. Your muscles will thank you! 🏋️‍♂️"
-                : "For optimal nutrition balance, consider: adding colorful vegetables for vitamins and minerals, including healthy fats like avocado or nuts, ensuring you have a good protein source, and staying hydrated. Balance is key to feeling your best! 🌟";
-
-        final message = ChatScreenData(
-          messageContent: fallbackMessage,
-          senderId: 'buddy',
-          timestamp: Timestamp.now(),
-          imageUrls: [],
-          messageId: '',
-        );
-        messages.add(message);
-
-        await saveMessageToMode(
-          mode: currentMode.value,
-          content: fallbackMessage,
-          senderId: 'buddy',
-        );
-      } finally {
-        // Always clear loading state
-        isResponding.value = false;
-      }
       return;
     }
 
@@ -856,6 +594,7 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
         }
 
         // Filter out system instructions from the response
+        // Note: Asterisks are already sanitized in the cloud function
         final cleanedResponse = filterSystemInstructions(response);
 
         final aiResponseMessage = ChatScreenData(
@@ -942,9 +681,12 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
         // This case should not be reached, but kept for safety
         return;
       case 'quick':
-        prompt =
-            'Suggest 3 quick and easy meal ideas I can make in under 30 minutes';
-        displayMessage = 'Chef, suggesting 3 quick and easy meal ideas';
+        prompt = familyMemberName.value != null
+            ? 'Suggest 3 quick and easy meal ideas for ${familyMemberName.value} that can be made in under 30 minutes'
+            : 'Suggest 3 quick and easy meal ideas I can make in under 30 minutes';
+        displayMessage = familyMemberName.value != null
+            ? 'Chef, suggesting 3 quick meal ideas for ${familyMemberName.value}'
+            : 'Chef, suggesting 3 quick and easy meal ideas';
         mealCount = 3;
         break;
       case 'custom':
@@ -956,10 +698,15 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
 
     // Send the prompt through the chat with mealCount and distribution
     // Pass displayMessage to show user-friendly text in chat UI
+    // Pass family member info if available
     handleMealPlanModeMessage(prompt,
         mealCount: mealCount,
         distribution: distribution,
-        displayMessage: displayMessage);
+        displayMessage: displayMessage,
+        familyMemberName: familyMemberName.value,
+        familyMemberKcal: familyMemberKcal.value,
+        familyMemberGoal: familyMemberGoal.value,
+        familyMemberType: familyMemberType.value);
   }
 
   // Handle meal plan mode messages
@@ -1087,12 +834,12 @@ IMPORTANT: You are now in Food Health Journey mode. Provide personalized nutriti
 
 $mealList
 
-Click "View Meals" to browse and add them to your calendar!"""
+Click "View Meals" to browse and add them to your Planner!"""
               : """Here are some meal suggestions for you:
 
 $mealList
 
-Click "View Meals" to browse and add them to your calendar!""";
+Click "View Meals" to browse and add them to your Planner!""";
 
           final actionButtonsMap = <String, dynamic>{
             'viewMeals': true,
@@ -1161,19 +908,24 @@ Click "View Meals" to browse and add them to your calendar!""";
 
   // Initialize Tasty Mode
   Future<void> initializeTastyMode(BuildContext context) async {
-    // Wait for mode to stabilize
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Wait for mode to stabilize and messages to load from Firestore
+    await Future.delayed(const Duration(milliseconds: 800));
 
     // Verify we're still in sous chef mode before proceeding
     if (currentMode.value != 'sous chef') {
       return;
     }
 
-    // Only show local greeting if messages are empty (first time entering)
+    // Check if there are any messages in the sous chef mode subcollection
+    // This ensures we only show welcome message for truly empty chats
+    final sousChefMessages = modeMessages['sous chef'] ?? [];
+    final hasExistingMessages = sousChefMessages.isNotEmpty;
+
+    // Only show local greeting if there are no existing messages (first time entering)
     // No AI call - just use local welcome message
     // AI will only be called when user writes or clicks on meal items
     // IMPORTANT: Welcome message is only shown in UI, NOT saved to Firestore
-    if (messages.isEmpty) {
+    if (!hasExistingMessages && messages.isEmpty) {
       final welcomeContent = tastyWelcomeMessages[
           DateTime.now().microsecond % tastyWelcomeMessages.length];
       final message = ChatScreenData(
@@ -1187,6 +939,9 @@ Click "View Meals" to browse and add them to your calendar!""";
       // Do NOT save welcome message to Firestore - it's only for UI display
       debugPrint(
           "Sous chef local greeting shown (no AI call, not saved to Firestore)");
+    } else if (hasExistingMessages) {
+      debugPrint(
+          "Sous chef mode initialized with ${sousChefMessages.length} existing messages - no welcome message");
     }
   }
 
@@ -1338,9 +1093,10 @@ Instructions:
               'Remix meal generated successfully and saved to Firestore');
         } else {
           // No meals generated or no mealIds
+          final errorContent =
+              'Chef, I had trouble generating the remixed meal. Please try again.';
           final errorMessage = ChatScreenData(
-            messageContent:
-                'Chef, I had trouble generating the remixed meal. Please try again.',
+            messageContent: errorContent,
             senderId: 'buddy',
             timestamp: Timestamp.now(),
             imageUrls: [],
@@ -1349,15 +1105,16 @@ Instructions:
           messages.add(errorMessage);
           await saveMessageToMode(
             mode: currentMode.value,
-            content: errorMessage.messageContent,
+            content: errorContent,
             senderId: 'buddy',
           );
         }
       } else {
         // Generation failed
+        final errorContent =
+            'Chef, I had trouble generating the remixed meal. Please try again.';
         final errorMessage = ChatScreenData(
-          messageContent:
-              'Chef, I had trouble generating the remixed meal. Please try again.',
+          messageContent: errorContent,
           senderId: 'buddy',
           timestamp: Timestamp.now(),
           imageUrls: [],
@@ -1366,15 +1123,16 @@ Instructions:
         messages.add(errorMessage);
         await saveMessageToMode(
           mode: currentMode.value,
-          content: errorMessage.messageContent,
+          content: errorContent,
           senderId: 'buddy',
         );
       }
     } catch (e) {
       debugPrint('Error processing remix request: $e');
+      final errorContent =
+          'Chef, I had trouble processing your remix request. Please try again.';
       final errorMessage = ChatScreenData(
-        messageContent:
-            'Chef, I had trouble processing your remix request. Please try again.',
+        messageContent: errorContent,
         senderId: 'buddy',
         timestamp: Timestamp.now(),
         imageUrls: [],
@@ -1383,7 +1141,7 @@ Instructions:
       messages.add(errorMessage);
       await saveMessageToMode(
         mode: currentMode.value,
-        content: errorMessage.messageContent,
+        content: errorContent,
         senderId: 'buddy',
       );
       if (context.mounted) {

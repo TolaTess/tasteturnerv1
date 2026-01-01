@@ -60,8 +60,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool _umpConsentRequested = false;
   // Track if UMP consent has been obtained (required to proceed)
   bool _umpConsentObtained = false;
+  static const int _umpMaxRetries = 3;
   // Track if there was an error showing the consent form (to show fallback button)
   bool _umpConsentFormError = false;
+  // Track if UMP consent failed after max retries
+  bool _umpConsentFailed = false;
   // Track if a form is currently being shown/loaded to prevent concurrent calls
   bool _isFormLoading = false;
 
@@ -409,7 +412,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'foodGoal': '2000', // Default - will trigger prompt
           'proteinGoal': 150,
           'carbsGoal': 200,
-          'fatGoal': 65,
+          'fatGoal': 67,
           'goalWeight': '', // Empty - will trigger prompt
           'startingWeight': '', // Empty
           'currentWeight': '', // Empty - will trigger prompt
@@ -480,11 +483,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
         await helperController.saveMealPlan(
             widget.userId, formattedDate, 'welcome_day');
-
-        if (widget.userId != tastyId3 && widget.userId != tastyId4) {
-          await friendController.followFriend(
-              widget.userId, tastyId, 'Sous Chef', context);
-        }
 
         await prefs.setBool('is_first_time_user', true);
 
@@ -864,7 +862,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         : (widget.displayName != null && widget.displayName!.isNotEmpty
             ? widget.displayName!
             : "there");
-    debugPrint("Meal Planning Slide User Name: $userName");
 
     // Initialize ads in background when this slide is displayed
     // This ensures ads are ready without delaying home screen loading
@@ -1118,7 +1115,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildCommunitySlide() {
     return _buildPage(
       textTheme: Theme.of(context).textTheme,
-      title: "Master Your Inventory.",
+      title: "Master Your Stockpile.",
       description:
           "I’ll track the macros and calories so you don't have to. Plus, I'll generate your shopping lists to make sure your kitchen is always stocked.",
       child1: Container(
@@ -1261,9 +1258,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
             SizedBox(height: getPercentageHeight(2, context)),
             Text(
-              _umpConsentObtained && !_umpConsentFormError
-                  ? "Thank you for reviewing and accepting our privacy policy and terms! You can now continue with the onboarding."
-                  : "We need your consent to:\n• Provide personalized content and recommendations\n• Show relevant ads to support the app\n• Improve your experience with analytics\n\nThe consent form will open automatically. Please review and accept to continue.",
+              _umpConsentFailed
+                  ? "We couldn't load the consent form due to network issues. We'll retry later. You can continue with onboarding, and we'll show the consent form again when you're back on the app."
+                  : _umpConsentObtained && !_umpConsentFormError
+                      ? "Thank you for reviewing and accepting our privacy policy and terms! You can now continue with the onboarding."
+                      : "We need your consent to:\n• Provide personalized content and recommendations\n• Show relevant ads to support the app\n• Improve your experience with analytics\n\nThe consent form will open automatically. Please review and accept to continue.",
               style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: getTextScale(3.5, context),
@@ -1644,7 +1643,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               _buildTermRow(
                 context,
                 "Dine In",
-                "Cook with what you have. Get recipe suggestions based on ingredients in your fridge.",
+                "Cook with what you have. Get recipe suggestions based on ingredients in your fridge and pantry.",
                 Icons.kitchen,
               ),
               _buildDivider(context),
@@ -1685,7 +1684,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               _buildDivider(context),
               _buildTermRow(
                 context,
-                "Inventory",
+                "Market",
                 "Your shopping list. Auto-generated from planned meals.",
                 Icons.shopping_cart,
               ),
@@ -1706,7 +1705,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               _buildDivider(context),
               _buildTermRow(
                 context,
-                "Station",
+                "My Station",
                 "Your profile and kitchen settings. Customize your experience.",
                 Icons.settings,
               ),
@@ -1937,7 +1936,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   /// Request UMP consent from the onboarding slide (button click)
-  Future<void> _requestUMPConsentFromSlide() async {
+  Future<void> _requestUMPConsentFromSlide({int retryAttempt = 0}) async {
     try {
       final params = ConsentRequestParameters();
       ConsentInformation.instance.requestConsentInfoUpdate(
@@ -1966,7 +1965,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             }
             debugPrint('Consent not obtained, showing initial consent form...');
             _isFormLoading = true;
-            ConsentForm.loadAndShowConsentFormIfRequired((formError) {
+            ConsentForm.loadAndShowConsentFormIfRequired((formError) async {
               _isFormLoading = false;
               if (formError != null) {
                 debugPrint('=== UMP Consent form error ===');
@@ -1999,6 +1998,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               } else {
                 debugPrint('UMP Consent form processed successfully');
                 _setFirebaseConsent();
+                // Clear retry date on success
+                await _clearUMPConsentRetryDate();
                 // Update state to reflect consent was obtained
                 if (mounted) {
                   setState(() {
@@ -2006,6 +2007,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     _umpConsentObtained = true;
                     _umpConsentFormError =
                         false; // Clear error state on success
+                    _umpConsentFailed = false; // Clear failed state on success
                   });
                   // Re-validate to enable next button
                   _validateInputs();
@@ -2030,7 +2032,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             }
             debugPrint('Showing privacy options form...');
             _isFormLoading = true;
-            ConsentForm.showPrivacyOptionsForm((formError) {
+            ConsentForm.showPrivacyOptionsForm((formError) async {
               _isFormLoading = false;
               if (formError != null) {
                 debugPrint('=== Privacy options form error ===');
@@ -2063,6 +2065,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               } else {
                 debugPrint('Privacy options form processed successfully');
                 _setFirebaseConsent();
+                // Clear retry date on success
+                await _clearUMPConsentRetryDate();
                 // Update state to reflect consent was obtained
                 if (mounted) {
                   setState(() {
@@ -2070,6 +2074,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     _umpConsentObtained = true;
                     _umpConsentFormError =
                         false; // Clear error state on success
+                    _umpConsentFailed = false; // Clear failed state on success
                   });
                   // Re-validate to enable next button
                   _validateInputs();
@@ -2080,11 +2085,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             // Consent already obtained and privacy options not required
             debugPrint('Consent already obtained, no form needed');
             _setFirebaseConsent();
+            // Clear retry date on success
+            await _clearUMPConsentRetryDate();
             if (mounted) {
               setState(() {
                 _umpConsentRequested = true;
                 _umpConsentObtained = true;
                 _umpConsentFormError = false; // No error, consent already there
+                _umpConsentFailed = false; // Clear failed state
               });
               // Re-validate to enable next button
               _validateInputs();
@@ -2097,14 +2105,88 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           debugPrint('Error code: ${error.errorCode}');
           debugPrint('Error message: ${error.message}');
           debugPrint('Full error: $error');
+          debugPrint('Retry attempt: ${retryAttempt + 1}/$_umpMaxRetries');
           debugPrint('=====================================');
-          _setFirebaseConsent();
+
+          // Retry if we haven't exceeded max retries
+          if (retryAttempt < _umpMaxRetries - 1) {
+            debugPrint('Retrying UMP consent request in 2 seconds...');
+            Future.delayed(const Duration(seconds: 2), () {
+              if (mounted) {
+                _requestUMPConsentFromSlide(retryAttempt: retryAttempt + 1);
+              }
+            });
+          } else {
+            // Max retries reached, schedule retry for later
+            debugPrint(
+                'Max retries ($_umpMaxRetries) reached. Scheduling retry for later.');
+            _scheduleUMPConsentRetry();
+            _setFirebaseConsent();
+            if (mounted) {
+              setState(() {
+                _umpConsentRequested = true;
+                _umpConsentObtained = true; // Allow user to proceed
+                _umpConsentFormError = false;
+                _umpConsentFailed = true; // Mark as failed
+              });
+              _validateInputs();
+            }
+          }
         },
       );
     } catch (e) {
       debugPrint('Error requesting UMP consent: $e');
-      // Still set Firebase consent even if UMP fails
-      _setFirebaseConsent();
+      // Retry on exception if we haven't exceeded max retries
+      if (retryAttempt < _umpMaxRetries - 1) {
+        debugPrint(
+            'Retrying UMP consent request after exception in 2 seconds...');
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            _requestUMPConsentFromSlide(retryAttempt: retryAttempt + 1);
+          }
+        });
+      } else {
+        // Max retries reached, schedule retry for later
+        debugPrint(
+            'Max retries ($_umpMaxRetries) reached after exception. Scheduling retry for later.');
+        _scheduleUMPConsentRetry();
+        _setFirebaseConsent();
+        if (mounted) {
+          setState(() {
+            _umpConsentRequested = true;
+            _umpConsentObtained = true; // Allow user to proceed
+            _umpConsentFormError = false;
+            _umpConsentFailed = true; // Mark as failed
+          });
+          _validateInputs();
+        }
+      }
+    }
+  }
+
+  /// Schedule UMP consent retry for later (24 hours from now)
+  Future<void> _scheduleUMPConsentRetry() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final retryDate = DateTime.now().add(const Duration(hours: 24));
+      await prefs.setString(
+          'ump_consent_retry_date', retryDate.toIso8601String());
+      debugPrint(
+          'UMP consent retry scheduled for: ${retryDate.toIso8601String()}');
+    } catch (e) {
+      debugPrint('Error scheduling UMP consent retry: $e');
+    }
+  }
+
+  /// Clear UMP consent retry date (called when consent is successfully obtained)
+  Future<void> _clearUMPConsentRetryDate() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('ump_consent_retry_date');
+      debugPrint(
+          'UMP consent retry date cleared (consent obtained successfully)');
+    } catch (e) {
+      debugPrint('Error clearing UMP consent retry date: $e');
     }
   }
 
@@ -2130,7 +2212,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ? widget.displayName!
             : "there");
 
-    debugPrint("Gender Slide User Name: $userName");
     final textTheme = Theme.of(context).textTheme;
 
     return _buildPage(

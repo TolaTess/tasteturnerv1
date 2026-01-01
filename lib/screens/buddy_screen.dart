@@ -55,26 +55,48 @@ class _TastyScreenState extends State<TastyScreen>
       // If controller is not found, initialize it
       chatController = Get.put(BuddyChatController());
     }
-    chatId = userService.buddyId;
+    // Don't use cached buddyId - it might belong to a different user
+    // Always get the correct chatId via initializeChat
+    chatId = null;
 
     // Initialize TabController for 2 modes (Sous Chef and Meal Plan)
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabChange);
 
-    // Check if meal plan mode should be enabled from navigation
-    // Note: Mode switch is deferred to post-frame callback to ensure chatId is initialized
+    // Clear family member info first (will be set only if coming from buddy_tab with family info)
+    chatController.familyMemberName.value = null;
+    chatController.familyMemberKcal.value = null;
+    chatController.familyMemberGoal.value = null;
+    chatController.familyMemberType.value = null;
+    chatController.pantryIngredients.value = [];
+
+    // Set initial tab based on screen type:
+    // - 'buddy' → meal plan mode (tab index 1)
+    // - 'message' → sous chef mode (tab index 0)
+    // Arguments can override this if explicitly provided
     final args = Get.arguments;
-    if (args != null && args is Map) {
+    bool hasExplicitMode =
+        args != null && args is Map && args.containsKey('mealPlanMode');
+
+    if (hasExplicitMode) {
+      // Arguments explicitly specify a mode
       if (args['mealPlanMode'] == true) {
-        // Store family member context for meal generation
-        chatController.familyMemberName.value =
-            args['familyMemberName'] as String?;
-        chatController.familyMemberKcal.value =
-            args['familyMemberKcal'] as String?;
-        chatController.familyMemberGoal.value =
-            args['familyMemberGoal'] as String?;
-        chatController.familyMemberType.value =
-            args['familyMemberType'] as String?;
+        // Only set family member context if:
+        // 1. Screen is 'buddy' (coming from buddy_tab)
+        // 2. Family member name is provided in arguments
+        if (widget.screen == 'buddy') {
+          final familyMemberName = args['familyMemberName'] as String?;
+          if (familyMemberName != null && familyMemberName.isNotEmpty) {
+            // Store family member context for meal generation
+            chatController.familyMemberName.value = familyMemberName;
+            chatController.familyMemberKcal.value =
+                args['familyMemberKcal'] as String?;
+            chatController.familyMemberGoal.value =
+                args['familyMemberGoal'] as String?;
+            chatController.familyMemberType.value =
+                args['familyMemberType'] as String?;
+          }
+        }
 
         // Store pantry ingredients if provided
         if (args['pantryIngredients'] != null) {
@@ -88,6 +110,15 @@ class _TastyScreenState extends State<TastyScreen>
         _pendingMealPlanMode = true;
       } else if (args['mealPlanMode'] == false) {
         // Explicitly set to sous chef mode when mealPlanMode is false
+        _pendingSousChefMode = true;
+      }
+    } else {
+      // No explicit mode in arguments - use screen type to determine initial tab
+      if (widget.screen == 'buddy') {
+        // Buddy screen defaults to meal plan mode
+        _pendingMealPlanMode = true;
+      } else {
+        // Message screen (or any other) defaults to sous chef mode
         _pendingSousChefMode = true;
       }
     }
@@ -558,69 +589,93 @@ class _TastyScreenState extends State<TastyScreen>
     if (!canUseAI() || !mounted) return;
 
     try {
-      // Check navigation arguments to determine initial mode
+      // Always get the correct chatId for the current user
+      // Don't rely on cached buddyId as it might belong to a different user
+      await chatController.initializeChat('buddy');
+
+      // Verify the chat belongs to the current user before using it
+      final currentUserId = userService.userId;
+      if (currentUserId == null || currentUserId.isEmpty) {
+        debugPrint('Error: Current user ID is not set');
+        return;
+      }
+
+      // Verify chat ownership by checking participants
+      if (chatController.chatId.isNotEmpty) {
+        try {
+          final chatDoc = await firestore
+              .collection('chats')
+              .doc(chatController.chatId)
+              .get();
+
+          if (chatDoc.exists) {
+            final participants =
+                List<String>.from(chatDoc.data()?['participants'] ?? []);
+            if (!participants.contains(currentUserId)) {
+              debugPrint(
+                  'Security: Chat ${chatController.chatId} does not belong to user $currentUserId');
+              // Chat doesn't belong to current user - create a new one
+              chatController.chatId = '';
+              await chatController.initializeChat('buddy');
+            }
+          }
+        } catch (e) {
+          debugPrint('Error verifying chat ownership: $e');
+          // If verification fails, create a new chat to be safe
+          chatController.chatId = '';
+          await chatController.initializeChat('buddy');
+        }
+      }
+
+      if (!mounted) return;
+
+      // Determine initial mode based on arguments or screen type
       final args = Get.arguments;
-      final shouldBeMealMode =
-          args != null && args is Map && args['mealPlanMode'] == true;
-      final shouldBeSousChefMode =
-          args != null && args is Map && args['mealPlanMode'] == false;
+      bool hasExplicitMode =
+          args != null && args is Map && args.containsKey('mealPlanMode');
+
+      bool shouldBeMealMode;
+      bool shouldBeSousChefMode;
+
+      if (hasExplicitMode) {
+        // Arguments explicitly specify a mode
+        shouldBeMealMode = args['mealPlanMode'] == true;
+        shouldBeSousChefMode = args['mealPlanMode'] == false;
+      } else {
+        // No explicit mode - use screen type to determine
+        shouldBeMealMode = widget.screen == 'buddy';
+        shouldBeSousChefMode = widget.screen == 'message';
+      }
+
+      // Set chatId from controller (now verified to belong to current user)
+      setState(() {
+        chatId = chatController.chatId;
+      });
 
       if (chatId != null && chatId!.isNotEmpty) {
-        // Existing chat - set chatId and initialize mode
-        chatController.chatId = chatId!;
-        await chatController.initializeChat('buddy');
+        try {
+          // Update cached buddyId only after verification
+          userService.setBuddyChatId(chatId!);
 
-        if (!mounted) return;
-
-        // Override loaded mode if navigation arguments specify a mode
-        if (shouldBeSousChefMode) {
-          chatController.currentMode.value = 'sous chef';
-          if (chatId != null && chatId!.isNotEmpty) {
+          // Set default mode based on screen type or arguments
+          if (shouldBeSousChefMode) {
+            chatController.currentMode.value = 'sous chef';
             await chatController.switchMode('sous chef');
-          }
-        } else if (shouldBeMealMode) {
-          chatController.currentMode.value = 'meal';
-          if (chatId != null && chatId!.isNotEmpty) {
+          } else if (shouldBeMealMode) {
+            chatController.currentMode.value = 'meal';
             await chatController.switchMode('meal');
           }
-        }
 
-        // Sync tab controller with current mode
-        final modes = ['sous chef', 'meal'];
-        final modeIndex = modes.indexOf(chatController.currentMode.value);
-        if (modeIndex >= 0 && modeIndex < 2) {
-          _tabController.index = modeIndex;
-        }
-      } else {
-        // New chat - create it and listen
-        await chatController.initializeChat('buddy');
-
-        if (!mounted) return;
-
-        // Override default mode if navigation arguments specify a mode
-        if (shouldBeSousChefMode) {
-          chatController.currentMode.value = 'sous chef';
-        } else if (shouldBeMealMode) {
-          chatController.currentMode.value = 'meal';
-        }
-
-        setState(() {
-          chatId = chatController.chatId;
-        });
-        if (chatId != null && chatId!.isNotEmpty) {
-          try {
-            userService.setBuddyChatId(chatId!);
-            // Update mode in Firestore if we have a chatId
-            if (shouldBeSousChefMode) {
-              await chatController.switchMode('sous chef');
-            } else if (shouldBeMealMode) {
-              await chatController.switchMode('meal');
-            }
-          } catch (e) {
-            debugPrint('Error setting buddy chat ID: $e');
-            _handleError('Failed to initialize chat. Please try again.',
-                details: e.toString());
+          // Sync tab controller with current mode
+          final modes = ['sous chef', 'meal'];
+          final modeIndex = modes.indexOf(chatController.currentMode.value);
+          if (modeIndex >= 0 && modeIndex < 2) {
+            _tabController.index = modeIndex;
           }
+        } catch (e) {
+          debugPrint('Error setting buddy chat ID: $e');
+          _handleError('Failed to initialize chat. Please try again.',
+              details: e.toString());
         }
       }
     } catch (e) {
@@ -691,11 +746,22 @@ class _TastyScreenState extends State<TastyScreen>
             borderRadius: BorderRadius.circular(15),
           ),
           backgroundColor: isDarkMode ? kDarkGrey : kWhite,
-          title: Text(
-            'Select Meal to Remix',
-            style: textTheme.titleMedium?.copyWith(
-              color: isDarkMode ? kWhite : kBlack,
-            ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select Meal to Remix',
+                style: textTheme.titleMedium?.copyWith(
+                  color: isDarkMode ? kWhite : kBlack,
+                ),
+              ),
+              Text(
+                'Meals from your Chef\'s Choice',
+                style: textTheme.labelSmall?.copyWith(
+                  color: kAccent,
+                ),
+              ),
+            ],
           ),
           content: Container(
             width: MediaQuery.of(context).size.width * 0.9,
@@ -963,133 +1029,189 @@ class _TastyScreenState extends State<TastyScreen>
                       ),
                     ],
                   ),
-                  SizedBox(height: getPercentageHeight(1, context)),
+                  SizedBox(height: getPercentageHeight(0.5, context)),
                   Text(
-                    'Choose a quick option below or type your own request:',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    chatController.familyMemberName.value != null
+                        ? 'Choose a quick option below: '
+                        : 'Choose a quick option below or type your own request: ',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: isDarkMode
                               ? kWhite.withValues(alpha: 0.7)
                               : kBlack.withValues(alpha: 0.7),
                         ),
                   ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                  // Main action buttons - 7 days and single meal
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildQuickActionButton(
-                          isDarkMode: isDarkMode,
-                          icon: Icons.calendar_view_week,
-                          label: '7-Day Plan',
-                          sublabel: 'Full week meals',
-                          onTap: () =>
-                              _handleMealPlanQuickAction('7days', isDarkMode),
-                          isPrimary: true,
-                        ),
-                      ),
-                      SizedBox(width: getPercentageWidth(2, context)),
-                      Expanded(
-                        child: _buildQuickActionButton(
-                          isDarkMode: isDarkMode,
-                          icon: Icons.restaurant,
-                          label: 'Single Meal',
-                          sublabel: 'Quick suggestion',
-                          onTap: () =>
-                              _handleMealPlanQuickAction('single', isDarkMode),
-                          isPrimary: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                  // Secondary action buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildQuickActionButton(
-                          isDarkMode: isDarkMode,
-                          icon: Icons.auto_fix_high,
-                          label: 'Remix',
-                          sublabel: 'Remix favorite meal',
-                          onTap: () =>
-                              _handleMealPlanQuickAction('remix', isDarkMode),
-                          isPrimary: false,
-                        ),
-                      ),
-                      SizedBox(width: getPercentageWidth(2, context)),
-                      Expanded(
-                        child: _buildQuickActionButton(
-                          isDarkMode: isDarkMode,
-                          icon: Icons.timer,
-                          label: 'Quick Meals',
-                          sublabel: 'Under 30 min',
-                          onTap: () =>
-                              _handleMealPlanQuickAction('quick', isDarkMode),
-                          isPrimary: false,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: getPercentageHeight(1, context)),
-
-                  // Custom option and Image picker in a row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              _handleMealPlanQuickAction('custom', isDarkMode),
-                          icon: const Icon(Icons.edit, size: 18),
-                          label: const Text('Type my own request'),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 44),
-                            shape: RoundedRectangleBorder(
+                  SizedBox(height: getPercentageHeight(0.5, context)),
+                  // Custom option and Image picker in a row - only show for main user
+                  Obx(() {
+                    final isFamilyMember =
+                        chatController.familyMemberName.value != null;
+                    if (isFamilyMember) {
+                      // Hide these buttons for family members
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _handleMealPlanQuickAction(
+                                    'custom', isDarkMode),
+                                icon: const Icon(Icons.edit, size: 18),
+                                label: const Text('Type my own request'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: kBlue,
+                                  minimumSize: const Size(double.infinity, 44),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: getPercentageWidth(2, context)),
+                            // Image picker button
+                            Material(
+                              color:
+                                  Theme.of(context).colorScheme.surfaceVariant,
                               borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                onTap: () async {
+                                  await handleCameraAction(
+                                    context: context,
+                                    date: DateTime.now(),
+                                    isDarkMode:
+                                        getThemeProvider(context).isDarkMode,
+                                    mealType: null,
+                                    onSuccess: () {
+                                      // Hide quick actions after successful image analysis
+                                      _showQuickActions.value = false;
+                                    },
+                                    onError: () {
+                                      // Error handling is done in handleCameraAction
+                                    },
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: kAccent.withValues(alpha: 0.5),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_outlined,
+                                    color: kDarkGrey,
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: getPercentageHeight(1, context)),
+                      ],
+                    );
+                  }),
+
+                  // Check if this is for a family member
+                  Obx(() {
+                    final isFamilyMember =
+                        chatController.familyMemberName.value != null;
+
+                    if (isFamilyMember) {
+                      // For family members: only show 7-Day Plan and Quick Meals
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuickActionButton(
+                              isDarkMode: isDarkMode,
+                              icon: Icons.calendar_view_week,
+                              label: '7-Day Plan',
+                              sublabel: 'Full week meals',
+                              onTap: () => _handleMealPlanQuickAction(
+                                  '7days', isDarkMode),
+                              isPrimary: true,
                             ),
                           ),
-                        ),
-                      ),
-                      SizedBox(width: getPercentageWidth(2, context)),
-                      // Image picker button
-                      Material(
-                        color: Theme.of(context).colorScheme.surfaceVariant,
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          onTap: () async {
-                            await handleCameraAction(
-                              context: context,
-                              date: DateTime.now(),
-                              isDarkMode: getThemeProvider(context).isDarkMode,
-                              mealType: null,
-                              onSuccess: () {
-                                // Hide quick actions after successful image analysis
-                                _showQuickActions.value = false;
-                              },
-                              onError: () {
-                                // Error handling is done in handleCameraAction
-                              },
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.camera_alt_outlined,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              size: 24,
+                          SizedBox(width: getPercentageWidth(2, context)),
+                          Expanded(
+                            child: _buildQuickActionButton(
+                              isDarkMode: isDarkMode,
+                              icon: Icons.timer,
+                              label: 'Quick Meals',
+                              sublabel: 'Under 30 min',
+                              onTap: () => _handleMealPlanQuickAction(
+                                  'quick', isDarkMode),
+                              isPrimary: true,
                             ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
+                        ],
+                      );
+                    } else {
+                      // For main user: show all options
+                      return Column(
+                        children: [
+                          // Main action buttons - 7 days and single meal
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildQuickActionButton(
+                                  isDarkMode: isDarkMode,
+                                  icon: Icons.calendar_view_week,
+                                  label: '7-Day Plan',
+                                  sublabel: 'Full week meals',
+                                  onTap: () => _handleMealPlanQuickAction(
+                                      '7days', isDarkMode),
+                                  isPrimary: true,
+                                ),
+                              ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Expanded(
+                                child: _buildQuickActionButton(
+                                  isDarkMode: isDarkMode,
+                                  icon: Icons.restaurant,
+                                  label: 'Single Meal',
+                                  sublabel: 'Quick suggestion',
+                                  onTap: () => _handleMealPlanQuickAction(
+                                      'single', isDarkMode),
+                                  isPrimary: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: getPercentageHeight(1, context)),
+                          // Secondary action buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildQuickActionButton(
+                                  isDarkMode: isDarkMode,
+                                  icon: Icons.auto_fix_high,
+                                  label: 'Remix',
+                                  sublabel: 'Remix favorite meal',
+                                  onTap: () => _handleMealPlanQuickAction(
+                                      'remix', isDarkMode),
+                                  isPrimary: false,
+                                ),
+                              ),
+                              SizedBox(width: getPercentageWidth(2, context)),
+                              Expanded(
+                                child: _buildQuickActionButton(
+                                  isDarkMode: isDarkMode,
+                                  icon: Icons.timer,
+                                  label: 'Quick Meals',
+                                  sublabel: 'Under 30 min',
+                                  onTap: () => _handleMealPlanQuickAction(
+                                      'quick', isDarkMode),
+                                  isPrimary: false,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    }
+                  }),
                 ],
               ),
             ),
@@ -1169,7 +1291,7 @@ class _TastyScreenState extends State<TastyScreen>
       switch (currentMode) {
         case 'meal':
           title = 'Meal Plan Mode';
-          description = 'Plan meals, get recipes, and add to calendar';
+          description = 'Plan meals, get recipes, and add to schedule';
           icon = Icons.restaurant_menu;
           color = kAccentLight;
           break;

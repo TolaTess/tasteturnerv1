@@ -9,7 +9,6 @@ import '../helper/utils.dart';
 import '../pages/recipe_card_flex.dart';
 import '../detail_screen/recipe_detail.dart';
 import '../service/meal_api_service.dart';
-import '../widgets/loading_screen.dart';
 
 class SearchResultGrid extends StatefulWidget {
   final bool enableSelection;
@@ -113,7 +112,7 @@ class _SearchResultGridState extends State<SearchResultGrid> {
           widget.search.toLowerCase() != 'all') {
         // Use existing meals data if available to avoid unnecessary Firestore calls
         String search = '';
-        if (widget.search.toLowerCase() == 'veg only') {
+        if (widget.search.toLowerCase() == 'veg heavy') {
           search = 'vegetable';
         } else {
           search = widget.search.replaceAll('-', ' ').toLowerCase();
@@ -887,49 +886,60 @@ class _SearchResultGridState extends State<SearchResultGrid> {
                 }
               }
             },
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(height: getPercentageHeight(10, context)),
-                TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0, end: 1),
-                  duration: const Duration(seconds: 15),
-                  curve: Curves.easeInOut,
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(
-                          value * 200 - 100, 0), // Moves from -100 to +100
-                      child: CircleAvatar(
-                        backgroundColor: isDarkMode ? kWhite : kBlack,
-                        radius: getResponsiveBoxSize(context, 18, 18),
-                        backgroundImage: AssetImage(tastyImage),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  "No meals available.",
-                  style: textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.w400,
-                    fontSize: getTextScale(6, context),
-                    color: kAccentLight,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(height: getPercentageHeight(8, context)),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: 1),
+                    duration: const Duration(seconds: 15),
+                    curve: Curves.easeInOut,
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(
+                            value * 200 - 100, 0), // Moves from -100 to +100
+                        child: CircleAvatar(
+                          backgroundColor: isDarkMode ? kWhite : kBlack,
+                          radius: getResponsiveBoxSize(context, 18, 18),
+                          backgroundImage: AssetImage(tastyImage),
+                        ),
+                      );
+                    },
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                if (widget.screen != 'technique')
+                  const SizedBox(height: 5),
                   Text(
-                    canUseAI()
-                        ? 'Generate Meals with ${capitalizeFirstLetter(widget.search)}!'
-                        : 'Go Premium to generate a Meal!',
-                    style: textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: kAccent,
+                    "No meals available.",
+                    style: textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w400,
+                      fontSize: getTextScale(6, context),
+                      color: kAccentLight,
                     ),
                     textAlign: TextAlign.center,
                   ),
-              ],
+                  const SizedBox(height: 8),
+                  if (widget.screen != 'technique')
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: getPercentageWidth(4, context),
+                      ),
+                      child: Text(
+                        canUseAI()
+                            ? 'Generate Meals with ${capitalizeFirstLetter(widget.search)}!'
+                            : 'Go Premium to generate a Meal!',
+                        style: textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: kAccent,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  SizedBox(height: getPercentageHeight(8, context)),
+                ],
+              ),
             ),
           );
         },

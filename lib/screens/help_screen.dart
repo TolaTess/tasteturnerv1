@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
 import '../screens/splash_screen.dart';
+import '../widgets/lingual_popup.dart';
 
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
@@ -37,6 +38,71 @@ class HelpScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Speaking the Lingo Section
+            InkWell(
+              onTap: () {
+                LingualPopup.show(context);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      kAccent,
+                      kPurple.withValues(alpha: 0.7),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kAccent.withValues(alpha: 0.3),
+                      spreadRadius: 1,
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.menu_book,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Speaking the Lingo',
+                            style: textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Tap to learn the language of the kitchen',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: getPercentageHeight(2, context)),
             Text(
               'Frequently Asked Questions',
               style: textTheme.titleLarge?.copyWith(
@@ -46,32 +112,35 @@ class HelpScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _buildFAQItem(
-                'How do I use Image Analysis?',
-                'To use image analysis, click on analyse my meal on the "Kitchen" screen and add a photo of your meal. Select if you want to upload meal as a post and submit.',
+                'How do I use Image Analysis, Chef?',
+                'To analyze your meal, Chef, tap "Analyse My Meal" on the Kitchen screen and add a photo of your dish. You can choose to share it as a post for other Chefs to see, then submit.',
                 textTheme),
             const SizedBox(height: 8),
             _buildFAQItem(
-                'How do I join a Program?',
-                'Navigate to the "Menu" screen to see available menus. Tap on any menu to view details and join. You can track your progress and earn points.',
+                'What is Cycle Syncing, Chef?',
+                'Cycle Syncing adjusts your daily calorie and macro targets based on your menstrual cycle phase (when applicable), Chef. Enable it in your Nutrition Settings to get personalized recommendations that support your body\'s natural rhythms throughout the month.',
                 textTheme),
             const SizedBox(height: 8),
             _buildFAQItem(
-                'What is the Dine In?',
-                'The "Dine In" screen allows you to cook with what you have in your fridge or pantry and be creative and spontaneous.',
+                'What is the Dine In, Chef?',
+                'The Dine In station lets you get creative with what\'s already in your fridge and pantry, Chef. Cook spontaneously with ingredients you have on hand and discover new flavor combinations.',
                 textTheme),
             SizedBox(height: getPercentageHeight(2, context)),
             InkWell(
               onTap: () {
-               launchUrl(Uri.parse('https://tasteturner.com/faq'));
+                launchUrl(Uri.parse('https://tasteturner.com/faq'));
               },
               child: Center(
-                child: Text('see more FAQs', style: textTheme.titleMedium?.copyWith(
-                  color: kAccent,
-                  fontWeight: FontWeight.bold,
-                ),),
+                child: Text(
+                  'see more FAQs',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: kAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
-         
+
             SizedBox(height: getPercentageHeight(2, context)),
             Row(
               children: [
@@ -224,7 +293,7 @@ class HelpScreen extends StatelessWidget {
             SizedBox(height: getPercentageHeight(7, context)),
             Center(
               child: Text(
-                'Version 1.0.0',
+                'Version 1.0.1',
                 style: textTheme.bodySmall?.copyWith(
                   color: kLightGrey,
                 ),

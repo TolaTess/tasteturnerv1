@@ -16,6 +16,7 @@ import '../screens/rainbow_tracker_detail_screen.dart';
 import '../screens/add_food_screen.dart';
 import '../screens/symptom_insights_screen.dart';
 import '../service/cycle_adjustment_service.dart';
+import '../service/goal_adjustment_service.dart';
 import '../data_models/cycle_tracking_model.dart';
 import 'bottom_nav.dart';
 import 'rainbow_tracker_widget.dart';
@@ -138,6 +139,9 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
     if (_currentMealName != null) {
       debugPrint(
           '🍽️ DailySummaryWidget initialized with meal context: ${_currentMealName} (ID: ${_currentMealId})');
+    } else if (_currentMealType != null) {
+      debugPrint(
+          '🍽️ DailySummaryWidget initialized with meal type context: $_currentMealType (consolidated notification)');
     }
 
     _loadSummaryData();
@@ -171,8 +175,13 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
           alignment: 0.1, // Position near top (10% from top)
         );
 
-        debugPrint(
-            '✅ Scrolled to symptom section for instanceId: $_currentInstanceId');
+        if (_currentInstanceId != null) {
+          debugPrint(
+              '✅ Scrolled to symptom section for instanceId: $_currentInstanceId');
+        } else if (_currentMealType != null) {
+          debugPrint(
+              '✅ Scrolled to symptom section for mealType: $_currentMealType');
+        }
       } else {
         debugPrint(
             '⚠️ Symptom section context not available or widget not mounted');
@@ -279,18 +288,16 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       // Load user goals (handle null user gracefully)
       final user = userService.currentUser.value;
       if (user != null) {
+        // Use GoalAdjustmentService to get fully adjusted goals (calories + macros)
+        final goalService = GoalAdjustmentService.instance;
+        final adjustedGoals =
+            goalService.getAdjustedGoals(user.settings, widget.date);
+
         goals = {
-          'calories':
-              double.tryParse(user.settings['foodGoal']?.toString() ?? '0') ??
-                  0,
-          'protein': double.tryParse(
-                  user.settings['proteinGoal']?.toString() ?? '0') ??
-              0,
-          'carbs':
-              double.tryParse(user.settings['carbsGoal']?.toString() ?? '0') ??
-                  0,
-          'fat':
-              double.tryParse(user.settings['fatGoal']?.toString() ?? '0') ?? 0,
+          'calories': adjustedGoals['calories'] ?? 0.0,
+          'protein': adjustedGoals['protein'] ?? 0.0,
+          'carbs': adjustedGoals['carbs'] ?? 0.0,
+          'fat': adjustedGoals['fat'] ?? 0.0,
         };
       } else {
         // New user or no settings - use default goals
@@ -307,8 +314,10 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
         isLoading = false;
       });
 
-      // Scroll to symptom section after data is loaded if instanceId is provided
-      if (_currentInstanceId != null && _currentInstanceId!.isNotEmpty) {
+      // Scroll to symptom section after data is loaded if instanceId or mealType is provided
+      // (mealType is used for consolidated notifications, instanceId for individual meal notifications)
+      if ((_currentInstanceId != null && _currentInstanceId!.isNotEmpty) ||
+          (_currentMealType != null && _currentMealType!.isNotEmpty)) {
         // Use multiple post-frame callbacks to ensure widget is fully built
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
@@ -528,7 +537,13 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
 
           SizedBox(height: getPercentageHeight(2, context)),
 
-          // Check if in "Weeds" (macro gap situation)
+          // Check if over calorie goal
+          if (calories > calorieGoal) ...[
+            _buildOverCalorieWarning(context, calories.toDouble(), calorieGoal),
+            SizedBox(height: getPercentageHeight(2, context)),
+          ],
+
+          // Check if in "Weeds" (macro gap situation) - only when under calories
           if (_isInWeeds(calories.toDouble(), protein, carbs, fat, calorieGoal,
               proteinGoal, carbsGoal, fatGoal)) ...[
             _buildWeedsProtocol(context, calories.toDouble(), protein,
@@ -2133,6 +2148,11 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
       double proteinGoal,
       double carbsGoal,
       double fatGoal) {
+    // Case 1: Over calories - different scenario, don't show "in the weeds"
+    if (calories > calorieGoal) {
+      return false; // Don't show "in the weeds", show over-calorie message instead
+    }
+
     // User is in the weeds if:
     // - Low calories remaining (< 300) but high protein needed (> 30g remaining)
     // - Or significantly under on protein (< 60% of goal) with low calories remaining
@@ -2144,8 +2164,60 @@ class _DailySummaryWidgetState extends State<DailySummaryWidget> {
 
     if (!isToday) return false; // Only show for today
 
+    // Case 2: Under calories with macro gap
     return (remainingCalories < 300 && remainingProtein > 30) ||
         (remainingCalories < 500 && protein < proteinGoal * 0.6);
+  }
+
+  // Build over-calorie warning widget
+  Widget _buildOverCalorieWarning(
+      BuildContext context, double calories, double calorieGoal) {
+    final textTheme = Theme.of(context).textTheme;
+    final isDarkMode = getThemeProvider(context).isDarkMode;
+    final overCalories = (calories - calorieGoal).round();
+
+    return Container(
+      padding: EdgeInsets.all(getPercentageWidth(4, context)),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.red.withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.warning_rounded,
+                color: Colors.red,
+                size: getIconScale(6, context),
+              ),
+              SizedBox(width: getPercentageWidth(2, context)),
+              Expanded(
+                child: Text(
+                  'Over Calorie Goal',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: getPercentageHeight(1, context)),
+          Text(
+            'Chef, you\'ve exceeded your calorie goal by $overCalories calories today. That\'s okay - tomorrow is a fresh start. Consider lighter options for your remaining meals if you\'re still eating.',
+            style: textTheme.bodyMedium?.copyWith(
+              color: isDarkMode ? kWhite : kDarkGrey,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // Build "Weeds" protocol widget with "Order Fire" button

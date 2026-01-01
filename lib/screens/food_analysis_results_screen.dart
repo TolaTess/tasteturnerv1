@@ -465,6 +465,37 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             date: widget.date ?? DateTime.now(),
           );
 
+          // Track plants from ingredients after saving meal
+          try {
+            final foodItems =
+                _editableAnalysis['foodItems'] as List<dynamic>? ?? [];
+            if (foodItems.isNotEmpty) {
+              // Convert food items to ingredients map for plant tracking
+              final ingredients = <String, String>{};
+              for (final item in foodItems) {
+                final itemMap = Map<String, dynamic>.from(item as Map);
+                final name = itemMap['name']?.toString() ?? '';
+                if (name.isNotEmpty) {
+                  ingredients[name] = itemMap['quantity']?.toString() ?? '';
+                }
+              }
+
+              if (ingredients.isNotEmpty) {
+                debugPrint(
+                    '🌱 Tracking plants from ${ingredients.length} ingredients after meal save');
+                await PlantDetectionService.instance.trackPlantsFromIngredients(
+                  userService.userId ?? '',
+                  ingredients,
+                  widget.date ?? DateTime.now(),
+                );
+                debugPrint('🌱 Plant tracking completed after meal save');
+              }
+            }
+          } catch (e) {
+            debugPrint('🌱 Error tracking plants after meal save: $e');
+            // Don't fail the meal save if plant tracking fails
+          }
+
           // Check for Heavy Pour QC state and apply adjustment to next meal
           await _applyQCAdjustmentIfNeeded();
         } catch (e) {
@@ -906,22 +937,22 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
 
     switch (state) {
       case QCState.onSpec:
-        badgeColor = Colors.green;
+        badgeColor = kGreen;
         badgeText = 'Service Approved';
         badgeIcon = Icons.check_circle;
         break;
       case QCState.heavyPour:
-        badgeColor = Colors.orange;
+        badgeColor = kOrange;
         badgeText = 'Adjustment Required';
         badgeIcon = Icons.warning;
         break;
       case QCState.underPrep:
-        badgeColor = Colors.yellow;
+        badgeColor = kPurple;
         badgeText = 'Fuel Warning';
         badgeIcon = Icons.info;
         break;
       case QCState.macroMiss:
-        badgeColor = Colors.blue;
+        badgeColor = kBlue;
         badgeText = 'Composition Check';
         badgeIcon = Icons.tune;
         break;
@@ -1209,8 +1240,16 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
   ) {
     try {
       // Rainbow Check (Micronutrients)
-      final ingredients =
-          analysis['ingredients'] as Map<String, dynamic>? ?? {};
+      // Safely convert ingredients map to avoid type cast errors
+      final ingredientsRaw = analysis['ingredients'];
+      final ingredients = <String, dynamic>{};
+      if (ingredientsRaw != null) {
+        if (ingredientsRaw is Map) {
+          ingredientsRaw.forEach((key, value) {
+            ingredients[key.toString()] = value;
+          });
+        }
+      }
       final rainbowValues = <String>{};
 
       ingredients.forEach((key, value) {
@@ -1719,6 +1758,59 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
             healthScore,
             confidence,
           ),
+          SizedBox(height: getPercentageHeight(1, context)),
+
+          // Plant Count Display
+          FutureBuilder<int>(
+            future: _calculatePlantCount(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox.shrink();
+              }
+
+              final plantCount = snapshot.data ?? 0;
+              if (plantCount == 0) {
+                return const SizedBox.shrink();
+              }
+
+              return Container(
+                margin: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(2, context),
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: getPercentageWidth(4, context),
+                  vertical: getPercentageHeight(1, context),
+                ),
+                decoration: BoxDecoration(
+                  color: kAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: kAccent.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.eco,
+                      color: kAccent,
+                      size: getIconScale(5, context),
+                    ),
+                    SizedBox(width: getPercentageWidth(1, context)),
+                    Text(
+                      'This meal contains $plantCount ${plantCount == 1 ? 'plant' : 'plants'}',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: kAccent,
+                        fontWeight: FontWeight.w600,
+                        fontSize: getTextScale(3.5, context),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
 
           const SizedBox(height: 20),
 
@@ -1826,7 +1918,7 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                 ),
               ),
               Text(
-                'Tap to adjust',
+                'Adjust',
                 style: textTheme.bodyMedium?.copyWith(
                   fontSize: getTextScale(3, context),
                   color: kAccent,
@@ -1924,55 +2016,6 @@ class _FoodAnalysisResultsScreenState extends State<FoodAnalysisResultsScreen> {
                       ),
                     ],
                   ),
-                ),
-              );
-            },
-          ),
-
-          SizedBox(height: getPercentageHeight(2, context)),
-
-          // Plant Count Display
-          FutureBuilder<int>(
-            future: _calculatePlantCount(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SizedBox.shrink();
-              }
-              
-              final plantCount = snapshot.data ?? 0;
-              if (plantCount == 0) {
-                return const SizedBox.shrink();
-              }
-
-              return Container(
-                margin: EdgeInsets.only(bottom: getPercentageHeight(2, context)),
-                padding: EdgeInsets.all(getPercentageWidth(4, context)),
-                decoration: BoxDecoration(
-                  color: kAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: kAccent.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.eco,
-                      color: kAccent,
-                      size: getIconScale(5, context),
-                    ),
-                    SizedBox(width: getPercentageWidth(2, context)),
-                    Text(
-                      'This meal contains $plantCount ${plantCount == 1 ? 'plant' : 'plants'}',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: kAccent,
-                        fontWeight: FontWeight.w600,
-                        fontSize: getTextScale(3.5, context),
-                      ),
-                    ),
-                  ],
                 ),
               );
             },

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
@@ -62,31 +64,79 @@ class _SplashScreenState extends State<SplashScreen>
   void _checkAuthAndNavigate() async {
     if (!mounted) return;
 
-    // Check if user is authenticated
-    final currentUser = firebaseAuth.currentUser;
+    debugPrint('=== SplashScreen: Starting auth check ===');
 
-    if (currentUser != null) {
-      // User is authenticated - let AuthController handle navigation
-      // AuthController will check if user doc exists and navigate accordingly
-      // Wait a moment for AuthController to initialize and handle navigation
+    // On Android, Firebase Auth needs time to restore the session from disk
+    // Use authStateChanges() stream to wait for Firebase Auth to initialize
+    // This ensures we get the correct auth state even if currentUser is null initially
+    try {
+      debugPrint('Waiting for Firebase Auth state to initialize...');
+
+      // Wait for authStateChanges() to emit (with timeout)
+      // This ensures Firebase Auth has restored the session from disk on Android
+      User? authState;
+      try {
+        authState = await firebaseAuth
+            .authStateChanges()
+            .timeout(const Duration(seconds: 5))
+            .first;
+      } on TimeoutException {
+        debugPrint('⚠️ Auth state stream timeout - using fallback check');
+        authState = firebaseAuth.currentUser;
+      }
+
       debugPrint(
-          'User is authenticated (${currentUser.uid}), waiting for AuthController to handle navigation');
+          'Firebase Auth state received: ${authState != null ? "User authenticated (${authState.uid})" : "No user"}');
 
-      // Give AuthController a moment to process and navigate
-      // If it doesn't navigate within 2 seconds, we'll navigate ourselves as fallback
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (mounted) {
-        // If we're still on splash screen after waiting, AuthController might not have navigated
-        // This shouldn't happen, but as a safety fallback, navigate to home
+      if (authState != null) {
+        // User is authenticated - let AuthController handle navigation
+        // AuthController will check if user doc exists and navigate accordingly
         debugPrint(
-            'AuthController did not navigate, navigating to home as fallback');
+            '✅ User is authenticated (${authState.uid}), waiting for AuthController to handle navigation');
+
+        // Give AuthController a moment to process and navigate
+        // If it doesn't navigate within 2 seconds, we'll navigate ourselves as fallback
+        await Future.delayed(const Duration(seconds: 2));
+
+        if (mounted) {
+          // If we're still on splash screen after waiting, AuthController might not have navigated
+          // This shouldn't happen, but as a safety fallback, navigate to home
+          debugPrint(
+              'AuthController did not navigate, navigating to home as fallback');
+          _navigateToMainApp();
+        }
+        return;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error waiting for auth state: $e');
+      // Fallback: check currentUser directly
+      final currentUser = firebaseAuth.currentUser;
+      if (currentUser != null) {
+        debugPrint(
+            '✅ Fallback: User found via currentUser (${currentUser.uid})');
+        // User is authenticated - let AuthController handle navigation
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          _navigateToMainApp();
+        }
+        return;
+      }
+    }
+
+    // Final fallback: check currentUser one more time
+    final currentUser = firebaseAuth.currentUser;
+    if (currentUser != null) {
+      debugPrint(
+          '✅ Final fallback: User found via currentUser (${currentUser.uid})');
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) {
         _navigateToMainApp();
       }
       return;
     }
 
     // User is not authenticated - navigate to signup
+    debugPrint('❌ No user authenticated - navigating to signup');
     // Also check widget.isUser as fallback for manual override
     if (widget.isUser) {
       _navigateToMainApp();

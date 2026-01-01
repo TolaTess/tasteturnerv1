@@ -35,6 +35,8 @@ class AuthController extends GetxController {
   void onReady() async {
     super.onReady();
 
+    debugPrint('=== AuthController: onReady() called ===');
+
     Rx<User?> authState = Rx<User?>(null);
     authState.bindStream(firebaseAuth.authStateChanges());
 
@@ -43,18 +45,22 @@ class AuthController extends GetxController {
 
     // Check initial auth state immediately (in case user is already logged in)
     // This handles the case where authStateChanges() hasn't emitted yet
+    // On Android, currentUser might be null initially before Firebase Auth restores session
     final currentUser = firebaseAuth.currentUser;
     if (currentUser != null) {
       debugPrint(
-          'Initial auth check: User is already authenticated (${currentUser.uid})');
+          '✅ AuthController: Initial auth check - User is already authenticated (${currentUser.uid})');
       // Trigger the handler with the current user
       // This will check Firestore and navigate to home or onboarding accordingly
       _handleAuthState(currentUser);
     } else {
       debugPrint(
-          'Initial auth check: No user authenticated - SplashScreen will handle navigation');
+          '⚠️ AuthController: Initial auth check - No user found (currentUser is null)');
+      debugPrint(
+          '   This is normal on Android - waiting for authStateChanges() stream to emit...');
       // Don't navigate here - SplashScreen will handle navigation to signup
       // The authStateChanges() stream will handle future auth state changes
+      // On Android, the stream will emit once Firebase Auth restores the session from disk
     }
   }
 
@@ -153,19 +159,20 @@ class AuthController extends GetxController {
 
           await _setLoggedIn(true);
           // Extract display name from provider data if user.displayName is null
-          if (user.uid == tastyId3) {
-            // Determine auth provider for existing user too
-            String? authProvider;
-            if (user.providerData.isNotEmpty) {
-              authProvider = user.providerData.first.providerId;
-            }
-            Get.offAll(() => OnboardingScreen(
-                userId: user.uid,
-                displayName: user.displayName,
-                authProvider: authProvider));
-          } else {
-            Get.offAll(() => const BottomNavSec());
-          }
+          // if (user.uid == tastyId3) {
+          //   // Determine auth provider for existing user too
+          //   String? authProvider;
+          //   if (user.providerData.isNotEmpty) {
+          //     authProvider = user.providerData.first.providerId;
+          //   }
+          //   Get.offAll(() => OnboardingScreen(
+          //       userId: user.uid,
+          //       displayName: user.displayName,
+          //       authProvider: authProvider));
+          // } else {
+          //   Get.offAll(() => const BottomNavSec());
+          // }
+          Get.offAll(() => const BottomNavSec());
         } catch (e) {
           debugPrint("Failed to load user data: $e");
           // Handle the error appropriately - maybe show an error screen

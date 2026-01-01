@@ -174,19 +174,60 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _shareImage(String imageUrl) {
     try {
+      // Debug: Log sharing data
+      debugPrint('=== CHAT SCREEN _shareImage DEBUG ===');
+      debugPrint('Widget Screen: ${widget.screen}');
+      debugPrint('Widget DataSrc: ${widget.dataSrc}');
+      debugPrint('Widget DataSrc ID: ${widget.dataSrc?['id']}');
+      debugPrint('Widget DataSrc Keys: ${widget.dataSrc?.keys.toList()}');
+      debugPrint('Image URL: $imageUrl');
+      debugPrint('Chat ID: $chatId');
+      debugPrint('=====================================');
+
       String message = '';
       if (widget.screen == 'share_recipe') {
         final title = widget.dataSrc?['title'] ?? '';
         final mealId = widget.dataSrc?['mealId'] ?? '';
         message =
             'Shared caption: ${capitalizeFirstLetter(title)} /$mealId /${capitalizeFirstLetter(title)} /${widget.screen ?? ''}';
+        debugPrint('Recipe Share Message: $message');
       } else {
-        // For non-recipe image shares, mark as private to prevent showing in posts
-        final title = widget.dataSrc?['title'] ?? '';
+        // For non-recipe image shares (posts), use user-friendly message
+        // Still include metadata for parsing: /id /screen /private
         final id = widget.dataSrc?['id'] ?? '';
         final screen = widget.screen ?? 'post';
-        message =
-            'Shared caption: ${capitalizeFirstLetter(title)} /$id /${capitalizeFirstLetter(title)} /$screen /private';
+
+        // Debug: Check if post ID is missing
+        if (id.isEmpty) {
+          debugPrint('⚠️ WARNING: Post ID is empty!');
+          debugPrint(
+              'Available keys in dataSrc: ${widget.dataSrc?.keys.toList()}');
+          debugPrint('Trying alternative ID fields...');
+
+          // Try alternative ID fields
+          final altId = widget.dataSrc?['postId'] ??
+              widget.dataSrc?['post_id'] ??
+              widget.dataSrc?['documentId'] ??
+              widget.dataSrc?['document_id'] ??
+              '';
+
+          if (altId.isNotEmpty) {
+            debugPrint('Found alternative ID: $altId');
+            message =
+                'Chef, shared this post, click to view the post. /$altId /$screen /private';
+          } else {
+            debugPrint('❌ ERROR: No post ID found in any field!');
+            debugPrint('Full dataSrc: ${widget.dataSrc}');
+            // Still create message but log the error
+            message =
+                'Chef, shared this post, click to view the post. //$screen /private';
+          }
+        } else {
+          message =
+              'Chef, shared this post, click to view the post. /$id /$screen /private';
+        }
+
+        debugPrint('Post Share Message: $message');
       }
 
       if (chatId == null || chatId!.isEmpty) {
@@ -195,13 +236,18 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
 
+      debugPrint('Sending message with content: $message');
+      debugPrint('Image URLs: [$imageUrl]');
+
       chatController.sendMessage(
         messageContent: message,
         imageUrls: [imageUrl],
         isPrivate: true, // Mark as private to prevent showing in posts
       );
+
+      debugPrint('✅ Message sent successfully');
     } catch (e, stackTrace) {
-      debugPrint('Error sharing image: $e');
+      debugPrint('❌ Error sharing image: $e');
       debugPrint('Stack trace: $stackTrace');
       if (mounted && context.mounted) {
         _handleError('Failed to share image. Please try again.',
