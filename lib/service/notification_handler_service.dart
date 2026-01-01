@@ -8,6 +8,7 @@ import '../helper/utils.dart';
 import '../screens/tomorrow_action_items_screen.dart';
 import '../screens/daily_summary_screen.dart';
 import '../screens/rainbow_tracker_detail_screen.dart';
+import '../screens/add_food_screen.dart';
 import 'user_service.dart';
 
 class NotificationHandlerService extends GetxService {
@@ -331,22 +332,38 @@ class NotificationHandlerService extends GetxService {
   // Handle water reminder notification
   Future<void> _handleWaterReminder() async {
     try {
-      // Navigate to water tracking or show a simple message
-      // For now, we'll just show a snackbar
+      debugPrint('💧 [NotificationHandlerService] Navigating to AddFoodScreen for water tracking');
+      final context = Get.context;
+      if (context != null) {
+        try {
+          await Get.to(() => AddFoodScreen(
+            date: DateTime.now(),
+            scrollToQuickUpdate: true, // Scroll to Quick Service Update section for water tracking
+          ));
+          debugPrint('✅ [NotificationHandlerService] Navigation to AddFoodScreen completed');
+        } catch (navError) {
+          debugPrint('Error during navigation: $navError');
+          showTastySnackbar(
+            'Error',
+            'Failed to open water tracking. Please try again.',
+            context,
+            backgroundColor: kRed,
+          );
+        }
+      } else {
+        debugPrint('Error: No context available for navigation');
+      }
+    } catch (e) {
+      debugPrint('Error handling water reminder: $e');
       final context = Get.context;
       if (context != null) {
         showTastySnackbar(
-          'Water Reminder 💧',
-          'Time to track your water intake!',
+          'Error',
+          'Failed to open water tracking. Please try again.',
           context,
-          backgroundColor: Colors.blue,
+          backgroundColor: kRed,
         );
       }
-
-      // You can add navigation to water tracking screen here if you have one
-      // Get.to(() => WaterTrackingScreen());
-    } catch (e) {
-      debugPrint('Error handling water reminder: $e');
     }
   }
 

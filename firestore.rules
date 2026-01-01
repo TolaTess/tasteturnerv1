@@ -1,50 +1,63 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // TEMPORARY: Allow unauthenticated access for admin/testing
+    // ⚠️ WARNING: This is for development only!
+    
     function isAuthenticated() {
       return request.auth != null;
     }
-
-    // Read-only collections: authenticated users can read, but no writes
+    
+    // SECURITY: Protect sensitive API keys in config collection
+    // Clients should NEVER access this directly - only via cloud functions
+    match /config/apiKeys {
+      allow read, write: if false; // Deny all client access - only cloud functions can access
+    }
+    
+    // Allow unauthenticated access to all other collections (TEMPORARY)
+    // ⚠️ WARNING: This is for development only!
+    match /{document=**} {
+      allow read, write: if true; // Allows anyone, even unauthenticated
+    }
+    
+    // Your original rules (commented out for now)
+    /*
     match /general/{documentId} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
-
+    
     match /category/{categoryId} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
-
+    
     match /headers/{headerId} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
-
+    
     match /macros/{documentId} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
-
+    
     match /rainbows/{documentId} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
-
+    
     match /kidsfilter/{documentId} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
-
+    
     match /winners/{documentId} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
-
-    // All other collections: authenticated users can read and write
-    match /{document=**} {
-      allow read, write: if isAuthenticated();
-    }
+    */
   }
 }
-

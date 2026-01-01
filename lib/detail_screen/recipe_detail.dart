@@ -32,6 +32,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Meal? _meal;
   bool _loading = false;
   StreamSubscription<DocumentSnapshot>? _mealSubscription;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -80,7 +81,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   @override
   void dispose() {
     _mealSubscription?.cancel();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Check if the meal image is a placeholder
+  bool _isPlaceholderImage(Meal meal) {
+    if (meal.mediaPaths.isEmpty) return true;
+    if (meal.mediaPaths.first == 'null') return true;
+    // If it doesn't start with 'http', it's using getAssetImageForItem which is a placeholder
+    if (!meal.mediaPaths.first.startsWith('http')) return true;
+    return false;
   }
 
   /// Listen for real-time updates to the meal document
@@ -208,8 +219,31 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       body: Obx(() {
         final mealUser = friendController.userProfileData.value;
 
+        // Initialize scroll position if placeholder image - collapse app bar by default
+        // Scroll just enough to collapse the image while keeping the back arrow visible
+        if (_meal != null && _isPlaceholderImage(_meal!)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.hasClients && mounted) {
+              final expandedHeight = MediaQuery.of(context).size.height > 1100
+                  ? getPercentageHeight(60, context)
+                  : getPercentageHeight(45, context);
+              // Scroll to collapse the image but keep the toolbar (back arrow) visible
+              // Subtract a small amount to ensure back arrow stays visible
+              final scrollOffset = expandedHeight -
+                  kToolbarHeight -
+                  getPercentageHeight(2, context);
+              _scrollController.animateTo(
+                scrollOffset,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+              );
+            }
+          });
+        }
+
         return SafeArea(
           child: CustomScrollView(
+            controller: _scrollController,
             slivers: [
               // Custom app bar > recipe image, back button, more action button, and drawer
               SlvAppBar(
@@ -571,7 +605,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 Text(
                   'This recipe contains $plantCount ${plantCount == 1 ? 'plant' : 'plants'}',
                   style: textTheme.bodySmall?.copyWith(
-                    color: isDarkMode ? kWhite.withValues(alpha: 0.8) : kDarkGrey,
+                    color:
+                        isDarkMode ? kWhite.withValues(alpha: 0.8) : kDarkGrey,
                     fontSize: getTextScale(3, context),
                   ),
                 ),
@@ -677,14 +712,27 @@ class SlvAppBar extends StatelessWidget {
     }
   }
 
+  /// Check if the meal image is a placeholder
+  bool _isPlaceholderImage(Meal meal) {
+    if (meal.mediaPaths.isEmpty) return true;
+    if (meal.mediaPaths.first == 'null') return true;
+    // If it doesn't start with 'http', it's using getAssetImageForItem which is a placeholder
+    if (!meal.mediaPaths.first.startsWith('http')) return true;
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = getThemeProvider(context).isDarkMode;
+    final isPlaceholder = _isPlaceholderImage(meal);
+
     return SliverAppBar(
       backgroundColor: isDarkMode ? kDarkGrey : kWhite,
       expandedHeight: MediaQuery.of(context).size.height > 1100
           ? getPercentageHeight(60, context)
           : getPercentageHeight(45, context),
+      floating: isPlaceholder, // Allow easy collapsing for placeholders
+      snap: isPlaceholder, // Snap closed when scrolling up for placeholders
       flexibleSpace: FlexibleSpaceBar(
         background: _buildRecipeImage(meal),
       ),

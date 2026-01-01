@@ -49,6 +49,8 @@ import '../data_models/symptom_entry.dart';
 import '../screens/symptom_insights_screen.dart';
 import '../service/cycle_adjustment_service.dart';
 import '../widgets/tutorial_blocker.dart';
+import '../widgets/lingual_popup.dart';
+import '../helper/ump_consent_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -84,6 +86,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Timer? _networkCheckTimer;
   bool _showGoalsPrompt = false;
   bool _tutorialCompleted = false;
+  bool _shoppingBannerDismissed = false;
   Worker? _unreadNotificationsWorker;
   final RxInt _rainbowPlantsCount = 0.obs;
   StreamSubscription<PlantDiversityScore>? _rainbowPlantsSubscription;
@@ -119,6 +122,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
 
     _loadShoppingDay();
+    _checkShoppingBannerDismissed();
     _setupDataListeners();
     _startNetworkCheck();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -170,6 +174,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Check and show notification preference prompt for existing users
       _checkNotificationPreference();
+
+      if (!mounted) return;
+
+      // Check if UMP consent retry is needed
+      _checkAndShowUMPConsentRetry();
 
       // Ads initialization is now handled during onboarding (in Meal Planning slide)
       // This prevents blocking home screen loading
@@ -1039,6 +1048,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
+  /// Check if shopping banner was dismissed today
+  Future<void> _checkShoppingBannerDismissed() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final dismissedDate = prefs.getString('shopping_banner_dismissed_date');
+
+    if (mounted) {
+      setState(() {
+        _shoppingBannerDismissed = dismissedDate == today;
+      });
+    }
+  }
+
+  /// Dismiss shopping banner for today
+  Future<void> _dismissShoppingBanner() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    await prefs.setString('shopping_banner_dismissed_date', today);
+
+    if (mounted) {
+      setState(() {
+        _shoppingBannerDismissed = true;
+      });
+    }
+  }
+
   // Start network connectivity check (optimized to check every 30 seconds instead of 5)
   void _startNetworkCheck() {
     _networkCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
@@ -1083,13 +1118,83 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       if (isFirstTimeUser) {
         // Wait a bit for the app to settle, then check family dialog
-        await Future.delayed(const Duration(seconds: 5));
+        await Future.delayed(const Duration(seconds: 30));
         if (mounted) {
           await _checkAndShowFamilyNutritionDialog();
         }
       }
     } catch (e) {
       debugPrint('Error checking family dialog for new user: $e');
+    }
+  }
+
+  /// Check if UMP consent retry is needed and show consent form
+  Future<void> _checkAndShowUMPConsentRetry() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final retryDateStr = prefs.getString('ump_consent_retry_date');
+
+      if (retryDateStr == null) {
+        // No retry scheduled
+        return;
+      }
+
+      final retryDate = DateTime.parse(retryDateStr);
+      final now = DateTime.now();
+
+      // Check if retry date has passed
+      if (now.isAfter(retryDate) || now.isAtSameMomentAs(retryDate)) {
+        debugPrint(
+            'UMP consent retry date reached. Attempting to show consent form...');
+
+        // Wait a bit for the app to settle
+        await Future.delayed(const Duration(seconds: 5));
+        if (!mounted) return;
+
+        // Check if consent is already obtained
+        final canRequest = await UMPConsentHelper.canRequestAds();
+        if (canRequest) {
+          // Consent already obtained, clear retry date
+          await prefs.remove('ump_consent_retry_date');
+          debugPrint('UMP consent already obtained. Clearing retry date.');
+          return;
+        }
+
+        // Request UMP consent with callbacks to handle success/failure
+        await UMPConsentHelper.requestUMPConsent(
+          onConsentObtained: () async {
+            // Success! Clear retry date
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('ump_consent_retry_date');
+            debugPrint(
+                'UMP consent obtained successfully. Clearing retry date.');
+          },
+          onError: () async {
+            // Still failed, reschedule for another 24 hours
+            debugPrint(
+                'UMP consent still not obtained. Rescheduling for 24 hours...');
+            final prefs = await SharedPreferences.getInstance();
+            final newRetryDate = DateTime.now().add(const Duration(hours: 24));
+            await prefs.setString(
+                'ump_consent_retry_date', newRetryDate.toIso8601String());
+            debugPrint(
+                'UMP consent retry rescheduled for: ${newRetryDate.toIso8601String()}');
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('Error checking UMP consent retry: $e');
+      // If there's an error, reschedule to try again later
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final newRetryDate = DateTime.now().add(const Duration(hours: 24));
+        await prefs.setString(
+            'ump_consent_retry_date', newRetryDate.toIso8601String());
+        debugPrint(
+            'Error occurred, rescheduling UMP consent retry for: ${newRetryDate.toIso8601String()}');
+      } catch (e2) {
+        debugPrint('Error rescheduling UMP consent retry: $e2');
+      }
     }
   }
 
@@ -1250,8 +1355,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildAvatarAndGreeting(context, currentUser, isDarkMode,
-                      textTheme, inspiration, avatarUrl),
+                  Expanded(
+                    child: _buildAvatarAndGreeting(context, currentUser,
+                        isDarkMode, textTheme, inspiration, avatarUrl),
+                  ),
                   _buildMessageSection(context, isDarkMode, textTheme),
                 ],
               ),
@@ -1292,27 +1399,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           );
         }),
         SizedBox(width: getPercentageWidth(2, context)),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$greeting Chef $nameCapitalized!',
-              style: textTheme.displaySmall?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  fontSize: getPercentageWidth(6, context)),
-            ),
-            SizedBox(height: getPercentageHeight(0.5, context)),
-            Text(
-              inspiration,
-              style: textTheme.bodyMedium?.copyWith(
-                fontSize: getTextScale(3, context),
-                color: isDarkMode
-                    ? kLightGrey.withValues(alpha: 0.9)
-                    : kDarkGrey.withValues(alpha: 0.5),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$greeting Chef $nameCapitalized!',
+                style: textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    fontSize: getPercentageWidth(6, context)),
                 overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
-            ),
-          ],
+              SizedBox(height: getPercentageHeight(0.5, context)),
+              Text(
+                inspiration,
+                style: textTheme.bodyMedium?.copyWith(
+                  fontSize: getTextScale(3, context),
+                  color: isDarkMode
+                      ? kLightGrey.withValues(alpha: 0.9)
+                      : kDarkGrey.withValues(alpha: 0.5),
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
         ),
         SizedBox(width: getPercentageWidth(2, context)),
       ],
@@ -1324,6 +1437,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       BuildContext context, bool isDarkMode, TextTheme textTheme) {
     return Row(
       children: [
+        // Lingual popup button
+        GestureDetector(
+          onTap: () {
+            LingualPopup.show(context);
+          },
+          child: Icon(
+            Icons.info,
+            color: isDarkMode
+                ? kWhite.withValues(alpha: 0.3)
+                : kLightGrey.withValues(alpha: 0.4),
+            size: getIconScale(8, context),
+          ),
+        ),
+        SizedBox(width: getPercentageWidth(2.5, context)),
         GestureDetector(
           onTap: () {
             Navigator.push(
@@ -1599,7 +1726,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// Build shopping day banner
   Widget? _buildShoppingDayBanner(
       BuildContext context, bool isDarkMode, TextTheme textTheme) {
-    if (!_isTodayShoppingDay()) return null;
+    if (!_isTodayShoppingDay() || _shoppingBannerDismissed) return null;
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: getPercentageWidth(2, context)),
@@ -1619,7 +1746,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Expanded(
             child: Text(
               familyMode
-                  ? "Shopping Day, Chef: \nTime to stock the pantry for healthy family meals! Check your smart grocery list for kid-friendly essentials."
+                  ? "Shopping Day, Chef: \nTime to stock the pantry for healthy family meals! Check your smart grocery list for your essentials."
                   : "Shopping Day, Chef: \nReady to stock the pantry? Your grocery list is loaded with great ingredients from your menu!",
               style: textTheme.bodyMedium?.copyWith(
                 color: kAccentLight,
@@ -1649,6 +1776,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 style: textTheme.bodyMedium?.copyWith(
                   color: kWhite,
                 )),
+          ),
+          SizedBox(width: getPercentageWidth(1, context)),
+          GestureDetector(
+            onTap: () => _dismissShoppingBanner(),
+            child: Container(
+              padding: EdgeInsets.all(getPercentageWidth(1.5, context)),
+              decoration: BoxDecoration(
+                color: kAccentLight.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.close,
+                color: kAccentLight,
+                size: getIconScale(5, context),
+              ),
+            ),
           ),
         ],
       ),
@@ -1821,12 +1964,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         context, isDarkMode, textTheme),
 
                     // Shopping day banner
-                    if (_isTodayShoppingDay())
+                    if (_isTodayShoppingDay() && !_shoppingBannerDismissed) ...[
                       SizedBox(height: getPercentageHeight(1, context)),
-                    if (_isTodayShoppingDay())
-                      _buildShoppingDayBanner(context, isDarkMode, textTheme)!,
-                    if (_isTodayShoppingDay())
+                      _buildShoppingDayBanner(context, isDarkMode, textTheme) ??
+                          const SizedBox.shrink(),
                       SizedBox(height: getPercentageHeight(1, context)),
+                    ],
 
                     Padding(
                       padding: EdgeInsets.symmetric(
@@ -1883,7 +2026,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           //Planner
                           SecondNavWidget(
                             key: _addShoppingButtonKey,
-                            label: 'Inventory',
+                            label: 'Market',
                             icon: 'assets/images/svg/shopping.svg',
                             color: isDarkMode
                                 ? kAccentLight

@@ -3,13 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../constants.dart';
 import '../data_models/ingredient_model.dart';
-import '../helper/helper_files.dart';
-import '../helper/helper_functions.dart';
 import '../helper/utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 
-import '../widgets/bottom_nav.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
 
@@ -18,21 +14,11 @@ class ChooseDietScreen extends StatefulWidget {
     super.key,
     this.isOnboarding = false,
     this.onPreferencesSelected,
-    this.isDontShowPicker = false,
-    this.familyMemberName,
-    this.familyMemberKcal,
-    this.familyMemberGoal,
-    this.familyMemberType,
   });
 
   final bool isOnboarding;
-  final Function(String diet, Set<String> allergies, String cuisineType)?
-      onPreferencesSelected;
-  final bool isDontShowPicker;
-  final String? familyMemberName;
-  final String? familyMemberKcal;
-  final String? familyMemberGoal;
-  final String? familyMemberType;
+  final Function(String diet, Set<String> allergies)? onPreferencesSelected;
+
   @override
   State<ChooseDietScreen> createState() => _ChooseDietScreenState();
 }
@@ -40,52 +26,27 @@ class ChooseDietScreen extends StatefulWidget {
 class _ChooseDietScreenState extends State<ChooseDietScreen> {
   String selectedDiet = 'None';
   Set<String> selectedAllergies = {};
-  String goal = 'Healthy Eating';
-  int proteinDishes = 2;
-  int grainDishes = 2;
-  int vegDishes = 3;
-  String selectedCuisine = 'Balanced';
-  final TextEditingController customMealPlanController = TextEditingController();
 
-  List<Map<String, dynamic>> cuisineTypes = [];
   List<Map<String, dynamic>> dietTypes = [];
 
   @override
   void initState() {
     super.initState();
-    goal = userService.currentUser.value?.settings['fitnessGoal'] ??
-        'Healthy Eating';
 
     // Initialize from helperController (reactive lists)
-    // Data should already be preloaded from home screen, but handle gracefully if not
     try {
-      cuisineTypes = helperController.headers.isNotEmpty
-          ? List<Map<String, dynamic>>.from(helperController.headers)
-          : [];
       dietTypes = helperController.category.isNotEmpty
           ? List<Map<String, dynamic>>.from(helperController.category)
           : [];
     } catch (e) {
-      debugPrint('Error initializing cuisineTypes/dietTypes: $e');
-      cuisineTypes = [];
+      debugPrint('Error initializing dietTypes: $e');
       dietTypes = [];
     }
 
     // Only fetch if data is still empty (shouldn't happen if preloaded, but safety fallback)
-    // Use async helper function since initState cannot be async
     _fetchMissingData();
 
     // Listen to changes in reactive lists
-    ever(helperController.headers, (value) {
-      if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() {
-          cuisineTypes = List<Map<String, dynamic>>.from(value);
-        });
-      });
-    });
-
     ever(helperController.category, (value) {
       if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -97,25 +58,12 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     });
 
     if (!widget.isOnboarding) {
-      _checkExistingPreferences();
+      _loadUserPreferences();
     }
   }
 
   Future<void> _fetchMissingData() async {
     // Only fetch if data is still empty (shouldn't happen if preloaded, but safety fallback)
-    if (cuisineTypes.isEmpty) {
-      try {
-        await helperController.fetchHeaders();
-        if (mounted) {
-          setState(() {
-            cuisineTypes =
-                List<Map<String, dynamic>>.from(helperController.headers);
-          });
-        }
-      } catch (e) {
-        debugPrint('Error fetching cuisine types: $e');
-      }
-    }
     if (dietTypes.isEmpty) {
       try {
         await helperController.fetchCategorys();
@@ -131,618 +79,13 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
     }
   }
 
-  Future<void> _checkExistingPreferences() async {
+  Future<void> _loadUserPreferences() async {
     final userId = userService.userId;
     if (userId == null) return;
 
-    final hasPreferences = await _fetchUserPreferences(userId);
-    if (hasPreferences && mounted) {
-      _showExistingPreferencesDialog();
-    }
-  }
-
-  void _showExistingPreferencesDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final dietPreference = selectedDiet;
-
-        // Use family member's goal and calorie target if available, otherwise use main user's
-        final fitnessGoal = widget.familyMemberGoal ?? goal;
-
-        final allergies = selectedAllergies.isEmpty
-            ? ['No allergies']
-            : selectedAllergies.toList();
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          backgroundColor:
-              getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-          title: Text(
-            'Existing Preferences Found',
-            style: TextStyle(
-              color: getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.familyMemberName != null
-                    ? 'You already have the following preferences for ${capitalizeFirstLetter(widget.familyMemberName!)}:'
-                    : 'You already have the following preferences:',
-                style: TextStyle(
-                  color:
-                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-                ),
-              ),
-              SizedBox(height: getPercentageHeight(1, context)),
-              Text(
-                dietPreference != 'All'
-                    ? 'Diet: $dietPreference'
-                    : 'Diet: General',
-                style: TextStyle(
-                  color:
-                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-                ),
-              ),
-              if (selectedAllergies.isNotEmpty)
-                Text(
-                  'Allergies: ${allergies.join(", ")}',
-                  style: TextStyle(
-                    color: getThemeProvider(context).isDarkMode
-                        ? kWhite
-                        : kDarkGrey,
-                  ),
-                ),
-              Text(
-                'Cuisine Type: $selectedCuisine',
-                style: TextStyle(
-                  color:
-                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-                ),
-              ),
-              Text(
-                'Nutrition Goal: $fitnessGoal',
-                style: TextStyle(
-                  color:
-                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-              },
-              child: Text(
-                'Update Preferences',
-                style: TextStyle(
-                  color:
-                      getThemeProvider(context).isDarkMode ? kWhite : kDarkGrey,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kAccentLight,
-              ),
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                if (widget.isDontShowPicker) {
-                  _generateMealPlan(selectedCuisine);
-                } else {
-                  _showMealPlanOptionsDialog(); // Show meal plan options directly
-                }
-              },
-              child: const Text(
-                'Generate Plan',
-                style: TextStyle(
-                  color: kWhite,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showMealPlanOptionsDialog() {
-    // Ensure cuisineTypes is not empty
-    if (cuisineTypes.isEmpty) {
-      debugPrint('Error: cuisineTypes is empty');
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Error'),
-          content: const Text(
-              'Cuisine types are not loaded. Please restart the app.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width,
-              ),
-              child: AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                backgroundColor:
-                    getThemeProvider(context).isDarkMode ? kDarkGrey : kWhite,
-                title: Text(
-                  'Meal Plan Preferences',
-                  style: TextStyle(
-                    color: getThemeProvider(context).isDarkMode
-                        ? kWhite
-                        : kDarkGrey,
-                  ),
-                ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Choose your meal plan type:',
-                        style: TextStyle(
-                          color: getThemeProvider(context).isDarkMode
-                              ? kWhite
-                              : kDarkGrey,
-                        ),
-                      ),
-                      SizedBox(height: getPercentageHeight(2, context)),
-                      buildPicker(context, cuisineTypes.length, () {
-                        // Find the index of the selected cuisine
-                        final index = cuisineTypes.indexWhere(
-                            (cuisine) => cuisine['name'] == selectedCuisine);
-                        // Return the index if found, otherwise return 0 (first item)
-                        return index >= 0 ? index : 0;
-                      }(),
-                          (index) => setState(() =>
-                              selectedCuisine = cuisineTypes[index]['name']),
-                          getThemeProvider(context).isDarkMode,
-                          cuisineTypes
-                              .map((cuisine) => cuisine['name'] as String)
-                              .toList()),
-                      SizedBox(height: getPercentageHeight(2, context)),
-                      if (selectedCuisine != 'Balanced') ...[
-                        Text(
-                          'Number of dishes:',
-                          style: TextStyle(
-                            color: getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kDarkGrey,
-                          ),
-                        ),
-                        SizedBox(height: getPercentageHeight(2, context)),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Protein',
-                                    style: TextStyle(
-                                      color:
-                                          getThemeProvider(context).isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                      fontSize: getTextScale(4, context),
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        icon: Icon(Icons.remove,
-                                            size: getIconScale(7, context)),
-                                        onPressed: () {
-                                          setState(() {
-                                            if (proteinDishes > 0)
-                                              proteinDishes--;
-                                          });
-                                        },
-                                      ),
-                                      SizedBox(
-                                          width:
-                                              getPercentageWidth(1, context)),
-                                      Text(
-                                        '$proteinDishes',
-                                        style: TextStyle(
-                                          color: getThemeProvider(context)
-                                                  .isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                          fontSize: getTextScale(4, context),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                          width:
-                                              getPercentageWidth(1, context)),
-                                      IconButton(
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        icon: Icon(Icons.add,
-                                            size: getIconScale(7, context)),
-                                        onPressed: () {
-                                          setState(() {
-                                            proteinDishes++;
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Carbs',
-                                    style: TextStyle(
-                                      color:
-                                          getThemeProvider(context).isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                      fontSize: getTextScale(4, context),
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        icon: Icon(Icons.remove,
-                                            size: getIconScale(7, context)),
-                                        onPressed: () {
-                                          setState(() {
-                                            if (grainDishes > 0) grainDishes--;
-                                          });
-                                        },
-                                      ),
-                                      SizedBox(
-                                          width:
-                                              getPercentageWidth(1, context)),
-                                      Text(
-                                        '$grainDishes',
-                                        style: TextStyle(
-                                          color: getThemeProvider(context)
-                                                  .isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                          fontSize: getTextScale(4, context),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                          width:
-                                              getPercentageWidth(1, context)),
-                                      IconButton(
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        icon: Icon(Icons.add,
-                                            size: getIconScale(7, context)),
-                                        onPressed: () {
-                                          setState(() {
-                                            grainDishes++;
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Veggies',
-                                    style: TextStyle(
-                                      color:
-                                          getThemeProvider(context).isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                      fontSize: getTextScale(4, context),
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        icon: Icon(Icons.remove,
-                                            size: getIconScale(7, context)),
-                                        onPressed: () {
-                                          setState(() {
-                                            if (vegDishes > 0) vegDishes--;
-                                          });
-                                        },
-                                      ),
-                                      SizedBox(
-                                          width:
-                                              getPercentageWidth(1, context)),
-                                      Text(
-                                        '$vegDishes',
-                                        style: TextStyle(
-                                          color: getThemeProvider(context)
-                                                  .isDarkMode
-                                              ? kWhite
-                                              : kDarkGrey,
-                                          fontSize: getTextScale(4, context),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                          width:
-                                              getPercentageWidth(1, context)),
-                                      IconButton(
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        icon: Icon(Icons.add,
-                                            size: getIconScale(7, context)),
-                                        onPressed: () {
-                                          setState(() {
-                                            vegDishes++;
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      // Custom meal plan text input
-                      Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(4, context),
-                      vertical: getPercentageHeight(1, context),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Custom Meal Plan Requirements (Optional)',
-                          style: TextStyle(
-                            color: getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kDarkGrey,
-                            fontSize: getTextScale(3.5, context),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        SizedBox(height: getPercentageHeight(1, context)),
-                        TextField(
-                          controller: customMealPlanController,
-                          maxLines: 3,
-                          decoration: InputDecoration(
-                            hintText: 'E.g., "Focus on high protein meals", "Include Mediterranean flavors", "Quick 30-minute recipes"',
-                            hintStyle: TextStyle(
-                              color: getThemeProvider(context).isDarkMode
-                                  ? kLightGrey
-                                  : kDarkGrey,
-                              fontSize: getTextScale(3, context),
-                            ),
-                            filled: true,
-                            fillColor: getThemeProvider(context).isDarkMode
-                                ? kLightGrey.withValues(alpha: 0.1)
-                                : kWhite,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: getThemeProvider(context).isDarkMode
-                                    ? kLightGrey
-                                    : kDarkGrey,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: getThemeProvider(context).isDarkMode
-                                    ? kLightGrey
-                                    : kDarkGrey,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: kAccent,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          style: TextStyle(
-                            color: getThemeProvider(context).isDarkMode
-                                ? kWhite
-                                : kDarkGrey,
-                            fontSize: getTextScale(3.5, context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(
-                        color: getThemeProvider(context).isDarkMode
-                            ? kWhite
-                            : kDarkGrey,
-                      ),
-                    ),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kAccentLight,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _generateMealPlan(selectedCuisine);
-                    },
-                    child: const Text(
-                      'Generate Plan',
-                      style: TextStyle(
-                        color: kWhite,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Prepare the prompt for Gemini
-  Future<void> _generateMealPlan(String cuisine) async {
-    if (!canUseAI()) {
-      final isDarkMode = getThemeProvider(context).isDarkMode;
-      showPremiumRequiredDialog(context, isDarkMode);
-      return;
-    }
-
-    try {
-      // Show loading indicator
-      showLoadingDialog(context, loadingText: loadingTextGenerateMeals);
-
-      // Prepare prompt and generate meal plan
-      final prompt = _buildGeminiPrompt();
-      final weeklyPlanContext = customMealPlanController.text.trim();
-      final mealPlan = await geminiService.generateMealsIntelligently(
-          prompt, mealPlanContext, cuisine,
-          partOfWeeklyMeal: true, weeklyPlanContext: weeklyPlanContext);
-
-      debugPrint('mealPlan: $mealPlan');
-
-      // Check if meal generation failed
-      if (mealPlan['error'] == true ||
-          mealPlan['source'] == 'failed' ||
-          mealPlan['source'] == 'fallback') {
-        hideLoadingDialog(context); // Close loading dialog
-        showMealGenerationErrorDialog(
-            context,
-            mealPlan['message'] ??
-                'Failed to generate meals. Please try again.',
-            onRetry: () => _generateMealPlan(selectedCuisine));
-        return;
-      }
-
-      final userId = userService.userId;
-      if (userId == null) throw Exception('User ID not found');
-
-      final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-      // Collect meal IDs with proper meal type suffixes
-      // Note: Meals are already saved by generateMealsIntelligently, so we just collect IDs
-      List<String> mealIds = [];
-      final meals = mealPlan['meals'] as List<dynamic>? ?? [];
-      final mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
-
-      for (int i = 0; i < meals.length; i++) {
-        final meal = meals[i];
-        String mealType = meal['mealType']?.toString().toLowerCase() ?? '';
-        final mealId = meal['id'] as String? ?? '';
-
-        // If no mealType is specified, assign based on position
-        if (mealType.isEmpty) {
-          mealType = mealTypes[i % mealTypes.length];
-        }
-
-        if (mealId.isNotEmpty) {
-          mealIds.add(appendMealType(mealId, mealType));
-        }
-      }
-
-      await saveMealPlanToFirestore(
-          userId, date, mealIds, mealPlan, selectedDiet,
-          familyMemberName: widget.familyMemberName);
-      await _updateUserPreferences(userId);
-      FirebaseAnalytics.instance.logEvent(name: 'meal_plan_generated');
-
-      // Hide loading and navigate back
-      if (mounted) {
-        hideLoadingDialog(context); // Hide loading
-        Get.to(
-            () => const BottomNavSec(selectedIndex: 4, foodScreenTabIndex: 1));
-      }
-    } catch (e) {
-      if (mounted) {
-        handleError(e, context);
-      }
-    }
-  }
-
-  void _updatePreferences() {
-    if (widget.isOnboarding && widget.onPreferencesSelected != null) {
-      widget.onPreferencesSelected!(
-          selectedDiet, selectedAllergies, selectedCuisine);
-    }
-  }
-
-  @override
-  void dispose() {
-    customMealPlanController.dispose();
-    super.dispose();
-  }
-
-// Update user preferences
-  Future<void> _updateUserPreferences(String userId) async {
-    await firestore.collection('users').doc(userId).update({
-      'preferences': {
-        'diet': selectedDiet,
-        'allergies': selectedAllergies.toList(),
-        'cuisineType': selectedCuisine,
-        'proteinDishes': proteinDishes,
-        'grainDishes': grainDishes,
-        'vegDishes': vegDishes,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      },
-      'settings.dietPreference': selectedDiet
-    });
-
-    // Update userService settings
-    if (userService.currentUser.value != null) {
-      userService.currentUser.value!.settings['dietPreference'] = selectedDiet;
-    }
-  }
-
-  Future<bool> _fetchUserPreferences(String userId) async {
     final mainDiet =
         userService.currentUser.value?.settings['dietPreference'] ?? '';
+
     final docRef = firestore.collection('users').doc(userId);
     final doc = await docRef.get();
 
@@ -751,72 +94,103 @@ class _ChooseDietScreenState extends State<ChooseDietScreen> {
       final preferences = data['preferences'] as Map<String, dynamic>;
 
       setState(() {
-        if (mainDiet != '') {
+        if (mainDiet.isNotEmpty) {
           selectedDiet = mainDiet;
         } else {
-          selectedDiet = preferences['diet'] as String? ?? '';
+          selectedDiet = preferences['diet'] as String? ?? 'None';
         }
         // Convert List<dynamic> to Set<String>
         final allergiesList = preferences['allergies'] as List<dynamic>? ?? [];
         selectedAllergies = allergiesList.map((e) => e.toString()).toSet();
-
-        // Validate cuisine type exists in cuisineTypes list
-        final savedCuisine =
-            preferences['cuisineType'] as String? ?? 'Balanced';
-        selectedCuisine =
-            cuisineTypes.any((cuisine) => cuisine['name'] == savedCuisine)
-                ? savedCuisine
-                : 'Balanced'; // Default to 'Balanced' if not found
-
-        proteinDishes = preferences['proteinDishes'] as int? ?? 2;
-        grainDishes = preferences['grainDishes'] as int? ?? 2;
-        vegDishes = preferences['vegDishes'] as int? ?? 3;
       });
-      return true; // Return true if preferences exist
+    } else if (mainDiet.isNotEmpty) {
+      setState(() {
+        selectedDiet = mainDiet;
+      });
     }
-    return false; // Return false if no preferences found
   }
 
-  String _buildGeminiPrompt() {
-    final dietPreference = selectedDiet;
+  void _updatePreferences() {
+    if (widget.isOnboarding && widget.onPreferencesSelected != null) {
+      widget.onPreferencesSelected!(selectedDiet, selectedAllergies);
+    }
+  }
 
-    // Use family member's goal and calorie target if available, otherwise use main user's
-    final nutritionalGoal = widget.familyMemberGoal ?? goal;
-    final dailyCalorieGoal = widget.familyMemberKcal ??
-        calculateRecommendedCaloriesFromGoal(nutritionalGoal);
+  Future<void> _savePreferences() async {
+    final userId = userService.userId;
+    if (userId == null) {
+      Get.snackbar(
+        'Service Error',
+        'User not found. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
 
-    final allergies = selectedAllergies.isEmpty
-        ? ['No allergies']
-        : selectedAllergies.toList();
+    try {
+      // Update both preferences and settings
+      await firestore.collection('users').doc(userId).update({
+        'preferences': {
+          'diet': selectedDiet,
+          'allergies': selectedAllergies.toList(),
+          'lastUpdated': FieldValue.serverTimestamp(),
+        },
+        'settings.dietPreference': selectedDiet
+      });
 
-    final familyMemberAgeGroup = widget.familyMemberType ?? 'adult';
+      // Update userService settings
+      if (userService.currentUser.value != null) {
+        userService.currentUser.value!.settings['dietPreference'] =
+            selectedDiet;
+      }
 
-    return '''
-IMPORTANT: This meal plan is for a ${familyMemberAgeGroup}. Consider age-appropriate:
-- Portion sizes and serving quantities
-- Food textures and preparation methods
-- Nutritional needs specific to ${familyMemberAgeGroup} development
-- Safety considerations for ${familyMemberAgeGroup}s
+      // Update local user data via authController
+      await authController.updateUserData({
+        'settings.dietPreference': selectedDiet,
+      });
 
-PRIMARY REQUIREMENTS:
-1. Daily calorie target: $dailyCalorieGoal calories (${familyMemberAgeGroup}-appropriate)
-2. Nutrition goal: $nutritionalGoal (must be strictly followed)
-3. Dietary preference: $dietPreference
-4. Allergies to avoid: ${allergies.join(', ')}
+      FirebaseAnalytics.instance.logEvent(name: 'dietary_preferences_updated');
 
-Cuisine style: ${selectedCuisine}
-Include:
-- $proteinDishes protein dishes
-- $grainDishes grain dishes  
-- $vegDishes vegetable dishes
-${customMealPlanController.text.trim().isNotEmpty ? '\nADDITIONAL REQUIREMENTS:\n${customMealPlanController.text.trim()}\n' : ''}
-CRITICAL: Ensure all meals are suitable for ${familyMemberAgeGroup} consumption, meet the calorie target, and align with the nutrition goal.
-''';
+      if (mounted) {
+        Get.snackbar(
+          'Service Approved',
+          'Dietary preferences updated successfully, Chef!',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar(
+          'Service Error',
+          'Failed to save preferences, Chef. Please try again.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        leading: InkWell(
+          onTap: () => Navigator.pop(context),
+          child: const IconCircleButton(),
+        ),
+        title: Text(
+          "Dietary Preferences",
+          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w500,
+                fontSize: getTextScale(7, context),
+              ),
+        ),
+      ),
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(
@@ -827,14 +201,6 @@ CRITICAL: Ensure all meals are suitable for ${familyMemberAgeGroup} consumption,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: getPercentageHeight(2, context)),
-                if (!widget.isOnboarding)
-                  InkWell(
-                    onTap: () => Navigator.pop(context),
-                    child: const IconCircleButton(),
-                  ),
-                if (!widget.isOnboarding)
-                  SizedBox(height: getPercentageHeight(2, context)),
-
                 Text(
                   textAlign: TextAlign.center,
                   "Tell us your dietary preferences?",
@@ -885,7 +251,7 @@ CRITICAL: Ensure all meals are suitable for ${familyMemberAgeGroup} consumption,
                   height: getPercentageHeight(4, context),
                 ),
 
-                //choose alergy
+                //choose allergy
                 Text(
                   "Any allergies?",
                   style: TextStyle(
@@ -914,6 +280,7 @@ CRITICAL: Ensure all meals are suitable for ${familyMemberAgeGroup} consumption,
                     ),
                   ),
                 ),
+                SizedBox(height: getPercentageHeight(4, context)),
               ],
             ),
           ),
@@ -926,8 +293,8 @@ CRITICAL: Ensure all meals are suitable for ${familyMemberAgeGroup} consumption,
                 vertical: getPercentageHeight(1, context),
               ),
               child: AppButton(
-                text: "Generate",
-                onPressed: () => _showMealPlanOptionsDialog(),
+                text: "Save Preferences",
+                onPressed: _savePreferences,
                 type: AppButtonType.secondary,
               ),
             )

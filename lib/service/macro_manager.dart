@@ -132,6 +132,8 @@ class MacroManager extends GetxController {
   /// When ingredient ID is missing, uses the ingredient name (normalized) as the ID.
   Future<void> saveShoppingList(List<MacroData> items) async {
     try {
+      debugPrint('saveShoppingList: Starting to save ${items.length} items');
+
       final HttpsCallable callable =
           functions.httpsCallable('addManualItemsToShoppingList');
 
@@ -149,13 +151,24 @@ class MacroManager extends GetxController {
         };
       }).toList();
 
-      await callable.call(<String, dynamic>{
+      debugPrint(
+          'saveShoppingList: Calling cloud function with ${itemsPayload.length} items');
+      debugPrint(
+          'saveShoppingList: Items: ${itemsPayload.map((i) => i['ingredientId']).join(', ')}');
+
+      final result = await callable.call(<String, dynamic>{
         'items': itemsPayload,
       });
+
+      debugPrint('saveShoppingList: Cloud function returned: $result');
     } on FirebaseFunctionsException catch (e) {
-      return;
-    } catch (e) {
-      return;
+      debugPrint(
+          'saveShoppingList: FirebaseFunctionsException - Code: ${e.code}, Message: ${e.message}, Details: ${e.details}');
+      rethrow; // Re-throw so caller can handle the error
+    } catch (e, stackTrace) {
+      debugPrint('saveShoppingList: Unexpected error: $e');
+      debugPrint('saveShoppingList: Stack trace: $stackTrace');
+      rethrow; // Re-throw so caller can handle the error
     }
   }
 
@@ -1835,24 +1848,6 @@ class MacroManager extends GetxController {
       'lemon'
     ];
     return lowCarbFruits.any((fruit) => title.contains(fruit));
-  }
-
-  bool _isAnimalProduct(String title) {
-    final animalProducts = [
-      'meat',
-      'chicken',
-      'beef',
-      'pork',
-      'fish',
-      'salmon',
-      'tuna',
-      'egg',
-      'milk',
-      'cheese',
-      'butter',
-      'yogurt'
-    ];
-    return animalProducts.any((product) => title.contains(product));
   }
 
   bool _isMeat(String title) {

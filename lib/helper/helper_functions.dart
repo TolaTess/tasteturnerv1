@@ -55,7 +55,7 @@ Widget buildTastyFloatingActionButton({
       child: Icon(
         Icons.auto_awesome,
         color: kAccent,
-        size: getIconScale(7, context),
+        size: MediaQuery.of(context).size.shortestSide >= 600 ? getIconScale(5, context) : getIconScale(8, context),
       ),
     ),
   );

@@ -447,6 +447,9 @@ class PlantDetectionService extends GetxController {
   ) {
     final plants = <PlantIngredient>[];
     final seenNames = <String>{};
+    final excludedIngredients = <String>[];
+    final uncategorizedIngredients = <String>[];
+    final duplicateIngredients = <String>[];
 
     debugPrint('🌱 Detecting plants from ${ingredients.length} ingredients');
 
@@ -455,10 +458,16 @@ class PlantDetectionService extends GetxController {
       final normalizedName = normalizeIngredientName(ingredientName);
 
       // Skip if excluded
-      if (_isExcluded(ingredientName)) continue;
+      if (_isExcluded(ingredientName)) {
+        excludedIngredients.add(ingredientEntry.key);
+        continue;
+      }
 
       // Skip if already seen (normalized comparison)
-      if (seenNames.contains(normalizedName)) continue;
+      if (seenNames.contains(normalizedName)) {
+        duplicateIngredients.add(ingredientEntry.key);
+        continue;
+      }
       seenNames.add(normalizedName);
 
       final category = _categorizeIngredient(ingredientName);
@@ -474,7 +483,26 @@ class PlantDetectionService extends GetxController {
           points: points,
           firstSeen: date,
         ));
+      } else {
+        uncategorizedIngredients.add(ingredientEntry.key);
       }
+    }
+
+    debugPrint('🌱 Detection results: ${plants.length} plants found');
+    if (plants.isNotEmpty) {
+      debugPrint(
+          '🌱 Plants detected: ${plants.map((p) => "${p.name} (${p.category.name})").join(", ")}');
+    }
+    if (excludedIngredients.isNotEmpty) {
+      debugPrint('🌱 Excluded ingredients: ${excludedIngredients.join(", ")}');
+    }
+    if (uncategorizedIngredients.isNotEmpty) {
+      debugPrint(
+          '🌱 Uncategorized ingredients (not in plant lists): ${uncategorizedIngredients.join(", ")}');
+    }
+    if (duplicateIngredients.isNotEmpty) {
+      debugPrint(
+          '🌱 Duplicate ingredients (normalized): ${duplicateIngredients.join(", ")}');
     }
 
     return plants;
@@ -830,6 +858,8 @@ class PlantDetectionService extends GetxController {
       final detectedPlants = detectPlantsFromIngredients(ingredients, mealDate);
 
       if (detectedPlants.isEmpty) {
+        debugPrint(
+            '🌱 No plants to track (all were excluded, uncategorized, or duplicates)');
         return;
       }
 
@@ -866,18 +896,25 @@ class PlantDetectionService extends GetxController {
         if (!existingPlants.containsKey(normalizedKey)) {
           existingPlants[normalizedKey] = plant;
           newPlantsAdded++;
+          debugPrint(
+              '🌱 Adding new plant: ${plant.name} (normalized: $normalizedKey)');
         } else {
           // Update firstSeen if this is earlier
           final existing = existingPlants[normalizedKey]!;
           if (plant.firstSeen.isBefore(existing.firstSeen)) {
             existingPlants[normalizedKey] = plant;
             existingPlantsUpdated++;
+            debugPrint(
+                '🌱 Updating firstSeen for existing plant: ${plant.name}');
           } else {
             debugPrint(
-                '🌱 Plant already exists (skipping): ${plant.name} (from ingredients)');
+                '🌱 Plant already exists (skipping): ${plant.name} (normalized: $normalizedKey matches ${existing.name})');
           }
         }
       }
+
+      debugPrint(
+          '🌱 Plants summary: ${existingPlants.length} total (Added: $newPlantsAdded, Updated: $existingPlantsUpdated)');
 
       // Calculate total points
       final totalPoints = existingPlants.values
@@ -911,13 +948,16 @@ class PlantDetectionService extends GetxController {
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      debugPrint(
+          '🌱 ✅ Successfully saved ${uniquePlantsList.length} plants to Firestore (weekId: $weekId)');
+
       // Check for milestone achievement and send notification
       if (newLevel > previousLevel && newLevel > 0) {
         await _notifyMilestoneAchievement(userId, newLevel, newCount);
       }
     } catch (e) {
-      debugPrint('Error tracking plants from ingredients: $e');
-      debugPrint('Error stack trace: ${e.toString()}');
+      debugPrint('🌱 ❌ Error tracking plants from ingredients: $e');
+      debugPrint('🌱 Error stack trace: ${e.toString()}');
     }
   }
 

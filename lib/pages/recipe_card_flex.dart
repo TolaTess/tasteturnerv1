@@ -53,6 +53,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
   //todo: add a loading state
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textTheme = Theme.of(context).textTheme;
     final String? mediaPath = widget.recipe.mediaPaths.isNotEmpty
         ? widget.recipe.mediaPaths.first
@@ -67,7 +68,7 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
         nutritionMap['calories'] = widget.recipe.calories.toString();
       }
     } else if (widget.recipe.nutrition.isNotEmpty) {
-        nutritionMap = widget.recipe.nutrition;
+      nutritionMap = widget.recipe.nutrition;
     } else if (widget.recipe.nutritionalInfo.isNotEmpty) {
       nutritionMap = widget.recipe.nutritionalInfo;
       if (widget.recipe.calories != null && nutritionMap['calories'] == null) {
@@ -128,11 +129,11 @@ class _RecipeCardFlexState extends State<RecipeCardFlex> {
                         colors: widget.isSelected
                             ? [
                                 kAccent.withValues(alpha: 0.3),
-                                kAccent.withValues(alpha: 0.7),
+                                kAccentLight.withValues(alpha: 0.7),
                               ]
                             : [
-                                const Color(0xff343434).withValues(alpha: 0.1),
-                                const Color(0xff343434).withValues(alpha: 0.5),
+                                kAccentLight.withValues(alpha: 0.2),
+                                kDarkGrey.withValues(alpha: isDarkMode ? 0.9 : 0.7),
                               ],
                         stops: widget.isSelected
                             ? [0.2, 0.9]

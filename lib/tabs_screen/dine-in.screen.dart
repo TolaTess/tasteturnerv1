@@ -17,6 +17,7 @@ import '../helper/helper_functions.dart';
 import '../helper/helper_files.dart';
 import '../helper/utils.dart';
 import '../service/macro_manager.dart';
+import '../widgets/bottom_nav.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/info_icon_widget.dart';
 import '../detail_screen/recipe_detail.dart';
@@ -71,16 +72,24 @@ class _DineInScreenState extends State<DineInScreen> {
     'salt',
     'pepper',
     'olive oil',
+    'avocado oil',
+    'sesame oil',
+    'coconut oil',
     'beans',
     'lentils',
     'quinoa',
     'oats',
+    'spaghetti',
+    'lasagna',
+    'ravioli',
+    'noodles',
     'cereal',
     'canned tomatoes',
     'canned beans',
     'spices',
     'herbs',
     'nuts',
+    'peanuts',
     'seeds',
     'honey',
     'vinegar',
@@ -102,6 +111,20 @@ class _DineInScreenState extends State<DineInScreen> {
     'beef',
     'pork',
     'fish',
+    'salmon',
+    'tuna',
+    'cod',
+    'mackerel',
+    'sardine',
+    'trout',
+    'shrimp',
+    'crab',
+    'lobster',
+    'clam',
+    'mussels',
+    'oysters',
+    'scallops',
+    'seaweed',
     'tomatoes',
     'lettuce',
     'spinach',
@@ -1040,25 +1063,31 @@ class _DineInScreenState extends State<DineInScreen> {
                       final isSelected =
                           selectedIngredients.contains(ingredient);
 
-                      return CheckboxListTile(
-                        title: Text(
-                          capitalizeFirstLetter(ingredient),
-                          style: TextStyle(
-                            color: isDarkMode ? kWhite : kBlack,
-                            fontSize: getTextScale(3, context),
-                          ),
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          unselectedWidgetColor:
+                              isDarkMode ? kWhite : kDarkGrey,
                         ),
-                        value: isSelected,
-                        onChanged: (value) {
-                          setDialogState(() {
-                            if (value == true) {
-                              selectedIngredients.add(ingredient);
-                            } else {
-                              selectedIngredients.remove(ingredient);
-                            }
-                          });
-                        },
-                        activeColor: kAccent,
+                        child: CheckboxListTile(
+                          title: Text(
+                            capitalizeFirstLetter(ingredient),
+                            style: TextStyle(
+                              color: isDarkMode ? kWhite : kBlack,
+                              fontSize: getTextScale(3, context),
+                            ),
+                          ),
+                          value: isSelected,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              if (value == true) {
+                                selectedIngredients.add(ingredient);
+                              } else {
+                                selectedIngredients.remove(ingredient);
+                              }
+                            });
+                          },
+                          activeColor: kAccent,
+                        ),
                       );
                     },
                   ),
@@ -1167,25 +1196,30 @@ class _DineInScreenState extends State<DineInScreen> {
                 final ingredient = ingredients[index];
                 final isSelected = selectedIngredients.contains(ingredient);
 
-                return CheckboxListTile(
-                  title: Text(
-                    capitalizeFirstLetter(ingredient),
-                    style: TextStyle(
-                      color: isDarkMode ? kWhite : kBlack,
-                      fontSize: getTextScale(3.5, context),
-                    ),
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    unselectedWidgetColor: isDarkMode ? kWhite : kDarkGrey,
                   ),
-                  value: isSelected,
-                  onChanged: (value) {
-                    setDialogState(() {
-                      if (value == true) {
-                        selectedIngredients.add(ingredient);
-                      } else {
-                        selectedIngredients.remove(ingredient);
-                      }
-                    });
-                  },
-                  activeColor: kAccent,
+                  child: CheckboxListTile(
+                    title: Text(
+                      capitalizeFirstLetter(ingredient),
+                      style: TextStyle(
+                        color: isDarkMode ? kWhite : kBlack,
+                        fontSize: getTextScale(3.5, context),
+                      ),
+                    ),
+                    value: isSelected,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        if (value == true) {
+                          selectedIngredients.add(ingredient);
+                        } else {
+                          selectedIngredients.remove(ingredient);
+                        }
+                      });
+                    },
+                    activeColor: kAccent,
+                  ),
                 );
               },
             ),
@@ -1252,6 +1286,9 @@ class _DineInScreenState extends State<DineInScreen> {
       'Healthy',
       'Gourmet',
       'Monochromatic'
+          'Seasonal',
+      'Dessert',
+      'Baked Goods',
     ];
 
     // Combine cuisine types with common styles, avoiding duplicates
@@ -1447,14 +1484,19 @@ class _DineInScreenState extends State<DineInScreen> {
         return;
       }
 
+      // generateMealsFromIngredients now returns a map with 'meals', 'selectedMeal', and 'source'
+      // Populate _fridgeRecipes with the meals that were shown in the dialog
       if (recipes['meals'] != null) {
-        setState(() {
-          _fridgeRecipes = List<Map<String, dynamic>>.from(recipes['meals']);
-          _showFridgeRecipes = true;
-        });
+        final mealsList = recipes['meals'] as List<dynamic>?;
+        if (mealsList != null && mealsList.isNotEmpty) {
+          setState(() {
+            _fridgeRecipes = List<Map<String, dynamic>>.from(mealsList);
+            _showFridgeRecipes = true;
+          });
 
-        // Save recipes to SharedPreferences for persistence
-        await _saveFridgeRecipesToSharedPreferences();
+          // Save recipes to SharedPreferences for persistence
+          await _saveFridgeRecipesToSharedPreferences();
+        }
       }
     } catch (e) {
       showTastySnackbar(
@@ -1941,51 +1983,57 @@ class _DineInScreenState extends State<DineInScreen> {
                       final isAlreadyAdded = fridgeIngredients.any(
                           (ing) => ing.toLowerCase() == itemName.toLowerCase());
 
-                      return CheckboxListTile(
-                        title: Text(
-                          capitalizeFirstLetter(itemName),
-                          style: TextStyle(
-                            color: isDarkMode ? kWhite : kBlack,
-                            fontSize: getTextScale(3.5, context),
-                            decoration: isAlreadyAdded
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          unselectedWidgetColor:
+                              isDarkMode ? kWhite : kDarkGrey,
                         ),
-                        subtitle: item['calories'] != null &&
-                                item['calories'] > 0
-                            ? Text(
-                                '${item['calories']} kcal',
-                                style: TextStyle(
-                                  color: isDarkMode ? kLightGrey : kDarkGrey,
-                                  fontSize: getTextScale(2.5, context),
+                        child: CheckboxListTile(
+                          title: Text(
+                            capitalizeFirstLetter(itemName),
+                            style: TextStyle(
+                              color: isDarkMode ? kWhite : kBlack,
+                              fontSize: getTextScale(3.5, context),
+                              decoration: isAlreadyAdded
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                          subtitle: item['calories'] != null &&
+                                  item['calories'] > 0
+                              ? Text(
+                                  '${item['calories']} kcal',
+                                  style: TextStyle(
+                                    color: isDarkMode ? kLightGrey : kDarkGrey,
+                                    fontSize: getTextScale(2.5, context),
+                                  ),
+                                )
+                              : null,
+                          value: isSelected,
+                          onChanged: isAlreadyAdded
+                              ? null
+                              : (value) {
+                                  setDialogState(() {
+                                    if (value == true) {
+                                      selectedIngredientIds.add(itemId);
+                                    } else {
+                                      selectedIngredientIds.remove(itemId);
+                                    }
+                                  });
+                                },
+                          secondary: isAlreadyAdded
+                              ? Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                  size: getIconScale(5, context),
+                                )
+                              : Icon(
+                                  Icons.inventory_2,
+                                  color: kAccent,
+                                  size: getIconScale(5, context),
                                 ),
-                              )
-                            : null,
-                        value: isSelected,
-                        onChanged: isAlreadyAdded
-                            ? null
-                            : (value) {
-                                setDialogState(() {
-                                  if (value == true) {
-                                    selectedIngredientIds.add(itemId);
-                                  } else {
-                                    selectedIngredientIds.remove(itemId);
-                                  }
-                                });
-                              },
-                        secondary: isAlreadyAdded
-                            ? Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: getIconScale(5, context),
-                              )
-                            : Icon(
-                                Icons.inventory_2,
-                                color: kAccent,
-                                size: getIconScale(5, context),
-                              ),
-                        activeColor: kAccent,
+                          activeColor: kAccent,
+                        ),
                       );
                     },
                   ),
@@ -2239,8 +2287,6 @@ class _DineInScreenState extends State<DineInScreen> {
         'calories': _safeParseInt(recipeData['calories']) ?? 0,
       };
 
-      debugPrint('Basic meal data: $basicMealData');
-
       // Use saveBasicMealsToFirestore to save the recipe
       final saveResult = await geminiService.saveBasicMealsToFirestore(
         [basicMealData],
@@ -2318,27 +2364,87 @@ class _DineInScreenState extends State<DineInScreen> {
   }
 
   // Navigate to recipe detail page
-  void _navigateToRecipeDetail(Map<String, dynamic> recipeData) {
+  Future<void> _navigateToRecipeDetail(Map<String, dynamic> recipeData) async {
+    String? mealId = recipeData['mealId'] as String?;
+    final title = recipeData['title'] as String? ?? '';
+
     debugPrint(
-        'Navigating to recipe detail with mealId: ${recipeData['mealId']}');
+        'Navigating to recipe detail with mealId: $mealId, title: $title');
+
+    // If mealId is missing, try to find it by searching Firestore by title
+    if (mealId == null || mealId.isEmpty) {
+      if (title.isNotEmpty) {
+        try {
+          debugPrint('Searching for meal by title: $title');
+          // Search for meal by title, prioritizing ai_generated meals
+          final querySnapshot = await firestore
+              .collection('meals')
+              .where('title', isEqualTo: title)
+              .where('source', isEqualTo: 'ai_generated')
+              .limit(1)
+              .get();
+
+          if (querySnapshot.docs.isNotEmpty) {
+            mealId = querySnapshot.docs.first.id;
+            debugPrint('Found mealId by title: $mealId');
+            // Update the recipe data with the found mealId for future use
+            recipeData['mealId'] = mealId;
+          } else {
+            // Try without source filter as fallback
+            final fallbackQuery = await firestore
+                .collection('meals')
+                .where('title', isEqualTo: title)
+                .limit(1)
+                .get();
+
+            if (fallbackQuery.docs.isNotEmpty) {
+              mealId = fallbackQuery.docs.first.id;
+              debugPrint('Found mealId by title (fallback): $mealId');
+              recipeData['mealId'] = mealId;
+            } else {
+              debugPrint('Warning: Could not find mealId for title: $title');
+            }
+          }
+        } catch (e) {
+          debugPrint('Error searching for meal by title: $e');
+        }
+      }
+    }
+
+    // Only navigate if we have a mealId
+    if (mealId == null || mealId.isEmpty) {
+      if (mounted) {
+        showTastySnackbar(
+          'Error',
+          'Could not find meal details. Please try again.',
+          context,
+          backgroundColor: kRed,
+        );
+      }
+      return;
+    }
+
     try {
-      Navigator.push(
+      if (!mounted) return;
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => RecipeDetailScreen(
-            mealId: recipeData['mealId'],
+            mealId: mealId,
             screen: 'fridge-recipe',
           ),
         ),
       );
     } catch (e) {
       debugPrint('Error navigating to recipe detail: $e');
-      showTastySnackbar(
-        'Couldn\'t open recipe details, Chef',
-        'Failed to open recipe details, Chef. Please try again.',
-        context,
-        backgroundColor: kRed,
-      );
+      if (mounted) {
+        showTastySnackbar(
+          'Couldn\'t open recipe details, Chef',
+          'Failed to open recipe details, Chef. Please try again.',
+          context,
+          backgroundColor: kRed,
+        );
+      }
     }
   }
 
@@ -3220,6 +3326,22 @@ class _DineInScreenState extends State<DineInScreen> {
             ),
           ),
         ],
+
+        // Clear calendar button
+        if (fridgeIngredients.isNotEmpty) ...[
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                Get.offAll(() => const BottomNavSec(selectedIndex: 4));
+              },
+              icon: Icon(Icons.calendar_month, color: kPurple),
+              label: Text(
+                'Go to Schedule',
+                style: textTheme.bodySmall?.copyWith(color: kPurple),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -3239,13 +3361,14 @@ class _DineInScreenState extends State<DineInScreen> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(
             children: [
-              Icon(Icons.restaurant, color: kAccent),
+              Icon(Icons.restaurant,
+                  color: kAccent, size: getIconScale(4, context)),
               SizedBox(width: getPercentageWidth(2, context)),
               Expanded(
                 child: Text(
                   recipe['title'] ?? 'Untitled Recipe',
                   style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontSize: getTextScale(3.3, context),
                     color: kAccent,
                   ),
                 ),
@@ -3262,10 +3385,10 @@ class _DineInScreenState extends State<DineInScreen> {
               // ),
             ],
           ),
-          SizedBox(height: getPercentageHeight(1, context)),
 
           // Description
           if (recipe['calories'] != null && recipe['calories'] != 0) ...[
+            SizedBox(height: getPercentageHeight(1, context)),
             Text(
               '${recipe['calories']} calories',
               style: textTheme.bodySmall?.copyWith(
@@ -3276,34 +3399,37 @@ class _DineInScreenState extends State<DineInScreen> {
           ],
 
           // Cooking info
-          Row(
-            children: [
-              if (recipe['cookingTime'] != null &&
-                  recipe['cookingTime'] != 'Unknown') ...[
-                Icon(Icons.timer,
-                    size: getIconScale(4, context), color: kAccent),
-                SizedBox(width: getPercentageWidth(1, context)),
-                Text(
-                  recipe['cookingTime'],
-                  style: textTheme.bodySmall?.copyWith(
-                    color: isDarkMode ? kWhite : kBlack,
+          if (recipe['cookingMethod'] != null &&
+              recipe['cookingMethod'] != '') ...[
+            Row(
+              children: [
+                if (recipe['cookingTime'] != null &&
+                    recipe['cookingTime'] != 'Unknown') ...[
+                  Icon(Icons.timer,
+                      size: getIconScale(4, context), color: kAccent),
+                  SizedBox(width: getPercentageWidth(1, context)),
+                  Text(
+                    recipe['cookingTime'],
+                    style: textTheme.bodySmall?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
                   ),
-                ),
-                SizedBox(width: getPercentageWidth(4, context)),
-              ],
-              if (recipe['difficulty'] != null) ...[
-                Icon(Icons.speed,
-                    size: getIconScale(4, context), color: kAccent),
-                SizedBox(width: getPercentageWidth(1, context)),
-                Text(
-                  '${recipe['difficulty']} difficulty',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: isDarkMode ? kWhite : kBlack,
+                  SizedBox(width: getPercentageWidth(4, context)),
+                ],
+                if (recipe['difficulty'] != null) ...[
+                  Icon(Icons.speed,
+                      size: getIconScale(4, context), color: kAccent),
+                  SizedBox(width: getPercentageWidth(1, context)),
+                  Text(
+                    '${recipe['difficulty']} difficulty',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: isDarkMode ? kWhite : kBlack,
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
-          ),
+            ),
+          ],
         ]),
       ),
     );

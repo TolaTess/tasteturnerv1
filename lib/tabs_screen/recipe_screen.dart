@@ -184,9 +184,11 @@ class _RecipeScreenState extends State<RecipeScreen> {
     final filteredByDiet =
         _filterTechniquesByDiet(shuffledTechniques, dietPreference);
 
-    // If no techniques match the diet, show top 5 without diet filter
+    // If no techniques match the diet, fallback to all techniques (respecting showAllTechniques)
     if (filteredByDiet.isEmpty) {
-      return shuffledTechniques.take(5).toList();
+      return showAllTechniques
+          ? shuffledTechniques
+          : shuffledTechniques.take(5).toList();
     }
 
     return showAllTechniques ? filteredByDiet : filteredByDiet.take(5).toList();
@@ -360,8 +362,10 @@ class _RecipeScreenState extends State<RecipeScreen> {
                                   onPressed: () {
                                     setState(() {
                                       showAllTechniques = !showAllTechniques;
-                                      // Re-shuffle when toggling to provide variety
-                                      if (_cachedShuffledTechniques != null) {
+                                      // Don't re-shuffle when showing all - just toggle the view
+                                      // Re-shuffle only when going back to "Show Less" to provide variety
+                                      if (!showAllTechniques &&
+                                          _cachedShuffledTechniques != null) {
                                         _cachedShuffledTechniques =
                                             List<Map<String, dynamic>>.from(
                                                 _categoryDatasIngredient)
@@ -462,11 +466,21 @@ class _RecipeScreenState extends State<RecipeScreen> {
                       );
                     },
                     child: Center(
-                      child: Text(
-                        'View Walk-In Pantry',
-                        style: textTheme.displaySmall?.copyWith(
-                          color: kAccent,
-                          fontSize: getTextScale(7, context),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: kAccent, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          vertical: getPercentageHeight(0.5, context),
+                          horizontal: getPercentageWidth(5, context),
+                        ),
+                        child: Text(
+                          'View Walk-In Pantry',
+                          style: textTheme.displaySmall?.copyWith(
+                            color: kAccent,
+                            fontSize: getTextScale(7, context),
+                          ),
                         ),
                       ),
                     ),

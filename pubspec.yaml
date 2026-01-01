@@ -119,6 +119,7 @@ flutter:
     - assets/audio/spin.mp3
     - assets/images/svg/
     - assets/images/tasty/
+    - assets/images/placeholder.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

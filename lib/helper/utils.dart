@@ -421,15 +421,6 @@ Future<void> _triggerAIImageAnalysis(
       senderId: 'buddy',
     );
 
-    // Send follow-up with action options
-    await Future.delayed(const Duration(milliseconds: 1500));
-    final optionsMessage = _createActionOptionsMessage(userContext);
-    await BuddyChatController.saveMessageToFirestore(
-      chatId: chatId,
-      content: optionsMessage,
-      senderId: 'buddy',
-    );
-
     onNewMessage(scrollController);
   } catch (e) {
     debugPrint('Error in AI image analysis: $e');
@@ -532,28 +523,7 @@ String _createAnalysisSummaryResponse(
   return buffer.toString();
 }
 
-/// Create action options message
-String _createActionOptionsMessage(Map<String, dynamic> userContext) {
-  final goal = userContext['fitnessGoal'] as String;
-  final isWeightLoss = goal.toLowerCase().contains('weight loss') ||
-      goal.toLowerCase().contains('lose');
-  final isMuscleBuild = goal.toLowerCase().contains('muscle') ||
-      goal.toLowerCase().contains('gain');
-
-  return """
-🎯 What would you like me to help you with?
-
-Option 1: 🔄 **Remix these ingredients** to better match your ${userContext['dietPreference']} diet and ${userContext['fitnessGoal']} goals
-
-Option 2: 💪 **${isWeightLoss ? 'Reduce calories while keeping protein high' : isMuscleBuild ? 'Add more protein for muscle building' : 'Optimize the nutritional balance'}**
-
-Option 3: 🔍 **Detailed Food Analysis** - Get comprehensive nutritional breakdown, calories, and macro analysis
-
-Just let me know which option interests you, or ask me anything else about this meal! 😊
-""";
-}
-
-/// Handle detailed food analysis for Option 3
+/// Handle detailed food analysis (kept for potential future use or other entry points)
 Future<void> handleDetailedFoodAnalysis(
     BuildContext context, String chatId) async {
   if (_lastFoodAnalysisId == null) {
@@ -882,7 +852,7 @@ String getRandomMealTypeBio(String mealType, String diet) {
   }
 
   final String suffix =
-      "Meals generated for your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} \n7 day Meal Plan/ (Mix and match and add them to your Calendar)";
+      "Meals generated for your ${capitalizeFirstLetter(mealType)} - ${capitalizeFirstLetter(diet)} \n7 day Meal Plan/ (Mix and match and add them to your Planner)";
   final List<String> mealTypeBios = [
     "Feast Mode: $suffix",
     "Bite the Day: $suffix",
@@ -1033,20 +1003,46 @@ double getPercentageWidth(double percentage, BuildContext context) {
 
 // For scaling text based on screen size
 double getTextScale(double inputTextSize, BuildContext context) {
-  final screenWidth = MediaQuery.of(context).size.width;
+  final mediaQuery = MediaQuery.of(context);
+  final screenWidth = mediaQuery.size.width;
+  final screenHeight = mediaQuery.size.height;
+  final shortestSide = mediaQuery.size.shortestSide;
   final blockSizeHorizontal = screenWidth / 100;
-  if (screenWidth >= 800) {
-    return (blockSizeHorizontal * inputTextSize) - 10;
+
+  // Detect iPad/tablet (shortestSide >= 600)
+  final bool isTablet = shortestSide >= 600;
+
+  if (isTablet) {
+    // For iPad/tablet, use a more conservative scaling to prevent oversized text
+    // Use the smaller of width or height to maintain consistency
+    final blockSize =
+        (screenWidth < screenHeight ? screenWidth : screenHeight) / 100;
+    return (blockSize * inputTextSize) - 8;
   }
+
+  // For phones, use standard scaling
   return blockSizeHorizontal * inputTextSize;
 }
 
 double getIconScale(double inputIconSize, BuildContext context) {
-  final screenWidth = MediaQuery.of(context).size.width;
+  final mediaQuery = MediaQuery.of(context);
+  final screenWidth = mediaQuery.size.width;
+  final screenHeight = mediaQuery.size.height;
+  final shortestSide = mediaQuery.size.shortestSide;
   final blockSizeHorizontal = screenWidth / 100;
-  if (screenWidth >= 800) {
-    return (blockSizeHorizontal * inputIconSize) - 10;
+
+  // Detect iPad/tablet (shortestSide >= 600)
+  final bool isTablet = shortestSide >= 600;
+
+  if (isTablet) {
+    // For iPad/tablet, use a more conservative scaling to prevent oversized icons
+    // Use the smaller of width or height to maintain consistency
+    final blockSize =
+        (screenWidth < screenHeight ? screenWidth : screenHeight) / 100;
+    return (blockSize * inputIconSize) - 8;
   }
+
+  // For phones, use standard scaling
   return blockSizeHorizontal * inputIconSize;
 }
 

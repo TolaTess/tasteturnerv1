@@ -1058,7 +1058,8 @@ class _BuddyTabState extends State<BuddyTab> {
                               ),
                             SizedBox(height: getPercentageHeight(1, context)),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 TextButton(
                                   style: TextButton.styleFrom(
@@ -1076,12 +1077,17 @@ class _BuddyTabState extends State<BuddyTab> {
                                           context, isDarkMode);
                                     }
                                   },
-                                  child: Text(
-                                    canUseAI()
-                                        ? 'Generate New Meals'
-                                        : goPremium,
-                                    style: textTheme.labelLarge?.copyWith(
-                                      color: isDarkMode ? kWhite : kBlack,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(
+                                   getPercentageWidth(1, context),
+                                    ),
+                                    child: Text(
+                                      canUseAI()
+                                          ? 'Generate New Meals'
+                                          : goPremium,
+                                      style: textTheme.labelLarge?.copyWith(
+                                        color: isDarkMode ? kWhite : kBlack,
+                                      ),
                                     ),
                                   ),
                                 ),

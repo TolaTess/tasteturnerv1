@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import '../constants.dart';
 import '../data_models/macro_data.dart';
-import '../pages/dietary_choose_screen.dart';
 import 'utils.dart';
 
 String calculateRecommendedCaloriesFromGoal(String goal, [String? gender]) {
@@ -105,27 +104,6 @@ Map<String, int> calculateRecommendedMacrosGoals(String goal,
   }
 }
 
-void navigateToChooseDiet(BuildContext context,
-    {bool isDontShowPicker = false,
-    String? familyMemberName,
-    String? familyMemberKcal,
-    String? familyMemberGoal,
-    String? familyMemberType}) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ChooseDietScreen(
-        isOnboarding: false,
-        isDontShowPicker: isDontShowPicker,
-        familyMemberName: familyMemberName,
-        familyMemberKcal: familyMemberKcal,
-        familyMemberGoal: familyMemberGoal,
-        familyMemberType: familyMemberType,
-      ),
-    ),
-  );
-}
-
 Widget getAvatar(String? avatar, BuildContext context, bool isDarkMode) {
   switch (avatar?.toLowerCase()) {
     case 'infant':
@@ -205,7 +183,7 @@ String getMealTypeImage(String type) {
     case 'vegetable':
       return 'assets/images/vegetable.jpg';
     default:
-      return 'assets/images/placeholder.jpg';
+      return 'assets/images/placeholder.png';
   }
 }
 

@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../helper/utils.dart';
-import '../widgets/category_selector.dart';
 import '../widgets/daily_routine_list.dart';
 import '../widgets/icon_widget.dart';
 import '../widgets/primary_button.dart';
@@ -14,6 +13,7 @@ import '../data_models/user_data_model.dart';
 import '../data_models/cycle_tracking_model.dart';
 import '../service/cycle_adjustment_service.dart';
 import 'safe_text_field.dart';
+import 'dietary_choose_screen.dart';
 
 class NutritionSettingsPage extends StatefulWidget {
   final bool isRoutineExpand;
@@ -47,19 +47,16 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
   final TextEditingController targetStepsController = TextEditingController();
   final TextEditingController heightController = TextEditingController();
   final TextEditingController cycleLengthController = TextEditingController();
-  List<Map<String, dynamic>> _categoryDatasIngredient = [];
-  String selectedDietCategoryId = '';
-  String selectedDietCategoryName = '';
   bool isFamilyModeEnabled = false;
   bool isCycleTrackingEnabled = false;
+  bool enableGoalAdjustments =
+      true; // Default to true for backward compatibility
   DateTime? lastPeriodStart;
   final cycleAdjustmentService = CycleAdjustmentService.instance;
 
   @override
   void initState() {
     super.initState();
-
-    _categoryDatasIngredient = [...helperController.category];
 
     final user = userService.currentUser.value;
     if (user != null) {
@@ -79,25 +76,20 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
       targetStepsController.text = settings['targetSteps']?.toString() ?? '';
       heightController.text = settings['height']?.toString() ?? '';
 
-      // Initialize selectedDietCategoryId and Name from user settings if possible
-      final dietPref = settings['dietPreference']?.toString() ?? '';
-      final foundDiet = _categoryDatasIngredient.firstWhere(
-        (cat) => cat['name'].toString().toLowerCase() == dietPref.toLowerCase(),
-        orElse: () => _categoryDatasIngredient.isNotEmpty
-            ? _categoryDatasIngredient[0]
-            : {'id': '', 'name': ''},
-      );
-      selectedDietCategoryId = foundDiet['id'] ?? '';
-      selectedDietCategoryName = foundDiet['name'] ?? '';
-      dietPerfController.text = selectedDietCategoryName;
-
       // Initialize family mode from user data
       isFamilyModeEnabled = user.familyMode ?? false;
 
+      // Initialize goal adjustments setting (default to true for backward compatibility)
+      // Handle both bool and String types (Firestore may store as String)
+      final enableAdjustmentsRaw = settings['enableGoalAdjustments'];
+      enableGoalAdjustments = enableAdjustmentsRaw is bool
+          ? enableAdjustmentsRaw
+          : (enableAdjustmentsRaw is String
+              ? enableAdjustmentsRaw.toLowerCase() == 'true'
+              : true); // Default to true if null or unexpected type
+
       // Initialize cycle tracking from settings
       final cycleDataRaw = user.settings['cycleTracking'];
-      debugPrint(
-          'Loading cycle tracking data: $cycleDataRaw (type: ${cycleDataRaw.runtimeType})');
 
       if (cycleDataRaw != null && cycleDataRaw is Map) {
         final cycleData = Map<String, dynamic>.from(cycleDataRaw);
@@ -157,6 +149,7 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
           'dietPreference': dietPerfController.text,
           'targetSteps': targetStepsController.text,
           'height': heightController.text,
+          'enableGoalAdjustments': enableGoalAdjustments,
           'cycleTracking': {
             'isEnabled': isCycleTrackingEnabled,
             'lastPeriodStart': lastPeriodStart?.toIso8601String(),
@@ -305,6 +298,17 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
           child: ListView(
             children: [
               SizedBox(height: getPercentageHeight(2, context)),
+              // Save Button
+              if (!widget.isRoutineExpand)
+                AppButton(
+                  onPressed: _saveSettings,
+                  text: "Save Specs",
+                  width: userService.currentUser.value?.isPremium == true
+                      ? 100
+                      : 40,
+                  type: AppButtonType.secondary,
+                ),
+
               // Nutrition Section
               if (!widget.isRoutineExpand && !widget.isWeightExpand)
                 SizedBox(height: getPercentageHeight(2, context)),
@@ -324,6 +328,77 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                     ),
                   ),
                   children: [
+                    // Goal Adjustments Toggle
+                    if (!widget.isRoutineExpand && !widget.isWeightExpand)
+                      SizedBox(height: getPercentageHeight(1, context)),
+                    if (!widget.isRoutineExpand && !widget.isWeightExpand)
+                      Container(
+                        padding: EdgeInsets.all(getPercentageWidth(3, context)),
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? kDarkGrey.withValues(alpha: 0.3)
+                              : kLightGrey.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: kAccent.withValues(alpha: 0.5),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Enable Goal Adjustments',
+                                        style: textTheme.titleSmall?.copyWith(
+                                          color:
+                                              isDarkMode ? kWhite : kDarkGrey,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                          height: getPercentageHeight(
+                                              0.5, context)),
+                                      Text(
+                                        'Automatically adjust calories and macros based on fitness goal (weight loss: -20%, muscle gain: +10%). Disable if you want to use your exact entered values.',
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: isDarkMode
+                                              ? kLightGrey
+                                              : kDarkGrey.withValues(
+                                                  alpha: 0.7),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  value: enableGoalAdjustments,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      enableGoalAdjustments = value;
+                                    });
+                                  },
+                                  activeColor: kAccent,
+                                  activeTrackColor:
+                                      kAccent.withValues(alpha: 0.3),
+                                  inactiveTrackColor: isDarkMode
+                                      ? kLightGrey.withValues(alpha: 0.3)
+                                      : kLightGrey,
+                                  inactiveThumbColor:
+                                      isDarkMode ? kWhite : kDarkGrey,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    SizedBox(height: getPercentageHeight(1.5, context)),
+
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -623,19 +698,35 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                   collapsedTextColor: isDarkMode ? kWhite : kDarkGrey,
                   children: [
                     SizedBox(height: getPercentageHeight(1, context)),
-                    CategorySelector(
-                      categories: _categoryDatasIngredient,
-                      selectedCategoryId: selectedDietCategoryId,
-                      onCategorySelected: (id, name) {
-                        setState(() {
-                          selectedDietCategoryId = id;
-                          selectedDietCategoryName = name;
-                          dietPerfController.text = name;
-                        });
+                    SafeTextFormField(
+                      controller: dietPerfController,
+                      style: textTheme.bodyLarge
+                          ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+                      decoration: InputDecoration(
+                        labelText: "Dietary Preference",
+                        labelStyle: textTheme.bodyMedium
+                            ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey),
+                        enabledBorder: outlineInputBorder(20),
+                        focusedBorder: outlineInputBorder(20),
+                        border: outlineInputBorder(20),
+                        suffixIcon:
+                            const Icon(Icons.arrow_forward_ios, size: 16),
+                        suffixIconColor: kAccent,
+                      ),
+                      readOnly: true,
+                      onTap: () async {
+                        // Navigate to ChooseDietScreen and refresh on return
+                        await Get.to(() => const ChooseDietScreen());
+                        // Refresh diet preference from user settings after returning
+                        final user = userService.currentUser.value;
+                        if (user != null && mounted) {
+                          setState(() {
+                            dietPerfController.text =
+                                user.settings['dietPreference']?.toString() ??
+                                    '';
+                          });
+                        }
                       },
-                      isDarkMode: isDarkMode,
-                      accentColor: kAccentLight,
-                      darkModeAccentColor: kDarkModeAccent,
                     ),
                     SizedBox(height: getPercentageHeight(2, context)),
                     SafeTextFormField(
@@ -900,7 +991,21 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
                                 isCycleTrackingEnabled = true;
                               });
                             }
-                          } 
+                          }
+                        } else {
+                          // Gender is already female or not set, enable cycle tracking
+                          if (mounted) {
+                            setState(() {
+                              isCycleTrackingEnabled = true;
+                            });
+                          }
+                        }
+                      } else {
+                        // Disable cycle tracking
+                        if (mounted) {
+                          setState(() {
+                            isCycleTrackingEnabled = false;
+                          });
                         }
                       }
                     },
@@ -1082,17 +1187,6 @@ class _NutritionSettingsPageState extends State<NutritionSettingsPage> {
 
               if (!widget.isRoutineExpand)
                 SizedBox(height: getPercentageHeight(5, context)),
-
-              // Save Button
-              if (!widget.isRoutineExpand)
-                AppButton(
-                  onPressed: _saveSettings,
-                  text: "Save Specs",
-                  width: userService.currentUser.value?.isPremium == true
-                      ? 100
-                      : 40,
-                  type: AppButtonType.secondary,
-                ),
 
               SizedBox(height: getPercentageHeight(2, context)),
             ],

@@ -34,6 +34,7 @@ import 'service/program_service.dart';
 import 'service/plant_detection_service.dart';
 import 'service/symptom_service.dart';
 import 'service/symptom_analysis_service.dart';
+import 'service/config_service.dart';
 import 'data_models/message_screen_data.dart';
 
 void main() async {
@@ -99,6 +100,15 @@ void main() async {
       debugPrint('===============================================');
       // Re-throw to let error zone handle it, but log first for debugging
       rethrow;
+    }
+
+    // Pre-load configuration from Firestore (runs in background, doesn't block startup)
+    // Silently falls back to .env if Firestore fails - no user messages
+    try {
+      ConfigService.instance.preloadConfig();
+    } catch (e) {
+      // Silently continue - .env will be used as fallback
+      debugPrint('ConfigService preload failed (will use .env): $e');
     }
     // AudioPlayer() - Removed, will be lazy loaded when needed
 

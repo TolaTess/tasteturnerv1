@@ -36,7 +36,8 @@ class MealMoveService {
       if (mealData != null) {
         mealToMove = mealData;
       } else {
-        final fetchedMeal = await _getMealFromDate(userId, oldDateStr, mealType, instanceId);
+        final fetchedMeal =
+            await _getMealFromDate(userId, oldDateStr, mealType, instanceId);
         if (fetchedMeal == null) {
           debugPrint('Meal not found: $instanceId');
           return false;
@@ -69,7 +70,8 @@ class MealMoveService {
         final newDateDoc = await transaction.get(newDateRef);
 
         // Parse meals from old date
-        final oldMealsData = oldDateDoc.data()?['meals'] as Map<String, dynamic>? ?? {};
+        final oldMealsData =
+            oldDateDoc.data()?['meals'] as Map<String, dynamic>? ?? {};
         final oldMealList = oldMealsData[mealType] as List<dynamic>? ?? [];
 
         // Find and remove the meal from old date
@@ -81,7 +83,8 @@ class MealMoveService {
         // Parse meals from new date (or initialize if doesn't exist)
         Map<String, dynamic> newMealsData;
         if (newDateDoc.exists) {
-          newMealsData = Map<String, dynamic>.from(newDateDoc.data()?['meals'] as Map<String, dynamic>? ?? {});
+          newMealsData = Map<String, dynamic>.from(
+              newDateDoc.data()?['meals'] as Map<String, dynamic>? ?? {});
         } else {
           newMealsData = {
             'Breakfast': [],
@@ -126,7 +129,8 @@ class MealMoveService {
         }
       });
 
-      debugPrint('Successfully moved meal $instanceId from $oldDateStr to $newDateStr');
+      debugPrint(
+          'Successfully moved meal $instanceId from $oldDateStr to $newDateStr');
       return true;
     } catch (e) {
       debugPrint('Error moving meal: $e');
@@ -153,7 +157,8 @@ class MealMoveService {
         return null;
       }
 
-      final mealsData = mealsDoc.data()?['meals'] as Map<String, dynamic>? ?? {};
+      final mealsData =
+          mealsDoc.data()?['meals'] as Map<String, dynamic>? ?? {};
       final mealList = mealsData[mealType] as List<dynamic>? ?? [];
 
       for (var mealData in mealList) {
@@ -170,8 +175,116 @@ class MealMoveService {
     }
   }
 
+  /// Copy a meal from one date to another (without removing from original date)
+  /// Creates a new instance with a new instanceId
+  Future<bool> copyMeal({
+    required String userId,
+    required String instanceId,
+    required DateTime sourceDate,
+    required DateTime targetDate,
+    required String mealType,
+    UserMeal? mealData,
+  }) async {
+    try {
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final sourceDateStr = dateFormat.format(sourceDate);
+      final targetDateStr = dateFormat.format(targetDate);
+
+      // If same date, no need to copy
+      if (sourceDateStr == targetDateStr) {
+        debugPrint('Same date, no copy needed');
+        return true;
+      }
+
+      // Get meal data if not provided
+      UserMeal mealToCopy;
+      if (mealData != null) {
+        mealToCopy = mealData;
+      } else {
+        final fetchedMeal =
+            await _getMealFromDate(userId, sourceDateStr, mealType, instanceId);
+        if (fetchedMeal == null) {
+          debugPrint('Meal not found: $instanceId');
+          return false;
+        }
+        mealToCopy = fetchedMeal;
+      }
+
+      // Generate new instanceId for the copy
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final random = (DateTime.now().microsecondsSinceEpoch % 10000);
+      final newInstanceId = '${timestamp}_${random}';
+
+      // Create a copy with new instanceId and updated loggedAt
+      final copiedMeal = mealToCopy.copyWith({
+        'originalMealId': mealToCopy.mealId,
+        'instanceId': newInstanceId,
+        'isInstance': true,
+        'loggedAt': DateTime.now(),
+      });
+
+      // Use Firestore transaction to add the copy to target date
+      await firestore.runTransaction((transaction) async {
+        // Get target date document (create if doesn't exist)
+        final targetDateRef = firestore
+            .collection('userMeals')
+            .doc(userId)
+            .collection('meals')
+            .doc(targetDateStr);
+
+        final targetDateDoc = await transaction.get(targetDateRef);
+
+        // Parse meals from target date (or initialize if doesn't exist)
+        Map<String, dynamic> targetMealsData;
+        if (targetDateDoc.exists) {
+          targetMealsData = Map<String, dynamic>.from(
+              targetDateDoc.data()?['meals'] as Map<String, dynamic>? ?? {});
+        } else {
+          targetMealsData = {
+            'Breakfast': [],
+            'Lunch': [],
+            'Dinner': [],
+            'Fruits': [],
+            'Snacks': [],
+          };
+        }
+
+        final targetMealList =
+            List<dynamic>.from(targetMealsData[mealType] ?? []);
+
+        // Add copied meal to target date
+        targetMealList.add(copiedMeal.toFirestore());
+
+        // Update or create target date document
+        final updatedTargetMeals = Map<String, dynamic>.from(targetMealsData);
+        updatedTargetMeals[mealType] = targetMealList;
+
+        if (targetDateDoc.exists) {
+          transaction.update(targetDateRef, {
+            'meals': updatedTargetMeals,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          transaction.set(targetDateRef, {
+            'meals': updatedTargetMeals,
+            'timestamp': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      });
+
+      debugPrint(
+          'Successfully copied meal $instanceId from $sourceDateStr to $targetDateStr (new instanceId: $newInstanceId)');
+      return true;
+    } catch (e) {
+      debugPrint('Error copying meal: $e');
+      return false;
+    }
+  }
+
   /// Trigger cloud function to recalculate nutrition for a date
-  Future<void> triggerNutritionRecalculation(String userId, DateTime date) async {
+  Future<void> triggerNutritionRecalculation(
+      String userId, DateTime date) async {
     try {
       final dateFormat = DateFormat('yyyy-MM-dd');
       final dateStr = dateFormat.format(date);
@@ -179,7 +292,7 @@ class MealMoveService {
       // Note: This is a placeholder - actual implementation depends on your cloud function setup
       // You may need to use HttpsCallable instead
       debugPrint('Triggering nutrition recalculation for $dateStr');
-      
+
       // If you have an HttpsCallable, use it here:
       // final callable = FirebaseFunctions.instance.httpsCallable('calculateDailyNutrition');
       // await callable.call({'userId': userId, 'date': dateStr});
@@ -188,4 +301,3 @@ class MealMoveService {
     }
   }
 }
-

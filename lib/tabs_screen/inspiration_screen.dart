@@ -296,6 +296,7 @@ class _InspirationScreenState extends State<InspirationScreen>
         color: filterByRecipe
             ? kAccentLight.withValues(alpha: 0.7)
             : kWhite.withOpacity(0.7),
+        size: getIconScale(5, context),
       ),
       tooltip: 'Show posts with dishes only, Chef',
       onPressed: () {
@@ -443,9 +444,7 @@ class _InspirationScreenState extends State<InspirationScreen>
         child: Icon(
           Icons.camera_alt,
           color: kWhite,
-          size: MediaQuery.of(context).size.width > 800
-              ? getIconScale(6, context)
-              : getIconScale(8, context),
+          size: MediaQuery.of(context).size.shortestSide >= 600 ? getIconScale(5, context) : getIconScale(8, context),
         ),
       ),
     );

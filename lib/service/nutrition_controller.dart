@@ -9,7 +9,7 @@ import '../constants.dart';
 import '../data_models/user_meal.dart';
 import '../helper/utils.dart';
 import 'badge_service.dart';
-import 'cycle_adjustment_service.dart';
+import 'goal_adjustment_service.dart';
 import 'plant_detection_service.dart';
 import 'notification_service.dart';
 import 'notification_handler_service.dart';
@@ -44,6 +44,9 @@ class NutritionController extends GetxController {
   var currentSteps = 0.0.obs;
 
   var targetCalories = 0.0.obs;
+  var targetProtein = 0.0.obs;
+  var targetCarbs = 0.0.obs;
+  var targetFat = 0.0.obs;
   var totalCalories = 0.obs;
 
   final RxInt eatenCalories = 0.obs;
@@ -60,6 +63,16 @@ class NutritionController extends GetxController {
   DateTime? _lastWaterUpdate;
   DateTime? _lastStepsUpdate;
   static const _updateCooldown = Duration(milliseconds: 500);
+
+  // Track scheduled symptom check notifications by meal type and date
+  // Key format: '${mealType}_${dateId}' (e.g., 'Lunch_2024-01-15')
+  // Value: notification ID
+  final Map<String, int> _scheduledSymptomCheckNotifications = {};
+
+  // Track when notifications were scheduled (for cancellation logic)
+  // Key format: '${mealType}_${dateId}'
+  // Value: DateTime when notification was scheduled
+  final Map<String, DateTime> _symptomCheckNotificationTimes = {};
 
   @override
   void onClose() {
@@ -374,54 +387,22 @@ class NutritionController extends GetxController {
   void loadSettings(Map<String, dynamic>? settings) {
     if (settings == null) {
       targetCalories.value = 0.0;
+      targetProtein.value = 0.0;
+      targetCarbs.value = 0.0;
+      targetFat.value = 0.0;
       targetWater.value = 0.0;
       return;
     }
 
-    double baseCalories =
-        (settings['foodGoal'] ?? '0').toString().trim().isEmpty
-            ? 0.0
-            : double.tryParse(settings['foodGoal'].toString()) ?? 0.0;
+    // Use GoalAdjustmentService to get fully adjusted goals
+    final goalService = GoalAdjustmentService.instance;
+    final adjustedGoals =
+        goalService.getAdjustedGoals(settings, DateTime.now());
 
-    // Apply cycle adjustments if enabled
-    final cycleDataRaw = settings['cycleTracking'];
-    Map<String, dynamic>? cycleData;
-    if (cycleDataRaw != null && cycleDataRaw is Map) {
-      cycleData = Map<String, dynamic>.from(cycleDataRaw);
-    }
-
-    if (cycleData != null && (cycleData['isEnabled'] as bool? ?? false)) {
-      final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
-      if (lastPeriodStartStr != null) {
-        final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
-        if (lastPeriodStart != null) {
-          final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
-          final cycleService = CycleAdjustmentService.instance;
-          final phase =
-              cycleService.getCurrentPhase(lastPeriodStart, cycleLength);
-
-          final baseGoals = {
-            'calories': baseCalories,
-            'protein':
-                double.tryParse(settings['proteinGoal']?.toString() ?? '0') ??
-                    0.0,
-            'carbs':
-                double.tryParse(settings['carbsGoal']?.toString() ?? '0') ??
-                    0.0,
-            'fat':
-                double.tryParse(settings['fatGoal']?.toString() ?? '0') ?? 0.0,
-          };
-
-          final adjustedGoals = cycleService.getAdjustedGoals(baseGoals, phase);
-          targetCalories.value = adjustedGoals['calories'] ?? baseCalories;
-          // Note: Carbs are also adjusted in cycle phases (luteal: +20g), 
-          // but stored in base settings. Adjusted values are calculated on-demand.
-          return;
-        }
-      }
-    }
-
-    targetCalories.value = baseCalories;
+    targetCalories.value = adjustedGoals['calories'] ?? 0.0;
+    targetProtein.value = adjustedGoals['protein'] ?? 0.0;
+    targetCarbs.value = adjustedGoals['carbs'] ?? 0.0;
+    targetFat.value = adjustedGoals['fat'] ?? 0.0;
 
     targetWater.value =
         (settings['waterIntake'] ?? '0').toString().trim().isEmpty
@@ -819,27 +800,75 @@ class NutritionController extends GetxController {
             }
 
             if (notificationService.isInitialized) {
-              // Generate unique notification ID based on instanceId and timestamp
-              final notificationId = (meal.instanceId.hashCode % 100000).abs();
+              // Consolidate notifications by meal type
+              // Key format: '${foodType}_${dateId}' (e.g., 'Lunch_2024-01-15')
+              final notificationKey = '${foodType}_$dateId';
 
-              // Schedule notification 30 minutes after meal
-              await notificationService.scheduleDelayedNotification(
-                id: notificationId,
-                title: "How are you feeling? 🤔",
-                body:
-                    "How did ${meal.name} make you feel? Let's track your symptoms.",
-                delay: const Duration(hours: 1, minutes: 30),
-                payload: {
-                  'type': 'meal_symptom_check',
-                  'mealId': meal.mealId,
-                  'instanceId': meal.instanceId,
-                  'mealName': meal.name,
-                  'mealType': foodType,
-                  'date': dateId,
-                },
-              );
-              debugPrint(
-                  '✅ Scheduled symptom check notification for ${meal.name} in 1 hours and 30 minutes');
+              // Cancel existing notification for this meal type if it exists
+              final existingNotificationId =
+                  _scheduledSymptomCheckNotifications[notificationKey];
+              if (existingNotificationId != null) {
+                try {
+                  await notificationService
+                      .cancelScheduledNotification(existingNotificationId);
+                  debugPrint(
+                      '🔄 Cancelled existing symptom check notification (ID: $existingNotificationId) for $foodType to reschedule with updated meal count');
+                } catch (e) {
+                  debugPrint('Error cancelling existing notification: $e');
+                }
+              }
+
+              // Count meals in this meal type (excluding "Add Food" meals)
+              // Note: userMealList may not be updated yet via stream, so we count existing meals
+              // and add 1 for the meal we just added
+              final mealsInType = userMealList[foodType] ?? [];
+              final existingMealCount =
+                  mealsInType.where((m) => m.name != 'Add Food').length;
+              // Add 1 for the meal we just added (since userMealList hasn't updated yet)
+              final mealCount = existingMealCount + 1;
+
+              // Only schedule if there are meals (should always be at least 1, but safety check)
+              if (mealCount > 0) {
+                // Generate unique notification ID based on meal type and date
+                final notificationId =
+                    (notificationKey.hashCode % 100000).abs();
+
+                // Create notification body based on meal count
+                String bodyText;
+                final mealTypeLower = foodType.toLowerCase();
+                if (mealCount == 1) {
+                  bodyText =
+                      "After $mealTypeLower, how are you feeling? You had 1 meal.";
+                } else {
+                  bodyText =
+                      "After $mealTypeLower, how are you feeling? You had $mealCount meals.";
+                }
+
+                // Schedule consolidated notification 1.5 hours after meal
+                await notificationService.scheduleDelayedNotification(
+                  id: notificationId,
+                  title: "How are you feeling? 🤔",
+                  body: bodyText,
+                  delay: const Duration(hours: 1, minutes: 30),
+                  payload: {
+                    'type': 'meal_symptom_check',
+                    'mealType': foodType,
+                    'date': dateId,
+                  },
+                );
+
+                // Store notification ID and time for cancellation logic
+                _scheduledSymptomCheckNotifications[notificationKey] =
+                    notificationId;
+                _symptomCheckNotificationTimes[notificationKey] =
+                    DateTime.now();
+
+                debugPrint(
+                    '✅ Scheduled consolidated symptom check notification for $foodType ($mealCount meal${mealCount == 1 ? '' : 's'}) in 1 hour and 30 minutes (ID: $notificationId)');
+              } else {
+                debugPrint(
+                    '⚠️ No meals found in $foodType, skipping symptom check notification');
+              }
             } else {
               debugPrint(
                   '⚠️ NotificationService still not initialized after attempt, skipping symptom check notification');
@@ -911,6 +940,111 @@ class NutritionController extends GetxController {
       if (userMealList.containsKey(foodType)) {
         userMealList[foodType]!.removeWhere((m) => m.name == meal.name);
         userMealList.refresh();
+      }
+
+      // Handle symptom check notification cancellation/rescheduling after meal removal
+      // Only handle if meal is being removed from today (already checked above)
+      if (getCurrentDate(mDate)) {
+        try {
+          // Skip for "Add Food" meals (they don't have symptom check notifications)
+          if (meal.name == 'Add Food') {
+            debugPrint('⏭️ Skipping notification handling for "Add Food" meal');
+          } else if (Get.isRegistered<NotificationService>()) {
+            final notificationService = Get.find<NotificationService>();
+
+            if (notificationService.isInitialized) {
+              // Use meal type + date key (same as scheduling)
+              final notificationKey = '${foodType}_$dateId';
+              final existingNotificationId =
+                  _scheduledSymptomCheckNotifications[notificationKey];
+              final notificationScheduledTime =
+                  _symptomCheckNotificationTimes[notificationKey];
+
+              // Check if notification exists and was scheduled within 1.5 hours
+              if (existingNotificationId != null &&
+                  notificationScheduledTime != null) {
+                final timeElapsed =
+                    DateTime.now().difference(notificationScheduledTime);
+                const notificationWindow = Duration(hours: 1, minutes: 30);
+
+                if (timeElapsed < notificationWindow) {
+                  // Cancel existing notification
+                  try {
+                    await notificationService
+                        .cancelScheduledNotification(existingNotificationId);
+                    debugPrint(
+                        '🔄 Cancelled symptom check notification (ID: $existingNotificationId) for $foodType after meal removal');
+                  } catch (e) {
+                    debugPrint('Error cancelling notification: $e');
+                  }
+
+                  // Count remaining meals in this meal type (excluding "Add Food")
+                  final mealsInType = userMealList[foodType] ?? [];
+                  final remainingMealCount =
+                      mealsInType.where((m) => m.name != 'Add Food').length;
+
+                  if (remainingMealCount > 0) {
+                    // Reschedule with updated meal count
+                    final notificationId =
+                        (notificationKey.hashCode % 100000).abs();
+                    String bodyText;
+                    final mealTypeLower = foodType.toLowerCase();
+                    if (remainingMealCount == 1) {
+                      bodyText =
+                          "After $mealTypeLower, how are you feeling? You had 1 meal.";
+                    } else {
+                      bodyText =
+                          "After $mealTypeLower, how are you feeling? You had $remainingMealCount meals.";
+                    }
+
+                    await notificationService.scheduleDelayedNotification(
+                      id: notificationId,
+                      title: "How are you feeling? 🤔",
+                      body: bodyText,
+                      delay: const Duration(hours: 1, minutes: 30),
+                      payload: {
+                        'type': 'meal_symptom_check',
+                        'mealType': foodType,
+                        'date': dateId,
+                      },
+                    );
+
+                    // Update tracking maps
+                    _scheduledSymptomCheckNotifications[notificationKey] =
+                        notificationId;
+                    _symptomCheckNotificationTimes[notificationKey] =
+                        DateTime.now();
+
+                    debugPrint(
+                        '✅ Rescheduled symptom check notification for $foodType ($remainingMealCount meal${remainingMealCount == 1 ? '' : 's'}) after meal removal (ID: $notificationId)');
+                  } else {
+                    // No meals remaining, remove from tracking
+                    _scheduledSymptomCheckNotifications.remove(notificationKey);
+                    _symptomCheckNotificationTimes.remove(notificationKey);
+                    debugPrint(
+                        '✅ Removed symptom check notification tracking for $foodType (no meals remaining)');
+                  }
+                } else {
+                  debugPrint(
+                      '⏭️ Notification for $foodType not cancelled - ${timeElapsed.inMinutes} minutes have passed (threshold: ${notificationWindow.inMinutes} minutes)');
+                }
+              } else {
+                debugPrint(
+                    '⚠️ No scheduled notification found for $foodType, skipping cancellation');
+              }
+            } else {
+              debugPrint(
+                  '⚠️ NotificationService not initialized, skipping notification handling');
+            }
+          } else {
+            debugPrint(
+                '⚠️ NotificationService not registered, skipping notification handling');
+          }
+        } catch (e) {
+          debugPrint(
+              'Error handling symptom check notification after meal removal: $e');
+          // Don't fail meal removal if notification handling fails
+        }
       }
     } catch (e) {
       return;

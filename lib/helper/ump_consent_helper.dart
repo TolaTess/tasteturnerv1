@@ -1,6 +1,7 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import 'utils.dart';
 
@@ -8,6 +9,7 @@ import 'utils.dart';
 class UMPConsentHelper {
   // Track if a form is currently being shown/loaded to prevent concurrent calls
   static bool _isFormLoading = false;
+  static const int _maxRetries = 3;
 
   /// Show a dialog and then request UMP consent
   /// This provides a better UX by showing a dialog first, then the consent form
@@ -147,6 +149,7 @@ class UMPConsentHelper {
   static Future<void> requestUMPConsent({
     VoidCallback? onConsentObtained,
     VoidCallback? onError,
+    int retryAttempt = 0,
   }) async {
     try {
       final params = ConsentRequestParameters();
@@ -237,15 +240,59 @@ class UMPConsentHelper {
           debugPrint('Error code: ${error.errorCode}');
           debugPrint('Error message: ${error.message}');
           debugPrint('Full error: $error');
+          debugPrint('Retry attempt: ${retryAttempt + 1}/$_maxRetries');
           debugPrint('=====================================');
-          _setFirebaseConsent();
-          onError?.call();
+          
+          // Retry if we haven't exceeded max retries
+          if (retryAttempt < _maxRetries - 1) {
+            debugPrint('Retrying UMP consent request in 2 seconds...');
+            Future.delayed(const Duration(seconds: 2), () {
+              requestUMPConsent(
+                onConsentObtained: onConsentObtained,
+                onError: onError,
+                retryAttempt: retryAttempt + 1,
+              );
+            });
+          } else {
+            // Max retries reached, schedule retry for later
+            debugPrint('Max retries ($_maxRetries) reached. Scheduling retry for later.');
+            _scheduleUMPConsentRetry();
+            _setFirebaseConsent();
+            onError?.call();
+          }
         },
       );
     } catch (e) {
       debugPrint('Error requesting UMP consent: $e');
-      _setFirebaseConsent();
-      onError?.call();
+      // Retry on exception if we haven't exceeded max retries
+      if (retryAttempt < _maxRetries - 1) {
+        debugPrint('Retrying UMP consent request after exception in 2 seconds...');
+        Future.delayed(const Duration(seconds: 2), () {
+          requestUMPConsent(
+            onConsentObtained: onConsentObtained,
+            onError: onError,
+            retryAttempt: retryAttempt + 1,
+          );
+        });
+      } else {
+        // Max retries reached, schedule retry for later
+        debugPrint('Max retries ($_maxRetries) reached after exception. Scheduling retry for later.');
+        _scheduleUMPConsentRetry();
+        _setFirebaseConsent();
+        onError?.call();
+      }
+    }
+  }
+
+  /// Schedule UMP consent retry for later (24 hours from now)
+  static Future<void> _scheduleUMPConsentRetry() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final retryDate = DateTime.now().add(const Duration(hours: 24));
+      await prefs.setString('ump_consent_retry_date', retryDate.toIso8601String());
+      debugPrint('UMP consent retry scheduled for: ${retryDate.toIso8601String()}');
+    } catch (e) {
+      debugPrint('Error scheduling UMP consent retry: $e');
     }
   }
 

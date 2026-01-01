@@ -25,7 +25,8 @@ class ShoppingTab extends StatefulWidget {
   State<ShoppingTab> createState() => _ShoppingTabState();
 }
 
-class _ShoppingTabState extends State<ShoppingTab> {
+class _ShoppingTabState extends State<ShoppingTab>
+    with SingleTickerProviderStateMixin {
   String? _selectedDay;
   bool _is54321View = false;
   bool _isLoading54321 = false;
@@ -33,6 +34,7 @@ class _ShoppingTabState extends State<ShoppingTab> {
   Map<String, dynamic>? _shoppingList54321;
   final RxInt _newItemsCount = 0.obs;
   StreamSubscription? _mealPlansSubscription;
+  late TabController _tabController;
 
   final List<String> _daysOfWeek = [
     'Monday',
@@ -69,9 +71,22 @@ class _ShoppingTabState extends State<ShoppingTab> {
     );
   }
 
+  /// Switch to the "From This Week's Menu" tab after generating ingredients
+  void _switchToGeneratedSection() {
+    if (!mounted) return;
+    try {
+      if (_tabController.index != 1) {
+        _tabController.animateTo(1);
+      }
+    } catch (e) {
+      debugPrint('Error switching to generated section: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadSelectedDay();
     _loadViewPreference();
     _macroManager.fetchIngredients();
@@ -81,8 +96,24 @@ class _ShoppingTabState extends State<ShoppingTab> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh shopping list when tab becomes visible to ensure latest items are displayed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final userId = userService.userId;
+        if (userId != null) {
+          final currentWeek = getCurrentWeek();
+          _macroManager.refreshShoppingLists(userId, currentWeek);
+        }
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _mealPlansSubscription?.cancel();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -839,7 +870,87 @@ class _ShoppingTabState extends State<ShoppingTab> {
                   final manualItems = _macroManager.manualShoppingList;
                   final hasItems =
                       generatedItems.isNotEmpty || manualItems.isNotEmpty;
+                  final bothSectionsHaveItems =
+                      generatedItems.isNotEmpty && manualItems.isNotEmpty;
 
+                  // If both sections have items, show tabs
+                  if (hasItems && bothSectionsHaveItems) {
+                    return Column(
+                      children: [
+                        // Add Generate Button at the top only if there are new meals
+                        if (_newItemsCount.value > 0)
+                          ShoppingListGenerateButton(
+                            isGenerating: _isGenerating,
+                            newItemsCount: _newItemsCount,
+                            macroManager: _macroManager,
+                            onGeneratingStateChanged: (isGenerating) {
+                              if (mounted) {
+                                setState(() {
+                                  _isGenerating = isGenerating;
+                                });
+                              }
+                            },
+                            onSuccess: () async {
+                              if (mounted) {
+                                await _checkForNewItems();
+                                // Wait a bit for UI to update, then switch tab
+                                await Future.delayed(
+                                    const Duration(milliseconds: 500));
+                                _switchToGeneratedSection();
+                              }
+                            },
+                          ),
+                        // TabBar positioned below the button
+                        Container(
+                          color: isDarkMode ? kDarkGrey : kWhite,
+                          child: TabBar(
+                            controller: _tabController,
+                            labelColor: kAccent,
+                            unselectedLabelColor:
+                                isDarkMode ? kLightGrey : kDarkGrey,
+                            indicatorColor: kAccent,
+                            indicatorWeight: 3,
+                            tabs: const [
+                              Tab(text: "Selection"),
+                              Tab(text: "Menu"),
+                            ],
+                          ),
+                        ),
+                        // TabBarView with both sections
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              // Tab 0: Chef's Selection
+                              ListView(
+                                children: [
+                                  _buildSectionHeader(
+                                      'Chef\'s Selection', textTheme, context,
+                                      isManual: true),
+                                  ..._buildConsolidatedList(
+                                      manualItems.toList(),
+                                      isManual: true),
+                                ],
+                              ),
+                              // Tab 1: From This Week's Menu
+                              ListView(
+                                children: [
+                                  _buildSectionHeader('From This Week\'s Menu',
+                                      textTheme, context,
+                                      isGenerated: true),
+                                  ..._buildConsolidatedList(
+                                      generatedItems.toList(),
+                                      isManual: false),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  // Single section or empty state - show without tabs (backward compatible)
                   List<Widget> listWidgets = [];
 
                   if (hasItems) {
@@ -860,6 +971,14 @@ class _ShoppingTabState extends State<ShoppingTab> {
                           onSuccess: () async {
                             if (mounted) {
                               await _checkForNewItems();
+                              // If generatedItems becomes available, switch to tab view
+                              await Future.delayed(
+                                  const Duration(milliseconds: 500));
+                              if (_macroManager
+                                      .generatedShoppingList.isNotEmpty &&
+                                  _macroManager.manualShoppingList.isNotEmpty) {
+                                _switchToGeneratedSection();
+                              }
                             }
                           },
                         ),

@@ -163,7 +163,6 @@ class TutorialPopupService {
     const padding = 20.0;
     final targetScrollOffset = scrollController.offset + relativeY - padding;
 
-
     // Scroll to the target widget
     await scrollController.animateTo(
       targetScrollOffset.clamp(0.0, scrollController.position.maxScrollExtent),
@@ -337,8 +336,9 @@ class TutorialPopupService {
 
     final double popupWidth = basePopupWidth.clamp(
         250.0, screenSize.width * 0.9); // Ensure it fits on screen
-    final double popupHeight = basePopupHeight.clamp(
-        120.0, screenSize.height * 0.4); // Ensure it fits on screen
+    final double popupHeight =
+        (basePopupHeight.clamp(120.0, screenSize.height * 0.4) +
+            3.0); // Ensure it fits on screen, add 3px
     final double margin = getPercentageWidth(4, context).clamp(12.0, 20.0);
     final double arrowSize = getPercentageWidth(3, context).clamp(8.0, 12.0);
 
@@ -519,7 +519,7 @@ class TutorialPopupService {
           Flexible(
             child: SingleChildScrollView(
               child: Padding(
-                padding: EdgeInsets.all(getPercentageWidth(5, context)),
+                padding: EdgeInsets.all(getPercentageWidth(3, context)),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -705,7 +705,6 @@ class TutorialPopupService {
     }
   }
 }
-
 
 class PopupPositionInfo {
   final Offset position;

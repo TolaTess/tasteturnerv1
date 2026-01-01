@@ -231,25 +231,94 @@ class MealPlanController extends GetxController {
 
               final meal = await mealManager.getMealbyMealID(mealId);
               if (meal != null) {
+                // If familyMember is the main user's displayName, convert it to userId
+                // This handles meals that were formatted with displayName instead of userId
+                String finalFamilyMember = mealMember.toLowerCase();
+                final mainUserDisplayName =
+                    userService.currentUser.value?.displayName?.toLowerCase() ??
+                        '';
+                final mainUserId = userService.userId ?? '';
+
+                if (finalFamilyMember == mainUserDisplayName &&
+                    mainUserId.isNotEmpty) {
+                  finalFamilyMember = mainUserId;
+                }
+
                 mealWithTypes.add(MealWithType(
                   meal: meal,
                   mealType: mealType,
-                  familyMember: mealMember.toLowerCase(),
+                  familyMember: finalFamilyMember,
                   fullMealId: item,
                 ));
+              } else {
+                debugPrint(
+                    '[MealPlanController] ❌ Meal not found in database: $mealId');
               }
             } else {
+              // Meal ID without suffix - need to format it properly
               final mealId = item;
               final meal = await mealManager.getMealbyMealID(mealId);
               if (meal != null) {
+                // Check if user is in family mode
+                final isFamilyMode =
+                    userService.currentUser.value?.familyMode ?? false;
+                final mainUserId = userService.userId ?? '';
+
+                // Format the mealId with suffix and family member if needed
+                // Use userId for main user in family mode, not displayName
+                final formattedMealId = isFamilyMode && mainUserId.isNotEmpty
+                    ? '$mealId/bf/$mainUserId'
+                    : '$mealId/bf';
+
+                // Update Firestore document to use the formatted mealId
+                // This ensures meals are displayed correctly
+                try {
+                  final docRef = firestore
+                      .collection('mealPlans')
+                      .doc(userService.userId ?? '')
+                      .collection('date')
+                      .doc(dateStr);
+
+                  final docSnapshot = await docRef.get();
+                  if (docSnapshot.exists) {
+                    final data = docSnapshot.data();
+                    final mealsList = data?['meals'] as List<dynamic>? ?? [];
+
+                    // Check if the plain mealId exists in the array
+                    if (mealsList.contains(mealId) &&
+                        !mealsList.contains(formattedMealId)) {
+                      // Remove the plain mealId and add the formatted one
+                      await docRef.update({
+                        'meals': FieldValue.arrayRemove([mealId]),
+                      });
+                      await docRef.update({
+                        'meals': FieldValue.arrayUnion([formattedMealId]),
+                      });
+                      debugPrint(
+                          'Updated mealId in Firestore: $mealId -> $formattedMealId');
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('Error updating mealId format in Firestore: $e');
+                  // Continue even if update fails - we'll still display the meal
+                }
+
+                // For familyMember, we need to check if it's the main user
+                // If it's the main user, use userId; otherwise it would be a family member name
+                // Since we're formatting meals without suffix, this is the main user
+                final familyMemberForMeal =
+                    isFamilyMode && mainUserId.isNotEmpty ? mainUserId : '';
+
                 mealWithTypes.add(MealWithType(
                   meal: meal,
                   mealType:
                       'bf', // Default to 'bf' (breakfast) when suffix is missing
-                  familyMember:
-                      userService.currentUser.value?.displayName ?? '',
-                  fullMealId: mealId,
+                  familyMember: familyMemberForMeal,
+                  fullMealId: formattedMealId, // Use formatted mealId
                 ));
+              } else {
+                debugPrint(
+                    '[MealPlanController] ❌ Meal not found in database (no suffix): $mealId');
               }
             }
           }
@@ -259,6 +328,11 @@ class MealPlanController extends GetxController {
 
           if (mealWithTypes.isNotEmpty) {
             newMealPlans[date] = mealWithTypes;
+            debugPrint(
+                '[MealPlanController] ✅ Added ${mealWithTypes.length} meals to newMealPlans for $dateStr');
+          } else {
+            debugPrint(
+                '[MealPlanController] ⚠️ No meals to add for $dateStr (mealWithTypes is empty)');
           }
           newDayTypes[date] = dayType;
           if (isSpecial) {

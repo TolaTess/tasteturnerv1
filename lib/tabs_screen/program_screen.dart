@@ -11,6 +11,7 @@ import '../pages/edit_goal.dart';
 import '../pages/program_progress_screen.dart';
 import '../screens/recipes_list_category_screen.dart';
 import '../service/buddy_chat_controller.dart';
+import '../service/chat_utilities.dart';
 import '../service/program_service.dart';
 import '../service/tasty_popup_service.dart';
 import '../widgets/card_overlap.dart';
@@ -19,7 +20,6 @@ import '../widgets/info_icon_widget.dart';
 import '../widgets/tutorial_blocker.dart';
 import '../helper/onboarding_prompt_helper.dart';
 import '../widgets/onboarding_prompt.dart';
-import '../widgets/bottom_nav.dart';
 
 class ProgramScreen extends StatefulWidget {
   const ProgramScreen({super.key});
@@ -456,21 +456,25 @@ class _ProgramScreenState extends State<ProgramScreen> {
       });
 
       // Save both question and response to buddy chat
-      final chatId = userService.buddyId;
+      // Always get the correct chatId for the current user (don't use cached buddyId)
       final userId = userService.userId ?? '';
-      if (chatId != null && chatId.isNotEmpty && userId.isNotEmpty) {
+      if (userId.isNotEmpty) {
         try {
-          await BuddyChatController.saveMessageToFirestore(
-            chatId: chatId,
-            content: prompt,
-            senderId: userId,
-          );
-          // Save the cleaned response, not the raw one
-          await BuddyChatController.saveMessageToFirestore(
-            chatId: chatId,
-            content: cleanedResponse,
-            senderId: 'buddy',
-          );
+          // Get or create the correct chatId for the current user
+          final chatId = await ChatUtilities.getOrCreateChatId(userId, 'buddy');
+          if (chatId.isNotEmpty) {
+            await BuddyChatController.saveMessageToFirestore(
+              chatId: chatId,
+              content: prompt,
+              senderId: userId,
+            );
+            // Save the cleaned response, not the raw one
+            await BuddyChatController.saveMessageToFirestore(
+              chatId: chatId,
+              content: cleanedResponse,
+              senderId: 'buddy',
+            );
+          }
         } catch (e) {
           debugPrint('Error saving chat messages: $e');
           // Don't show error to user as the main functionality worked
@@ -1186,7 +1190,7 @@ class _ProgramScreenState extends State<ProgramScreen> {
                             GestureDetector(
                               onTap: () {
                                 Get.to(
-                                  () => const TastyScreen(screen: 'buddy'),
+                                  () => const TastyScreen(screen: 'message'),
                                   arguments: {
                                     'mealPlanMode': false,
                                   },
@@ -1221,9 +1225,9 @@ class _ProgramScreenState extends State<ProgramScreen> {
                     ],
                   ),
                 ],
-                SizedBox(height: getPercentageHeight(2.5, context)),
-
-                // Current enrolled programs section
+                SizedBox(
+                    height: getPercentageHeight(
+                        2.5, context)), // Current enrolled programs section
                 _buildEnrolledProgramsSection(context, textTheme, isDarkMode),
 
                 _buildArchivedProgramsSection(context, textTheme, isDarkMode),

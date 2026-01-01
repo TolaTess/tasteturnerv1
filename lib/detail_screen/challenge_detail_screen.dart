@@ -523,9 +523,28 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   /// ✅ Toggle like status & update Firestore
   Future<void> toggleLikePost() async {
     String collectionName = 'posts';
-    var postRef =
-        firestore.collection(collectionName).doc(_currentPostData['id']);
+    final postId = _currentPostData['id'];
+    
+    // Validate post ID
+    if (postId == null || postId.toString().isEmpty) {
+      debugPrint('Error: Post ID is empty or null');
+      return;
+    }
+    
+    var postRef = firestore.collection(collectionName).doc(postId);
     var postSnapshot = await postRef.get();
+
+    // Check if document exists before proceeding
+    if (!postSnapshot.exists) {
+      debugPrint('Error: Post document $postId does not exist in $collectionName collection');
+      if (mounted) {
+        setState(() {
+          isLiked = false;
+          likesCount = 0;
+        });
+      }
+      return;
+    }
 
     // Get current favorites from Firestore to ensure we have the latest data
     final currentData = postSnapshot.data() ?? {};
@@ -545,14 +564,27 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
       });
     }
 
-    // Use the correct collection reference for the update
-    await firestore
-        .collection(collectionName)
-        .doc(_currentPostData['id'])
-        .update({'favorites': likes});
+    try {
+      // Use the correct collection reference for the update
+      await firestore
+          .collection(collectionName)
+          .doc(postId)
+          .update({'favorites': likes});
 
-    // Refresh like status and count from Firestore
-    await _loadFavoriteStatus();
+      // Refresh like status and count from Firestore
+      await _loadFavoriteStatus();
+    } catch (e) {
+      debugPrint('Error updating favorites for post $postId: $e');
+      // Revert UI state on error
+      if (mounted) {
+        setState(() {
+          // Revert to previous state
+          final previousLikes = List<String>.from(currentData['favorites'] ?? []);
+          isLiked = previousLikes.contains(userService.userId);
+          likesCount = previousLikes.length;
+        });
+      }
+    }
   }
 
   String getTitle() {
@@ -863,6 +895,15 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                         SizedBox(width: getPercentageWidth(5.5, context)),
                       GestureDetector(
                         onTap: () {
+                          // Debug: Log post data before sharing
+                          debugPrint('=== SHARE POST DEBUG ===');
+                          debugPrint('Post ID: ${_currentPostData['id']}');
+                          debugPrint('Post Data Keys: ${_currentPostData.keys.toList()}');
+                          debugPrint('Full Post Data: $_currentPostData');
+                          debugPrint('Screen: ${widget.screen}');
+                          debugPrint('Media Paths: ${_currentPostData['mediaPaths']}');
+                          debugPrint('========================');
+                          
                           Navigator.push(
                             context,
                             MaterialPageRoute(

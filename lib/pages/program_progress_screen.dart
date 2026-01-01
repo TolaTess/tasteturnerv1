@@ -561,7 +561,7 @@ class _ProgramProgressScreenState extends State<ProgramProgressScreen>
     } else if (type.toLowerCase().contains('work')) {
       return 'assets/images/grain.png';
     }
-    return 'assets/images/placeholder.jpg';
+    return 'assets/images/placeholder.png';
   }
 
   void _loadWeeklyProgress(Map<String, dynamic> data) {

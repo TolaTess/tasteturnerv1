@@ -25,16 +25,169 @@ require('dotenv').config();
 
 admin.initializeApp();
 
-// Initialize the Gemini client with the API key from environment variable
-// For local development: set in functions/.env file as GEMINI_API_KEY=your_key
-// For production: set using firebase functions:secrets:set GEMINI_API_KEY
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize Firestore first (needed for getApiKey)
 const firestore = getFirestore();
+
+// Note: genAI will be initialized lazily with API key from Firestore/.env
+// We'll create a function to get the Gemini client instead
+let cachedGenAI = null;
+let cachedGeminiApiKey = null;
+
+/**
+ * Get or create GoogleGenerativeAI client with API key from Firestore/.env
+ */
+async function getGenAI() {
+  const apiKey = await getApiKey('geminiApiKey', 'GEMINI_API_KEY');
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY not configured in Firestore or .env');
+  }
+  
+  // Only recreate if API key changed
+  if (cachedGenAI && cachedGeminiApiKey === apiKey) {
+    return cachedGenAI;
+  }
+  
+  cachedGeminiApiKey = apiKey;
+  cachedGenAI = new GoogleGenerativeAI(apiKey);
+  return cachedGenAI;
+}
+
+// ============================================================================
+// CONFIGURATION MANAGEMENT - Firestore with .env fallback
+// ============================================================================
+
+/**
+ * Helper function to get API key from Firestore with .env fallback
+ * Flow: Firestore first -> retry once if fails -> .env fallback (silent)
+ * @param {string} keyName - The name of the key in Firestore (e.g., 'geminiApiKey')
+ * @param {string} envKeyName - The name of the key in .env (e.g., 'GEMINI_API_KEY')
+ * @param {boolean} retry - Internal flag for retry attempt (default: false)
+ * @returns {Promise<string|null>} The API key or null if not found
+ */
+async function getApiKey(keyName, envKeyName, retry = false) {
+  console.log(`[getApiKey] 🔍 Getting ${keyName}${retry ? ' (retry)' : ''}...`);
+  
+  // Try Firestore first
+  try {
+    console.log(`[getApiKey] 📡 Reading from Firestore: config/apiKeys`);
+    const configDoc = await firestore.collection('config').doc('apiKeys').get();
+    if (configDoc.exists) {
+      const config = configDoc.data();
+      const key = config[keyName];
+      if (key && typeof key === 'string' && key.trim().length > 0) {
+        console.log(`[getApiKey] ✅ Retrieved ${keyName} from Firestore`);
+        return key;
+      } else {
+        console.log(`[getApiKey] ⚠️ ${keyName} not found in Firestore document or is empty`);
+      }
+    } else {
+      console.log(`[getApiKey] ⚠️ Firestore document config/apiKeys does not exist`);
+    }
+  } catch (e) {
+    // If first attempt failed and we haven't retried, try once more
+    if (!retry) {
+      console.log(`[getApiKey] ⚠️ Failed to get ${keyName} from Firestore, retrying once...`);
+      console.log(`[getApiKey]   Error: ${e.message}`);
+      // Wait a bit before retry
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return await getApiKey(keyName, envKeyName, true);
+    }
+    // After retry, silently fallback to .env
+    console.log(`[getApiKey] ❌ Failed to get ${keyName} from Firestore after retry, using .env fallback`);
+    console.log(`[getApiKey]   Error: ${e.message}`);
+  }
+  
+  // Fallback to .env (silent - no user messages)
+  const envKey = process.env[envKeyName];
+  if (envKey && typeof envKey === 'string' && envKey.trim().length > 0) {
+    console.log(`[getApiKey] ✅ Using ${envKeyName} from .env (fallback)`);
+    return envKey;
+  }
+  
+  console.warn(`[getApiKey] ⚠️ ${keyName} not found in Firestore or .env`);
+  return null;
+}
+
+/**
+ * Get API keys from Firestore (returns only safe-to-expose keys)
+ * 
+ * SECURITY MODEL:
+ * - This function ONLY returns AdMob IDs, which are safe to expose to clients
+ * - Sensitive API keys (Gemini, OpenAI, etc.) are NEVER returned to clients
+ * - Sensitive keys are only used server-side via getApiKey() helper function
+ * - Cloud functions run with admin privileges and can access Firestore directly
+ * - Clients cannot access config/apiKeys directly (blocked by Firestore rules)
+ * 
+ * Note: Does not require authentication since AdMob IDs are public anyway
+ * and this allows pre-loading at app startup
+ */
+exports.getApiKeys = functions.https.onCall(async (data, context) => {
+  console.log('[getApiKeys] 📥 Request received');
+  try {
+    // Get keys from Firestore (no auth required - AdMob IDs are public)
+    // Cloud functions have admin access, so they can read even if Firestore rules deny client access
+    console.log('[getApiKeys] 🔍 Reading from Firestore: config/apiKeys');
+    const configDoc = await firestore.collection('config').doc('apiKeys').get();
+    
+    if (!configDoc.exists) {
+      console.log('[getApiKeys] ⚠️ Firestore document does not exist, using .env fallback');
+      const iosId = process.env.ADMOB_BANNER_ID_IOS || '';
+      const androidId = process.env.ADMOB_BANNER_ID_ANDROID || '';
+      console.log('[getApiKeys] ✅ Returning AdMob IDs from .env');
+      console.log(`[getApiKeys]   - iOS: ${iosId ? `${iosId.substring(0, 20)}...` : 'not set'}`);
+      console.log(`[getApiKeys]   - Android: ${androidId ? `${androidId.substring(0, 20)}...` : 'not set'}`);
+      return {
+        success: true,
+        admobBannerIdIos: iosId,
+        admobBannerIdAndroid: androidId,
+      };
+    }
+    
+    const config = configDoc.data();
+    console.log('[getApiKeys] ✅ Firestore document found');
+    
+    // Return ONLY safe-to-expose keys (AdMob IDs)
+    // SECURITY: Do NOT return sensitive keys like geminiApiKey, openAIApiKey, etc.
+    // Those are only used server-side via getApiKey() helper function
+    const iosId = config.admobBannerIdIos || process.env.ADMOB_BANNER_ID_IOS || '';
+    const androidId = config.admobBannerIdAndroid || process.env.ADMOB_BANNER_ID_ANDROID || '';
+    const source = config.admobBannerIdIos ? 'Firestore' : '.env (fallback)';
+    console.log(`[getApiKeys] ✅ Returning AdMob IDs from ${source}`);
+    console.log(`[getApiKeys]   - iOS: ${iosId ? `${iosId.substring(0, 20)}...` : 'not set'}`);
+    console.log(`[getApiKeys]   - Android: ${androidId ? `${androidId.substring(0, 20)}...` : 'not set'}`);
+    
+    return {
+      success: true,
+      admobBannerIdIos: iosId,
+      admobBannerIdAndroid: androidId,
+    };
+  } catch (error) {
+    // Silently fallback to .env on error (no user messages)
+    console.error('[getApiKeys] ❌ Error getting API keys from Firestore:', error.message);
+    console.log('[getApiKeys] 🔄 Using .env fallback');
+    const iosId = process.env.ADMOB_BANNER_ID_IOS || '';
+    const androidId = process.env.ADMOB_BANNER_ID_ANDROID || '';
+    console.log(`[getApiKeys] ✅ Returning AdMob IDs from .env (error fallback)`);
+    console.log(`[getApiKeys]   - iOS: ${iosId ? `${iosId.substring(0, 20)}...` : 'not set'}`);
+    console.log(`[getApiKeys]   - Android: ${androidId ? `${androidId.substring(0, 20)}...` : 'not set'}`);
+    return {
+      success: true,
+      admobBannerIdIos: iosId,
+      admobBannerIdAndroid: androidId,
+    };
+  }
+});
 
 // Helper function to get the best available Gemini model
 // Tries models in order of preference, falls back to any available model
 async function _getBestGeminiModel() {
   try {
+    // Get API key from Firestore/.env
+    const apiKey = await getApiKey('geminiApiKey', 'GEMINI_API_KEY');
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY not configured');
+    }
+
     // Preferred models in order (newest/best first)
     const preferredModels = [
       'gemini-2.5-flash',
@@ -49,7 +202,7 @@ async function _getBestGeminiModel() {
 
     // Try to list available models
     const modelsResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${process.env.GEMINI_API_KEY}`
+      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
     );
 
     if (modelsResponse.ok) {
@@ -96,6 +249,7 @@ async function _getGeminiModel() {
   if (!cachedModelName) {
     cachedModelName = await _getBestGeminiModel();
   }
+  const genAI = await getGenAI();
   return genAI.getGenerativeModel({ model: cachedModelName });
 }
 
@@ -942,8 +1096,15 @@ exports.addManualItemsToShoppingList = functions.https.onCall(
 
     try {
       // 2. Determine the current week ID
+      // Use the same logic as _getWeek to get the Thursday date, then use its year
+      // This ensures consistency with the client-side getCurrentWeek() function
       const today = new Date();
-      const year = today.getUTCFullYear();
+      const d = new Date(
+        Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+      );
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum); // Move to Thursday
+      const year = d.getUTCFullYear(); // Use year from Thursday, not original date
       const weekNo = _getWeek(today);
       const weekId = `week_${year}-${String(weekNo).padStart(2, "0")}`;
 
@@ -2057,23 +2218,45 @@ exports.processPendingMeals = functions.pubsub
 
           console.log(`Processing meal: ${mealData.title} (ID: ${mealId})`);
 
+          // Check if this is a Dine-In meal that needs ingredient restrictions
+          const isDineInMeal = mealData.isDineInMeal === true;
+          const restrictedIngredients = isDineInMeal
+            ? (mealData.originalIngredients || mealData.ingredients || {})
+            : null;
+
+          if (isDineInMeal) {
+            console.log(`Dine-In meal detected. Restricted ingredients: ${JSON.stringify(restrictedIngredients)}`);
+          }
+
           // Generate full meal details using AI
           const fullMealDetails = await generateFullMealDetails(
             mealData.title,
             mealData.ingredients || {},
             mealData.mealType || 'general',
             mealData.partOfWeeklyMeal || false,
-            mealData.weeklyPlanContext || ''
+            mealData.weeklyPlanContext || '',
+            restrictedIngredients // Pass restricted ingredients for Dine-In meals
           );
 
           // Update meal with complete details
-          await doc.ref.update({
+          // Preserve isDineInMeal and originalIngredients if they exist
+          const updateData = {
             ...fullMealDetails,
             status: 'completed',
             needsProcessing: false,
             completedAt: admin.firestore.FieldValue.serverTimestamp(),
             version: 'complete'
-          });
+          };
+          
+          // Preserve Dine-In meal flags if this is a Dine-In meal
+          if (isDineInMeal) {
+            updateData.isDineInMeal = true;
+            if (mealData.originalIngredients) {
+              updateData.originalIngredients = mealData.originalIngredients;
+            }
+          }
+          
+          await doc.ref.update(updateData);
 
           console.log(`Successfully completed meal: ${mealData.title}`);
 
@@ -2132,7 +2315,7 @@ exports.processPendingMeals = functions.pubsub
 /**
  * Helper function to generate full meal details using AI
  */
-async function generateFullMealDetails(title, basicIngredients, mealType, partOfWeeklyMeal = false, weeklyPlanContext = '') {
+async function generateFullMealDetails(title, basicIngredients, mealType, partOfWeeklyMeal = false, weeklyPlanContext = '', restrictedIngredients = null) {
   try {
     // Build context-aware prompt
     let contextNote = '';
@@ -2142,14 +2325,20 @@ async function generateFullMealDetails(title, basicIngredients, mealType, partOf
       contextNote = `\n\nIMPORTANT: This meal is part of a weekly meal plan. Ensure the meal details are cohesive with the overall weekly plan.`;
     }
 
+    // Build ingredient restriction constraint if this is a Dine-In meal
+    let ingredientConstraint = '';
+    if (restrictedIngredients && Object.keys(restrictedIngredients).length > 0) {
+      ingredientConstraint = `\n\nCRITICAL CONSTRAINT: You MUST ONLY use these exact ingredients: ${JSON.stringify(restrictedIngredients)}. Do NOT add any additional ingredients beyond what is listed here. You can only adjust quantities and measurements, but cannot introduce new ingredients. The ingredient list in your response must be a subset of or exactly match these ingredients.`;
+    }
+
     // Use Gemini API to generate complete meal details
     const prompt = `Generate complete meal details for: ${title}
     
     Basic ingredients: ${JSON.stringify(basicIngredients)}
-    Meal type: ${mealType}${contextNote}
+    Meal type: ${mealType}${contextNote}${ingredientConstraint}
     
     Please provide:
-    1. Complete ingredient list with measurements
+    1. Complete ingredient list with measurements${restrictedIngredients ? ' (MUST only use the restricted ingredients listed above)' : ''}
     2. Step-by-step cooking instructions
     3. Nutritional information (calories, protein, carbs, fat)
     4. Cooking time and difficulty
@@ -2202,15 +2391,64 @@ async function generateFullMealDetails(title, basicIngredients, mealType, partOf
         throw new Error('Missing essential meal fields in AI response');
       }
 
+      // If this is a Dine-In meal with restricted ingredients, validate and filter the ingredients
+      let finalIngredients = mealDetails.ingredients;
+      if (restrictedIngredients && Object.keys(restrictedIngredients).length > 0) {
+        console.log(`Validating ingredients for Dine-In meal. Restricted: ${JSON.stringify(restrictedIngredients)}`);
+        console.log(`AI generated ingredients: ${JSON.stringify(mealDetails.ingredients)}`);
+        
+        // Create a normalized map of restricted ingredients (case-insensitive)
+        const restrictedMap = {};
+        for (const key of Object.keys(restrictedIngredients)) {
+          restrictedMap[key.toLowerCase()] = key; // Store original key for reference
+        }
+        
+        // Filter AI response to only include ingredients that match restricted list
+        const validatedIngredients = {};
+        for (const [aiIngredient, amount] of Object.entries(mealDetails.ingredients)) {
+          const normalizedAiIngredient = aiIngredient.toLowerCase();
+          
+          // Check if this ingredient matches any in the restricted list
+          let matchedKey = null;
+          for (const [restrictedKey, originalKey] of Object.entries(restrictedMap)) {
+            // Check for exact match or if the AI ingredient contains the restricted ingredient
+            if (normalizedAiIngredient === restrictedKey || 
+                normalizedAiIngredient.includes(restrictedKey) ||
+                restrictedKey.includes(normalizedAiIngredient)) {
+              matchedKey = originalKey;
+              break;
+            }
+          }
+          
+          if (matchedKey) {
+            // Use the original key from restricted list to maintain consistency
+            validatedIngredients[matchedKey] = amount;
+            console.log(`Matched ingredient: "${aiIngredient}" -> "${matchedKey}"`);
+          } else {
+            console.log(`Filtered out ingredient: "${aiIngredient}" (not in restricted list)`);
+          }
+        }
+        
+        // If no ingredients matched, fall back to original restricted ingredients with default amounts
+        if (Object.keys(validatedIngredients).length === 0) {
+          console.log('Warning: No AI ingredients matched restricted list. Using original restricted ingredients.');
+          finalIngredients = restrictedIngredients;
+        } else {
+          finalIngredients = validatedIngredients;
+        }
+        
+        console.log(`Final validated ingredients: ${JSON.stringify(finalIngredients)}`);
+      }
+
       // Return validated meal data
       return {
-        ingredients: mealDetails.ingredients,
+        ingredients: finalIngredients,
         instructions: mealDetails.instructions,
         calories: mealDetails.calories || 300,
         nutritionalInfo: mealDetails.nutritionalInfo,
         cookingTime: mealDetails.cookingTime || '30 minutes',
         difficulty: mealDetails.difficulty || 'medium',
-        cookingMethod: mealDetails.cookingMethod || 'grilled/roasted/sauteed/etc.',
+        cookingMethod: mealDetails.cookingMethod || '',
         serveQty: mealDetails.serveQty || 1,
         categories: mealDetails.categories || [mealType],
         cuisine: mealDetails.cuisine || 'general',
@@ -4998,8 +5236,9 @@ exports.analyzeFoodImage = functions
 
     // Validate input
     validateInput(data, {
-      imageData: { required: true, type: 'string', stringMaxLength: 10000000 }, // ~10MB base64
-      imageFormat: { required: false, type: 'string', enum: ['jpeg', 'jpg', 'png', 'webp'] },
+      base64Image: { required: true, type: 'string', stringMaxLength: 10000000 }, // ~10MB base64
+      mealType: { required: false, type: 'string' },
+      dietaryRestrictions: { required: false, array: true },
     });
     const startTime = Date.now();
     console.log('=== analyzeFoodImage Cloud Function Started ===');
@@ -5260,7 +5499,7 @@ exports.analyzeFridgeImage = functions
 
     // Validate input
     validateInput(data, {
-      imageData: { required: true, type: 'string', stringMaxLength: 10000000 }, // ~10MB base64
+      base64Image: { required: true, type: 'string', stringMaxLength: 10000000 }, // ~10MB base64
       dietaryRestrictions: { required: false, array: true },
     });
     const startTime = Date.now();
@@ -5451,6 +5690,663 @@ Important guidelines:
   }
   );
 
+/**
+ * Get AI response for general queries (buddy chat, program screen, etc.)
+ * Handles text-based AI responses with optional conversation history
+ */
+exports.getAIResponse = functions
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    const startTime = Date.now();
+    console.log('=== getAIResponse Cloud Function Started ===');
+
+    try {
+      // Validate authentication
+      if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+      }
+
+      // Validate input with schema
+      validateInput(data, {
+        prompt: { required: true, type: 'string', stringMaxLength: 10000 },
+        role: { required: false, type: 'string', stringMaxLength: 2000 },
+        maxTokens: { required: false, type: 'number', min: 100, max: 8000 },
+        includeDietContext: { required: false, type: 'boolean' },
+        includeProgramContext: { required: false, type: 'boolean' },
+        conversationHistory: { required: false, array: true },
+        aiContext: { required: false, type: 'string', stringMaxLength: 5000 },
+      });
+
+      const { 
+        prompt, 
+        role, 
+        maxTokens = 8000, 
+        includeDietContext = true, 
+        includeProgramContext = true,
+        conversationHistory = [],
+        aiContext = ''
+      } = data;
+
+      console.log(`Getting AI response for prompt: ${prompt.substring(0, 100)}...`);
+
+      // Get the best Gemini model
+      const model = await _getGeminiModel();
+
+      // Build prompt with context
+      let briefingInstruction = "Please provide brief, concise responses in 2-4 sentences maximum. ";
+      let fullPrompt = '';
+      
+      if (aiContext) {
+        fullPrompt += aiContext + '\n\n';
+      }
+      
+      if (role) {
+        fullPrompt += briefingInstruction + role + '\n\n';
+      } else {
+        fullPrompt += briefingInstruction;
+      }
+      
+      fullPrompt += prompt;
+
+      // Build contents array with conversation history
+      const contents = [];
+      
+      // Add conversation history if provided
+      if (conversationHistory && conversationHistory.length > 0) {
+        for (const msg of conversationHistory) {
+          contents.push({
+            parts: [{ text: msg.text || msg['text'] || '' }]
+          });
+        }
+      }
+      
+      // Add current prompt
+      contents.push({
+        parts: [{ text: fullPrompt }]
+      });
+
+      // Generate content
+      let response;
+      try {
+        console.log('🔄 Calling Gemini API for response...');
+        const result = await model.generateContent({
+          contents: contents,
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: maxTokens,
+          },
+        });
+        response = result.response.text();
+        console.log(`✅ AI response received: ${response.length} characters`);
+      } catch (aiError) {
+        console.error('❌ Gemini API call failed:', {
+          error: aiError.message,
+          stack: aiError.stack,
+          name: aiError.name,
+          code: aiError.code
+        });
+        throw new Error(`AI generation failed: ${aiError.message}`);
+      }
+
+      // Clean up response text
+      const cleanedText = response
+        .trim()
+        .replace(/\*/g, '') // Remove asterisks from AI responses
+        .replace(/\n+/g, ' ')
+        .replace(/\s+/g, ' ');
+
+      const executionTime = Date.now() - startTime;
+      console.log(`✅ getAIResponse completed in ${executionTime}ms`);
+
+      return {
+        success: true,
+        response: cleanedText,
+        executionTime: executionTime
+      };
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      console.error('❌ getAIResponse failed:', {
+        error: error.message,
+        stack: error.stack,
+        name: error.name,
+        executionTime: executionTime
+      });
+
+      // Return user-friendly error
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      throw new functions.https.HttpsError(
+        'internal',
+        'An error occurred while getting AI response',
+        error.message
+      );
+    }
+  });
+
+/**
+ * Generate meal titles and ingredients using cloud function
+ * Handles meal title generation with user context and meal distribution
+ */
+exports.generateMealTitlesAndIngredients = functions
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    const startTime = Date.now();
+    console.log('=== generateMealTitlesAndIngredients Cloud Function Started ===');
+
+    try {
+      // Validate authentication
+      if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+      }
+
+      // Validate input with schema
+      validateInput(data, {
+        prompt: { required: true, type: 'string', stringMaxLength: 10000 },
+        contextInformation: { required: true, type: 'string', stringMaxLength: 5000 },
+        mealCount: { required: false, type: 'number', min: 1, max: 50 },
+        customDistribution: { required: false, type: 'object' },
+        isIngredientBased: { required: false, type: 'boolean' },
+        aiContext: { required: false, type: 'string', stringMaxLength: 5000 },
+        userContext: { required: false, type: 'string', stringMaxLength: 5000 },
+        dynamicInstructions: { required: false, type: 'string', stringMaxLength: 2000 },
+      });
+
+      const { 
+        prompt, 
+        contextInformation, 
+        mealCount, 
+        customDistribution, 
+        isIngredientBased = false,
+        aiContext = '',
+        userContext = '',
+        dynamicInstructions = ''
+      } = data;
+
+      // Determine meal count and distribution
+      const targetMealCount = mealCount || (isIngredientBased ? 2 : 10);
+      const distribution = customDistribution || (
+        isIngredientBased
+          ? { breakfast: 0, lunch: 1, dinner: 1, snack: 0 }
+          : { breakfast: 2, lunch: 3, dinner: 3, snack: 2 }
+      );
+
+      console.log(`Generating ${targetMealCount} meals (ingredient-based: ${isIngredientBased})`);
+
+      // Get the best Gemini model
+      const model = await _getGeminiModel();
+
+      // Build comprehensive prompt
+      const fullPrompt = `You are a professional nutritionist and meal planner.
+
+${aiContext}
+
+${prompt}
+
+${contextInformation}
+
+${userContext}
+
+${dynamicInstructions}
+
+Return ONLY valid JSON in this exact format (no markdown, no code blocks):
+{
+  "mealPlan": [
+    {
+      "title": "meal name",
+      "mealType": "breakfast|lunch|dinner|snack",
+      "ingredients": {
+        "ingredient1": "amount with unit",
+        "ingredient2": "amount with unit"
+      }
+    }
+  ],
+  "distribution": {
+    "breakfast": ${distribution.breakfast || 0},
+    "lunch": ${distribution.lunch || 0},
+    "dinner": ${distribution.dinner || 0},
+    "snack": ${distribution.snack || 0}
+  }
+}
+
+Important guidelines:
+- Return valid, complete JSON only. Do not include markdown or code blocks.
+- Generate exactly ${targetMealCount} meals.
+- mealType must be one of: breakfast|lunch|dinner|snack
+- Include realistic ingredients with amounts for each meal.${isIngredientBased ? '\n\nCRITICAL INGREDIENT REQUIREMENT: Each meal must use ALL or ALL-1 of the provided ingredients. Do not skip more than one ingredient per meal. This is essential for ingredient-based meal generation.' : ''}`;
+
+      // Generate content
+      let response;
+      try {
+        console.log('🔄 Calling Gemini API for meal titles generation...');
+        const result = await model.generateContent({
+          contents: [{ parts: [{ text: fullPrompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8000,
+          },
+        });
+        response = result.response.text();
+        console.log(`✅ AI response received: ${response.length} characters`);
+      } catch (aiError) {
+        console.error('❌ Gemini API call failed:', {
+          error: aiError.message,
+          stack: aiError.stack,
+          name: aiError.name,
+          code: aiError.code
+        });
+        throw new Error(`AI generation failed: ${aiError.message}`);
+      }
+
+      // Process AI response with robust parsing
+      let mealData;
+      try {
+        console.log('🔄 Processing AI response...');
+        mealData = await processAIResponse(response, 'meal_generation');
+        console.log('✅ Successfully processed AI response');
+      } catch (parseError) {
+        console.error('❌ Failed to process AI response:', {
+          error: parseError.message,
+          stack: parseError.stack,
+          name: parseError.name,
+          responsePreview: response ? response.substring(0, 500) : 'null'
+        });
+        throw new Error(`Response parsing failed: ${parseError.message}`);
+      }
+
+      // Extract meal plan and distribution
+      let planArray = Array.isArray(mealData?.mealPlan)
+        ? mealData.mealPlan
+        : Array.isArray(mealData)
+          ? mealData
+          : Array.isArray(mealData?.data)
+            ? mealData.data
+            : [];
+
+      // If still empty, try to extract from raw response
+      if (planArray.length === 0) {
+        console.log('Attempting minimal regex-based extraction from raw response...');
+        try {
+          const jsonMatch = response.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const extracted = JSON.parse(jsonMatch[0]);
+            planArray = extracted.mealPlan || extracted.data || [];
+          }
+        } catch (e) {
+          console.error('Minimal extraction failed:', e.message);
+        }
+      }
+
+      // Extract meal titles
+      const mealTitles = planArray
+        .filter(meal => meal && meal.title)
+        .map(meal => meal.title);
+
+      // Get distribution from response or use provided
+      const responseDistribution = mealData.distribution || distribution;
+
+      const executionTime = Date.now() - startTime;
+      console.log(`✅ generateMealTitlesAndIngredients completed in ${executionTime}ms`);
+
+      return {
+        success: true,
+        mealTitles: mealTitles,
+        mealPlan: planArray,
+        distribution: responseDistribution,
+        executionTime: executionTime
+      };
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      console.error('❌ generateMealTitlesAndIngredients failed:', {
+        error: error.message,
+        stack: error.stack,
+        name: error.name,
+        executionTime: executionTime
+      });
+
+      // Return user-friendly error
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      throw new functions.https.HttpsError(
+        'internal',
+        'An error occurred while generating meal titles',
+        error.message
+      );
+    }
+  });
+
+/**
+ * Suggest craving alternatives using cloud function
+ * Provides healthier alternatives for cravings based on cycle phase
+ */
+exports.suggestCravingAlternatives = functions
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    const startTime = Date.now();
+    console.log('=== suggestCravingAlternatives Cloud Function Started ===');
+
+    try {
+      // Validate authentication
+      if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+      }
+
+      // Validate input with schema
+      validateInput(data, {
+        craving: { required: true, type: 'string', stringMaxLength: 200 },
+        phase: { required: true, type: 'string' },
+        aiContext: { required: false, type: 'string', stringMaxLength: 5000 },
+        userContext: { required: false, type: 'string', stringMaxLength: 5000 },
+        phaseName: { required: false, type: 'string', stringMaxLength: 50 },
+      });
+
+      const { 
+        craving, 
+        phase, 
+        aiContext = '',
+        userContext = '',
+        phaseName = phase
+      } = data;
+
+      console.log(`Suggesting alternatives for craving: ${craving} (phase: ${phaseName})`);
+
+      // Get the best Gemini model
+      const model = await _getGeminiModel();
+
+      // Build prompt
+      const fullPrompt = `${aiContext}
+
+${userContext}
+
+The user is currently in the ${phaseName} phase of their menstrual cycle and is craving: ${craving}
+
+Please suggest exactly 2 healthier alternatives that:
+1. Satisfy the craving in a nutritious way
+2. Are appropriate for the ${phaseName} phase (considering hormonal needs)
+3. Align with the user's dietary preferences and program goals
+4. Provide similar satisfaction but with better nutritional value
+
+For each alternative, provide:
+- The alternative food/item name
+- A brief explanation of why it's a good alternative
+- Key nutritional benefits
+- How it addresses the craving
+
+Return ONLY valid JSON in this exact format (no markdown, no code blocks):
+{
+  "alternatives": [
+    {
+      "name": "alternative name",
+      "why": "brief explanation",
+      "benefits": "nutritional benefits",
+      "satisfies": "how it addresses the craving"
+    }
+  ]
+}`;
+
+      // Generate content
+      let response;
+      try {
+        console.log('🔄 Calling Gemini API for craving alternatives...');
+        const result = await model.generateContent({
+          contents: [{ parts: [{ text: fullPrompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2000,
+          },
+        });
+        response = result.response.text();
+        console.log(`✅ AI response received: ${response.length} characters`);
+      } catch (aiError) {
+        console.error('❌ Gemini API call failed:', {
+          error: aiError.message,
+          stack: aiError.stack,
+          name: aiError.name,
+          code: aiError.code
+        });
+        throw new Error(`AI generation failed: ${aiError.message}`);
+      }
+
+      // Process and parse response
+      let alternatives = [];
+      try {
+        // Clean response text (remove markdown if present)
+        let cleanedResponse = response
+          .replace(/```json\s*/g, '')
+          .replace(/```\s*/g, '')
+          .trim();
+
+        // Extract JSON
+        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const jsonData = JSON.parse(jsonMatch[0]);
+          alternatives = jsonData.alternatives || [];
+        } else {
+          // Try to parse the whole response
+          const jsonData = JSON.parse(cleanedResponse);
+          alternatives = jsonData.alternatives || [];
+        }
+
+        // Limit to 2 alternatives
+        alternatives = alternatives.slice(0, 2);
+
+        console.log(`✅ Successfully extracted ${alternatives.length} alternatives`);
+      } catch (parseError) {
+        console.error('❌ Failed to parse alternatives response:', {
+          error: parseError.message,
+          stack: parseError.stack,
+          responsePreview: response ? response.substring(0, 500) : 'null'
+        });
+        throw new Error(`Response parsing failed: ${parseError.message}`);
+      }
+
+      const executionTime = Date.now() - startTime;
+      console.log(`✅ suggestCravingAlternatives completed in ${executionTime}ms`);
+
+      return {
+        success: true,
+        alternatives: alternatives,
+        executionTime: executionTime
+      };
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      console.error('❌ suggestCravingAlternatives failed:', {
+        error: error.message,
+        stack: error.stack,
+        name: error.name,
+        executionTime: executionTime
+      });
+
+      // Return user-friendly error
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      throw new functions.https.HttpsError(
+        'internal',
+        'An error occurred while suggesting craving alternatives',
+        error.message
+      );
+    }
+  });
+
+/**
+ * Analyze symptom patterns using cloud function
+ * Identifies food triggers and patterns from symptom logs
+ */
+exports.analyzeSymptomPatternsAI = functions
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    const startTime = Date.now();
+    console.log('=== analyzeSymptomPatternsAI Cloud Function Started ===');
+
+    try {
+      // Validate authentication
+      if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+      }
+
+      // Validate input with schema
+      validateInput(data, {
+        symptoms: { required: true, array: true },
+        aiContext: { required: false, type: 'string', stringMaxLength: 5000 },
+        userContext: { required: false, type: 'string', stringMaxLength: 5000 },
+        symptomsText: { required: false, type: 'string', stringMaxLength: 10000 },
+      });
+
+      const { 
+        symptoms, 
+        aiContext = '',
+        userContext = '',
+        symptomsText
+      } = data;
+
+      console.log(`Analyzing ${symptoms.length} symptoms for patterns`);
+
+      // Format symptoms text if not provided
+      let formattedSymptomsText = symptomsText;
+      if (!formattedSymptomsText && symptoms && symptoms.length > 0) {
+        formattedSymptomsText = symptoms.map((symptom) => {
+          if (symptom && typeof symptom === 'object') {
+            const type = symptom.type || 'unknown';
+            const severity = symptom.severity || 0;
+            const ingredients = Array.isArray(symptom.ingredients) 
+              ? symptom.ingredients.join(', ') 
+              : 'unknown';
+            const mealName = symptom.mealName || 'unknown meal';
+            const mealType = symptom.mealType || 'unknown';
+            const timestamp = symptom.timestamp || 'unknown time';
+            return `- ${type} (severity: ${severity}/5) after ${mealName} (${mealType}) containing: ${ingredients} at ${timestamp}`;
+          }
+          return `- ${symptom.toString()}`;
+        }).join('\n');
+      }
+
+      // Get the best Gemini model
+      const model = await _getGeminiModel();
+
+      // Build prompt
+      const fullPrompt = `You are a nutrition and wellness AI assistant helping a user identify food triggers and patterns from their symptom logs.
+
+User Context:
+${userContext}
+
+Recent Symptoms (last 30 days):
+${formattedSymptomsText || 'No symptoms provided'}
+
+Please analyze these symptoms and provide:
+1. **Potential Food Triggers**: Identify ingredients that frequently appear with negative symptoms
+2. **Patterns**: Notice any patterns in meal timing, meal types, or ingredient combinations
+3. **Recommendations**: Provide 3-5 actionable dietary recommendations
+4. **Insights**: Share any observations about potential food intolerances or sensitivities
+
+Format your response as JSON with this structure:
+{
+  "triggers": ["ingredient1", "ingredient2"],
+  "patterns": "Brief description of patterns observed",
+  "recommendations": ["recommendation1", "recommendation2", "recommendation3"],
+  "insights": "Overall insights about potential food sensitivities or dietary patterns",
+  "confidence": "high|medium|low"
+}
+
+Be concise but helpful. Focus on actionable advice.`;
+
+      // Generate content
+      let response;
+      try {
+        console.log('🔄 Calling Gemini API for symptom analysis...');
+        const result = await model.generateContent({
+          contents: [{ parts: [{ text: `${aiContext}\n\n${fullPrompt}` }] }],
+          generationConfig: {
+            temperature: 0.3,
+            topK: 20,
+            topP: 0.8,
+            maxOutputTokens: 2000,
+          },
+        });
+        response = result.response.text();
+        console.log(`✅ AI response received: ${response.length} characters`);
+      } catch (aiError) {
+        console.error('❌ Gemini API call failed:', {
+          error: aiError.message,
+          stack: aiError.stack,
+          name: aiError.name,
+          code: aiError.code
+        });
+        throw new Error(`AI generation failed: ${aiError.message}`);
+      }
+
+      // Parse response
+      let analysis = {};
+      let rawResponse = response;
+      try {
+        // Try to extract JSON from the response
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const jsonStr = jsonMatch[0];
+          analysis = JSON.parse(jsonStr);
+        } else {
+          // If no JSON found, return the text as insights
+          analysis = {
+            insights: response,
+            recommendations: [],
+            triggers: [],
+            patterns: '',
+            confidence: 'low'
+          };
+        }
+      } catch (parseError) {
+        console.error('❌ Failed to parse symptom analysis response:', {
+          error: parseError.message,
+          stack: parseError.stack,
+          responsePreview: response ? response.substring(0, 500) : 'null'
+        });
+        // Return text as insights if JSON parsing fails
+        analysis = {
+          insights: response,
+          recommendations: [],
+          triggers: [],
+          patterns: '',
+          confidence: 'low'
+        };
+      }
+
+      const executionTime = Date.now() - startTime;
+      console.log(`✅ analyzeSymptomPatternsAI completed in ${executionTime}ms`);
+
+      return {
+        success: true,
+        analysis: analysis,
+        rawResponse: rawResponse,
+        executionTime: executionTime
+      };
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      console.error('❌ analyzeSymptomPatternsAI failed:', {
+        error: error.message,
+        stack: error.stack,
+        name: error.name,
+        executionTime: executionTime
+      });
+
+      // Return user-friendly error
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      throw new functions.https.HttpsError(
+        'internal',
+        'An error occurred while analyzing symptom patterns',
+        error.message
+      );
+    }
+  });
+
 
 // ============================================================================
 // RECEIPT VALIDATION FOR IN-APP PURCHASES
@@ -5479,10 +6375,11 @@ exports.verifyPurchase = functions.https.onCall(async (data, context) => {
 
     console.log(`Verifying purchase for user ${userId}, product: ${productId}, plan: ${plan}`);
 
-    // Get App Store shared secret from environment variable
+    // Get App Store shared secret from Firestore with .env fallback
     // For local development: set in functions/.env file as APPSTORE_SHARED_SECRET=your_secret
     // For production: set using firebase functions:secrets:set APPSTORE_SHARED_SECRET
-    const sharedSecret = process.env.APPSTORE_SHARED_SECRET;
+    // Or store in Firestore config/apiKeys document as appStoreSharedSecret
+    const sharedSecret = await getApiKey('appStoreSharedSecret', 'APPSTORE_SHARED_SECRET');
     if (!sharedSecret) {
       console.error('App Store shared secret not configured');
       throw new HttpsError(
@@ -5646,4 +6543,183 @@ function getReceiptStatusMessage(status) {
   };
   return statusMessages[status] || `Unknown status code: ${status}`;
 }
+
+// ============================================================================
+// EXTERNAL API PROXIES - Server-side proxies for client API calls
+// ============================================================================
+
+/**
+ * Proxy for OpenFoodFacts API - Search products
+ * This allows server-side control and rate limiting
+ */
+exports.searchFoodProducts = functions.https.onCall(async (data, context) => {
+  try {
+    // Authenticate user
+    if (!context.auth) {
+      throw new HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    const { query = '', page = 1, pageSize = 20, categories, brands } = data;
+
+    const baseUrl = 'https://world.openfoodfacts.org/api/v2';
+    const queryParams = {
+      'categories_tags_en': query,
+      'page': page.toString(),
+      'page_size': pageSize.toString(),
+      'fields': 'code,product_name,brands,categories,nutriments,image_url,ingredients_text,serving_size',
+      'sort_by': 'ecoscore_score',
+    };
+
+    if (categories) queryParams['categories_tags'] = categories;
+    if (brands) queryParams['brands_tags'] = brands;
+
+    const url = new URL(`${baseUrl}/search`);
+    Object.keys(queryParams).forEach(key => {
+      url.searchParams.append(key, queryParams[key]);
+    });
+
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      throw new Error(`OpenFoodFacts API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    console.error('Error in searchFoodProducts:', error);
+    throw new HttpsError(
+      'internal',
+      `Failed to search food products: ${error.message}`
+    );
+  }
+});
+
+/**
+ * Proxy for OpenFoodFacts API - Get product by barcode
+ */
+exports.getFoodProduct = functions.https.onCall(async (data, context) => {
+  try {
+    // Authenticate user
+    if (!context.auth) {
+      throw new HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    const { barcode } = data;
+    if (!barcode) {
+      throw new HttpsError('invalid-argument', 'Barcode is required');
+    }
+
+    const baseUrl = 'https://world.openfoodfacts.org/api/v2';
+    const url = `${baseUrl}/product/${barcode}`;
+
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`OpenFoodFacts API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    console.error('Error in getFoodProduct:', error);
+    throw new HttpsError(
+      'internal',
+      `Failed to get food product: ${error.message}`
+    );
+  }
+});
+
+/**
+ * Proxy for TheMealDB API - Fetch meals
+ * This allows server-side control and rate limiting
+ */
+exports.fetchMealsFromTheMealDB = functions.https.onCall(async (data, context) => {
+  try {
+    // Authenticate user
+    if (!context.auth) {
+      throw new HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    const { limit = 10, searchQuery, screen } = data;
+    const baseUrl = 'https://www.themealdb.com/api/json/v1/1';
+
+    let url;
+    if (searchQuery && searchQuery.trim().length > 0) {
+      // Remove 'api_' prefix if present
+      const cleanQuery = searchQuery.startsWith('api_')
+        ? searchQuery.substring(4)
+        : searchQuery;
+
+      if (screen === 'categories') {
+        url = `${baseUrl}/filter.php?c=${encodeURIComponent(cleanQuery)}`;
+      } else if (screen === 'ingredient') {
+        url = `${baseUrl}/filter.php?i=${encodeURIComponent(cleanQuery)}`;
+      } else {
+        url = `${baseUrl}/search.php?s=${encodeURIComponent(cleanQuery)}`;
+      }
+    } else {
+      // Fetch random meals
+      url = `${baseUrl}/random.php`;
+    }
+
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`TheMealDB API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    // If it's a category or ingredient search, we need to fetch full details
+    if (searchQuery && (screen === 'categories' || screen === 'ingredient')) {
+      const meals = result.meals || [];
+      const fullMeals = [];
+      
+      for (const meal of meals.slice(0, limit)) {
+        const mealId = meal.idMeal;
+        const cleanMealId = mealId.startsWith('api_') ? mealId.substring(4) : mealId;
+        const detailUrl = `${baseUrl}/lookup.php?i=${cleanMealId}`;
+        
+        try {
+          const detailResponse = await fetch(detailUrl);
+          if (detailResponse.ok) {
+            const detailData = await detailResponse.json();
+            if (detailData.meals && detailData.meals.length > 0) {
+              fullMeals.push(detailData.meals[0]);
+            }
+          }
+          // Add delay to prevent rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (e) {
+          console.warn(`Failed to fetch details for meal ${mealId}: ${e.message}`);
+        }
+      }
+      
+      return {
+        success: true,
+        data: { meals: fullMeals },
+      };
+    }
+    
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    console.error('Error in fetchMealsFromTheMealDB:', error);
+    throw new HttpsError(
+      'internal',
+      `Failed to fetch meals: ${error.message}`
+    );
+  }
+});
 

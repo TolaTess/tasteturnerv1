@@ -248,9 +248,9 @@ final UserDeletionService userDeletionService = UserDeletionService();
 GeminiService get geminiService => GeminiService.instance;
 
 //placeholders
-const intPlaceholderImage = 'assets/images/placeholder.jpg';
+const intPlaceholderImage = 'assets/images/placeholder.png';
 const extPlaceholderImage =
-    'https://firebasestorage.googleapis.com/v0/b/fithify.firebasestorage.app/o/placeholder.jpg?alt=media&token=7be09a79-af67-4d7b-8832-150ca7acc74d';
+    'https://firebasestorage.googleapis.com/v0/b/fithify.firebasestorage.app/o/placeholder.png?alt=media&token=61231051-3166-4ffc-a632-c82f954026b4';
 const tastyImage = 'assets/images/tasty/tasty_splash.png';
 
 //Strings

@@ -512,388 +512,584 @@ class _MealDesignScreenState extends State<MealDesignScreen>
           SizedBox(height: getPercentageHeight(1, context)),
 
           // Collapsible Calendar Section
-          Container(
-            decoration: BoxDecoration(
-              color: isDarkMode
-                  ? kDarkGrey.withValues(alpha: 0.9)
-                  : kWhite.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(getPercentageWidth(1, context)),
-              child: ExpansionTile(
-                initiallyExpanded: true,
-                iconColor: kAccent,
-                collapsedIconColor: kAccent,
-                title: Row(
-                  children: [
-                    // Calendar view toggle
-                    Flexible(
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: getPercentageWidth(1.5, context),
-                            vertical: getPercentageHeight(0.5, context)),
-                        decoration: BoxDecoration(
-                          color: kAccent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(width: getPercentageWidth(1, context)),
-                            Flexible(
-                              child: Text(
-                                _mealPlanController.showSharedCalendars.value
-                                    ? 'Shared'
-                                    : familyMode
-                                        ? 'Family'
-                                        : 'Personal',
-                                style: textTheme.titleLarge?.copyWith(
-                                    color: isDarkMode ? kWhite : kDarkGrey,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: getTextScale(4, context)),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            SizedBox(width: getPercentageWidth(1, context)),
-                            SizedBox(
-                                width: MediaQuery.of(context).size.height > 1100
-                                    ? getPercentageWidth(5, context)
-                                    : getPercentageWidth(1, context)),
-                            IconButton(
-                              key: _toggleCalendarButtonKey,
-                              icon: Icon(
-                                _mealPlanController.showSharedCalendars.value
-                                    ? Icons.person_outline
-                                    : Icons.people_outline,
-                                size: getIconScale(5.5, context),
-                              ),
-                              onPressed: () {
-                                if (!mounted) return;
-                                setState(() {
-                                  _mealPlanController
-                                          .showSharedCalendars.value =
-                                      !_mealPlanController
-                                          .showSharedCalendars.value;
-                                });
-                                _mealPlanController.refresh();
-                              },
-                              tooltip:
-                                  _mealPlanController.showSharedCalendars.value
-                                      ? 'Show Personal Calendar'
-                                      : 'Show Shared Calendars',
-                            ),
-                            SizedBox(
-                                width: MediaQuery.of(context).size.height > 1100
-                                    ? getPercentageWidth(5, context)
-                                    : getPercentageWidth(1, context)),
-                            IconButton(
-                              key: _sharedCalendarButtonKey,
-                              icon: Icon(
-                                Icons.ios_share,
-                                size: getIconScale(4.5, context),
-                              ),
-                              onPressed: () => _shareCalendar(''),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: getPercentageWidth(2, context)),
-                    if (!_mealPlanController.showSharedCalendars.value)
-                      Flexible(
-                        child: Text(
-                          ' ${shortMonthName(selectedDate.month)} ${selectedDate.day}',
-                          style: textTheme.titleMedium?.copyWith(
-                              color: kAccent, fontWeight: FontWeight.w500),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+          Builder(
+            builder: (context) {
+              final mediaQuery = MediaQuery.of(context);
+              final size = mediaQuery.size;
+              final shortestSide = size.shortestSide;
+              final bool isTablet = shortestSide >= 600;
 
-                    // Shared calendar selector
-                    if (_mealPlanController.showSharedCalendars.value)
-                      Flexible(
-                        flex: 2,
-                        child: FutureBuilder<List<SharedCalendar>>(
-                          future: () {
-                            final userId = userService.userId;
-                            if (userId == null || userId.isEmpty) {
-                              return Future.value(<SharedCalendar>[]);
-                            }
-                            return calendarSharingService
-                                .fetchSharedCalendarsForUser(userId);
-                          }(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const CircularProgressIndicator(
-                                  color: kAccent);
-                            }
-                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                              return Text(
-                                'No shared calender',
-                                style: textTheme.bodyMedium?.copyWith(
-                                    color: isDarkMode ? kWhite : kDarkGrey,
-                                    overflow: TextOverflow.ellipsis),
-                              );
-                            }
-                            final calendars = snapshot.data!;
-                            return DropdownButton<String>(
-                              isExpanded: true,
-                              dropdownColor:
-                                  getThemeProvider(context).isDarkMode
-                                      ? kAccent
-                                      : kBackgroundColor,
-                              iconEnabledColor: kAccent,
-                              value: _mealPlanController
-                                  .selectedSharedCalendarId.value,
-                              hint: Text('Select Calendar',
-                                  style: textTheme.titleSmall?.copyWith(
-                                      color: isDarkMode ? kWhite : kDarkGrey)),
-                              style: textTheme.bodyMedium?.copyWith(
-                                  color: isDarkMode ? kWhite : kDarkGrey,
-                                  overflow: TextOverflow.ellipsis),
-                              items: calendars
-                                  .map((cal) => DropdownMenuItem(
-                                        value: cal.calendarId,
-                                        child: Text(
-                                            capitalizeFirstLetter(cal.header)),
-                                      ))
-                                  .toList(),
-                              onChanged: (val) {
-                                if (!mounted) return;
-                                setState(() {
-                                  _mealPlanController
-                                      .selectedSharedCalendarId.value = val;
-                                });
-                                if (val != null) {
-                                  sharingController.selectSharedCalendar(val);
-                                  sharingController
-                                      .selectSharedDate(selectedDate);
-                                  _mealPlanController.refresh();
-                                }
-                              },
-                            );
-                          },
-                        ),
-                      ),
+              // Responsive spacing and sizing
+              final double horizontalPadding = isTablet
+                  ? getPercentageWidth(1.5, context)
+                  : getPercentageWidth(1, context);
+              final double iconSpacing = isTablet
+                  ? getPercentageWidth(1.5, context)
+                  : getPercentageWidth(0.8, context);
+              final double containerPadding = isTablet
+                  ? getPercentageWidth(2, context)
+                  : getPercentageWidth(1.5, context);
+              final double iconSize = isTablet
+                  ? getIconScale(5.5, context)
+                  : getIconScale(5, context);
+              final double shareIconSize = isTablet
+                  ? getIconScale(4.5, context)
+                  : getIconScale(4, context);
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: isDarkMode
+                      ? kDarkGrey.withValues(alpha: 0.9)
+                      : kWhite.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
                   ],
                 ),
-                children: [
-                  // Calendar Header
-                  SizedBox(
-                      height: MediaQuery.of(context).size.height > 1100
-                          ? getPercentageHeight(1.5, context)
-                          : getPercentageHeight(1, context)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: getPercentageWidth(1, context)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        'Mon',
-                        'Tue',
-                        'Wed',
-                        'Thu',
-                        'Fri',
-                        'Sat',
-                        'Sun'
-                      ]
-                          .map((day) => Text(
-                                day,
-                                style: textTheme.displayMedium?.copyWith(
-                                    color: isDarkMode ? kLightGrey : kDarkGrey,
-                                    fontWeight: FontWeight.w100,
-                                    fontSize: getPercentageWidth(3.5, context)),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                  SizedBox(height: getPercentageHeight(1, context)),
+                child: Padding(
+                  padding: EdgeInsets.all(horizontalPadding),
+                  child: ExpansionTile(
+                    initiallyExpanded: true,
+                    iconColor: kAccent,
+                    collapsedIconColor: kAccent,
+                    title: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Use Wrap on smaller screens, Row on larger screens
+                        final bool useWrap = constraints.maxWidth < 500;
 
-                  // Calendar Grid
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: getPercentageWidth(96, context),
-                        minWidth: getPercentageWidth(32, context),
-                      ),
-                      child: SizedBox(
-                        height: MediaQuery.of(context).size.height > 1100
-                            ? getPercentageHeight(42, context)
-                            : getPercentageHeight(32, context),
-                        child: PageView.builder(
-                          controller:
-                              _calendarPageController, // Use widget-level controller
-                          onPageChanged: (index) {
-                            final monthOffset = index - 1;
-                            final currentDate = DateTime.now();
-                            final targetDate = DateTime(currentDate.year,
-                                currentDate.month + monthOffset);
-                            _mealPlanController.updateFocusedDate(targetDate);
-                          },
-                          itemBuilder: (context, pageIndex) {
-                            // Calculate the month offset (-1, 0, 1 for prev, current, next)
-                            final monthOffset = pageIndex - 1;
-                            final currentDate = DateTime.now();
-                            final targetDate = DateTime(currentDate.year,
-                                currentDate.month + monthOffset);
-
-                            // Find the first day of the month
-                            final firstDayOfMonth =
-                                DateTime(targetDate.year, targetDate.month, 1);
-                            // Calculate days to subtract to get to the previous Monday
-                            final daysToSubtract =
-                                (firstDayOfMonth.weekday - 1) % 7;
-                            // Get the first Monday
-                            final firstMonday = firstDayOfMonth
-                                .subtract(Duration(days: daysToSubtract));
-
-                            return GridView.builder(
-                              physics: const NeverScrollableScrollPhysics(),
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: getPercentageWidth(1, context)),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 7,
-                                mainAxisSpacing: 8,
-                                crossAxisSpacing: 8,
-                                childAspectRatio: 1.2,
+                        if (useWrap) {
+                          // Compact layout for small screens
+                          return Wrap(
+                            spacing: iconSpacing,
+                            runSpacing: getPercentageHeight(0.5, context),
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              // Calendar view toggle
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: containerPadding,
+                                    vertical:
+                                        getPercentageHeight(0.5, context)),
+                                decoration: BoxDecoration(
+                                  color: kAccent.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                        width:
+                                            getPercentageWidth(0.8, context)),
+                                    Flexible(
+                                      child: Text(
+                                        _mealPlanController
+                                                .showSharedCalendars.value
+                                            ? 'Shared'
+                                            : familyMode
+                                                ? 'Family'
+                                                : 'Personal',
+                                        style: textTheme.titleLarge?.copyWith(
+                                            color:
+                                                isDarkMode ? kWhite : kDarkGrey,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: getTextScale(
+                                                isTablet ? 4.5 : 4, context)),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                        width:
+                                            getPercentageWidth(0.8, context)),
+                                    IconButton(
+                                      key: _toggleCalendarButtonKey,
+                                      icon: Icon(
+                                        _mealPlanController
+                                                .showSharedCalendars.value
+                                            ? Icons.person_outline
+                                            : Icons.people_outline,
+                                        size: iconSize,
+                                      ),
+                                      padding: EdgeInsets.all(
+                                          getPercentageWidth(1, context)),
+                                      constraints: BoxConstraints(
+                                        minWidth: iconSize + 8,
+                                        minHeight: iconSize + 8,
+                                      ),
+                                      onPressed: () {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _mealPlanController
+                                                  .showSharedCalendars.value =
+                                              !_mealPlanController
+                                                  .showSharedCalendars.value;
+                                        });
+                                        _mealPlanController.refresh();
+                                      },
+                                      tooltip: _mealPlanController
+                                              .showSharedCalendars.value
+                                          ? 'Show Personal Calendar'
+                                          : 'Show Shared Calendars',
+                                    ),
+                                    IconButton(
+                                      key: _sharedCalendarButtonKey,
+                                      icon: Icon(
+                                        Icons.ios_share,
+                                        size: shareIconSize,
+                                      ),
+                                      padding: EdgeInsets.all(
+                                          getPercentageWidth(1, context)),
+                                      constraints: BoxConstraints(
+                                        minWidth: shareIconSize + 8,
+                                        minHeight: shareIconSize + 8,
+                                      ),
+                                      onPressed: () => _shareCalendar(''),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              itemCount: 42, // 6 weeks × 7 days
-                              itemBuilder: (context, index) {
-                                final date =
-                                    firstMonday.add(Duration(days: index));
-                                final normalizedDate =
-                                    DateTime(date.year, date.month, date.day);
-                                final normalizedSelectedDate = DateTime(
-                                    selectedDate.year,
-                                    selectedDate.month,
-                                    selectedDate.day);
-
-                                final hasSpecialMeal = _mealPlanController
-                                        .specialMealDays[normalizedDate] ??
-                                    false;
-                                final hasMeal = _mealPlanController
-                                        .mealPlans[normalizedDate] !=
-                                    null;
-                                final isCurrentMonth =
-                                    date.month == targetDate.month;
-                                final today = DateTime.now();
-                                final isPastDate = normalizedDate.isBefore(
-                                    DateTime(
-                                        today.year, today.month, today.day));
-                                final hasBirthday = _mealPlanController
-                                    .getFriendsBirthdaysForDate(normalizedDate)
-                                    .isNotEmpty;
-                                final isUserBirthday =
-                                    _isUserBirthday(normalizedDate);
-                                final dayType = _mealPlanController
-                                        .dayTypes[normalizedDate] ??
-                                    'regular_day';
-
-                                return DragTarget<Map<String, dynamic>>(
-                                  onWillAccept: (data) {
-                                    // Only accept drops on future dates (not past dates)
-                                    return !isPastDate;
-                                  },
-                                  onAccept: (data) async {
-                                    final fullMealId =
-                                        data['fullMealId'] as String?;
-                                    final sourceDate =
-                                        data['sourceDate'] as DateTime?;
-
-                                    if (fullMealId == null ||
-                                        sourceDate == null) return;
-
-                                    // Don't move if source and target are the same
-                                    if (normalizedDate.year ==
-                                            sourceDate.year &&
-                                        normalizedDate.month ==
-                                            sourceDate.month &&
-                                        normalizedDate.day == sourceDate.day) {
-                                      return;
-                                    }
-
-                                    // Copy the meal
-                                    try {
-                                      final success = await _mealPlanController
-                                          .mealManager
-                                          .copyMealPlan(
-                                        sourceDate,
-                                        normalizedDate,
-                                        fullMealId,
-                                      );
-
-                                      if (mounted) {
-                                        if (success) {
-                                          // Refresh meal plans
+                              // Date or Calendar selector
+                              if (!_mealPlanController
+                                  .showSharedCalendars.value)
+                                Text(
+                                  '${shortMonthName(selectedDate.month)} ${selectedDate.day}',
+                                  style: textTheme.titleMedium?.copyWith(
+                                      color: kAccent,
+                                      fontWeight: FontWeight.w500),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              if (_mealPlanController.showSharedCalendars.value)
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: constraints.maxWidth * 0.6,
+                                  ),
+                                  child: _buildSharedCalendarDropdown(
+                                      context, textTheme, isDarkMode),
+                                ),
+                            ],
+                          );
+                        } else {
+                          // Row layout for larger screens
+                          return Row(
+                            children: [
+                              // Calendar view toggle
+                              Flexible(
+                                flex: isTablet ? 2 : 1,
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: containerPadding,
+                                      vertical:
+                                          getPercentageHeight(0.5, context)),
+                                  decoration: BoxDecoration(
+                                    color: kAccent.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                          width:
+                                              getPercentageWidth(1, context)),
+                                      Flexible(
+                                        child: Text(
+                                          _mealPlanController
+                                                  .showSharedCalendars.value
+                                              ? 'Shared'
+                                              : familyMode
+                                                  ? 'Family'
+                                                  : 'Personal',
+                                          style: textTheme.titleLarge?.copyWith(
+                                              color: isDarkMode
+                                                  ? kWhite
+                                                  : kDarkGrey,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: getTextScale(
+                                                  isTablet ? 4.5 : 4, context)),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                        ),
+                                      ),
+                                      SizedBox(width: iconSpacing),
+                                      IconButton(
+                                        key: _toggleCalendarButtonKey,
+                                        icon: Icon(
+                                          _mealPlanController
+                                                  .showSharedCalendars.value
+                                              ? Icons.person_outline
+                                              : Icons.people_outline,
+                                          size: iconSize,
+                                        ),
+                                        padding: EdgeInsets.all(
+                                            getPercentageWidth(1, context)),
+                                        constraints: BoxConstraints(
+                                          minWidth: iconSize + 8,
+                                          minHeight: iconSize + 8,
+                                        ),
+                                        onPressed: () {
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _mealPlanController
+                                                    .showSharedCalendars.value =
+                                                !_mealPlanController
+                                                    .showSharedCalendars.value;
+                                          });
                                           _mealPlanController.refresh();
+                                        },
+                                        tooltip: _mealPlanController
+                                                .showSharedCalendars.value
+                                            ? 'Show Personal Calendar'
+                                            : 'Show Shared Calendars',
+                                      ),
+                                      IconButton(
+                                        key: _sharedCalendarButtonKey,
+                                        icon: Icon(
+                                          Icons.ios_share,
+                                          size: shareIconSize,
+                                        ),
+                                        padding: EdgeInsets.all(
+                                            getPercentageWidth(1, context)),
+                                        constraints: BoxConstraints(
+                                          minWidth: shareIconSize + 8,
+                                          minHeight: shareIconSize + 8,
+                                        ),
+                                        onPressed: () => _shareCalendar(''),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: iconSpacing * 1.5),
+                              // Date or Calendar selector
+                              if (!_mealPlanController
+                                  .showSharedCalendars.value)
+                                Flexible(
+                                  flex: isTablet ? 1 : 1,
+                                  child: Text(
+                                    '${shortMonthName(selectedDate.month)} ${selectedDate.day}',
+                                    style: textTheme.titleMedium?.copyWith(
+                                        color: kAccent,
+                                        fontWeight: FontWeight.w500),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              if (_mealPlanController.showSharedCalendars.value)
+                                Flexible(
+                                  flex: isTablet ? 3 : 2,
+                                  child: _buildSharedCalendarDropdown(
+                                      context, textTheme, isDarkMode),
+                                ),
+                            ],
+                          );
+                        }
+                      },
+                    ),
+                    children: [
+                      // Calendar Header
+                      SizedBox(
+                          height: MediaQuery.of(context).size.height > 1100
+                              ? getPercentageHeight(1.5, context)
+                              : getPercentageHeight(1, context)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: getPercentageWidth(1, context)),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            'Mon',
+                            'Tue',
+                            'Wed',
+                            'Thu',
+                            'Fri',
+                            'Sat',
+                            'Sun'
+                          ]
+                              .map((day) => Text(
+                                    day,
+                                    style: textTheme.displayMedium?.copyWith(
+                                        color:
+                                            isDarkMode ? kLightGrey : kDarkGrey,
+                                        fontWeight: FontWeight.w100,
+                                        fontSize:
+                                            getPercentageWidth(3.5, context)),
+                                  ))
+                              .toList(),
+                        ),
+                      ),
+                      SizedBox(height: getPercentageHeight(1, context)),
 
-                                          // Update selected date if copying to a different date
-                                          if (normalizedDate !=
-                                              normalizedSelectedDate) {
-                                            _selectDate(normalizedDate);
-                                          }
+                      // Calendar Grid
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: getPercentageWidth(96, context),
+                            minWidth: getPercentageWidth(32, context),
+                          ),
+                          child: SizedBox(
+                            height: MediaQuery.of(context).size.height > 1100
+                                ? getPercentageHeight(43, context)
+                                : getPercentageHeight(32, context),
+                            child: PageView.builder(
+                              controller:
+                                  _calendarPageController, // Use widget-level controller
+                              onPageChanged: (index) {
+                                final monthOffset = index - 1;
+                                final currentDate = DateTime.now();
+                                final targetDate = DateTime(currentDate.year,
+                                    currentDate.month + monthOffset);
+                                _mealPlanController
+                                    .updateFocusedDate(targetDate);
+                              },
+                              itemBuilder: (context, pageIndex) {
+                                // Calculate the month offset (-1, 0, 1 for prev, current, next)
+                                final monthOffset = pageIndex - 1;
+                                final currentDate = DateTime.now();
+                                final targetDate = DateTime(currentDate.year,
+                                    currentDate.month + monthOffset);
 
-                                          showTastySnackbar(
-                                            'Success',
-                                            'Meal copied to ${DateFormat('MMM dd, yyyy').format(normalizedDate)}',
-                                            context,
-                                          );
-                                        } else {
-                                          showTastySnackbar(
-                                            'Error',
-                                            'Failed to copy meal. Please try again.',
-                                            context,
-                                            backgroundColor: Colors.red,
-                                          );
+                                // Find the first day of the month
+                                final firstDayOfMonth = DateTime(
+                                    targetDate.year, targetDate.month, 1);
+                                // Calculate days to subtract to get to the previous Monday
+                                final daysToSubtract =
+                                    (firstDayOfMonth.weekday - 1) % 7;
+                                // Get the first Monday
+                                final firstMonday = firstDayOfMonth
+                                    .subtract(Duration(days: daysToSubtract));
+
+                                return GridView.builder(
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal:
+                                          getPercentageWidth(1, context)),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 7,
+                                    mainAxisSpacing: 8,
+                                    crossAxisSpacing: 8,
+                                    childAspectRatio: 1.2,
+                                  ),
+                                  itemCount: 42, // 6 weeks × 7 days
+                                  itemBuilder: (context, index) {
+                                    final date =
+                                        firstMonday.add(Duration(days: index));
+                                    final normalizedDate = DateTime(
+                                        date.year, date.month, date.day);
+                                    final normalizedSelectedDate = DateTime(
+                                        selectedDate.year,
+                                        selectedDate.month,
+                                        selectedDate.day);
+
+                                    final hasSpecialMeal = _mealPlanController
+                                            .specialMealDays[normalizedDate] ??
+                                        false;
+                                    final hasMeal = _mealPlanController
+                                            .mealPlans[normalizedDate] !=
+                                        null;
+                                    final hasSharedMeal = _mealPlanController
+                                                    .sharedMealPlans[
+                                                normalizedDate] !=
+                                            null &&
+                                        _mealPlanController
+                                            .sharedMealPlans[normalizedDate]!
+                                            .isNotEmpty;
+                                    final isCurrentMonth =
+                                        date.month == targetDate.month;
+                                    final today = DateTime.now();
+                                    final isPastDate = normalizedDate.isBefore(
+                                        DateTime(today.year, today.month,
+                                            today.day));
+                                    final hasBirthday = _mealPlanController
+                                        .getFriendsBirthdaysForDate(
+                                            normalizedDate)
+                                        .isNotEmpty;
+                                    final isUserBirthday =
+                                        _isUserBirthday(normalizedDate);
+                                    final dayType = _mealPlanController
+                                            .dayTypes[normalizedDate] ??
+                                        'regular_day';
+
+                                    return DragTarget<Map<String, dynamic>>(
+                                      onWillAccept: (data) {
+                                        // Only accept drops on future dates (not past dates)
+                                        return !isPastDate;
+                                      },
+                                      onAccept: (data) async {
+                                        final fullMealId =
+                                            data['fullMealId'] as String?;
+                                        final sourceDate =
+                                            data['sourceDate'] as DateTime?;
+
+                                        if (fullMealId == null ||
+                                            sourceDate == null) return;
+
+                                        // Don't move if source and target are the same
+                                        if (normalizedDate.year ==
+                                                sourceDate.year &&
+                                            normalizedDate.month ==
+                                                sourceDate.month &&
+                                            normalizedDate.day ==
+                                                sourceDate.day) {
+                                          return;
                                         }
-                                      }
-                                    } catch (e) {
-                                      debugPrint('Error copying meal: $e');
-                                      if (mounted && context.mounted) {
-                                        showTastySnackbar(
-                                          'Error',
-                                          'Failed to copy meal: $e',
-                                          context,
-                                          backgroundColor: Colors.red,
-                                        );
-                                      }
-                                    }
-                                  },
-                                  builder:
-                                      (context, candidateData, rejectedData) {
-                                    final isDraggingOver =
-                                        candidateData.isNotEmpty;
 
-                                    return GestureDetector(
-                                      onTap: () {
-                                        if (hasSpecialMeal) {
-                                          if (isPastDate) {
-                                            _showSpecialDayDetails(context,
-                                                normalizedDate, dayType);
-                                          } else {
-                                            _selectDate(date);
+                                        // Copy the meal
+                                        try {
+                                          final success =
+                                              await _mealPlanController
+                                                  .mealManager
+                                                  .copyMealPlan(
+                                            sourceDate,
+                                            normalizedDate,
+                                            fullMealId,
+                                          );
+
+                                          if (mounted) {
+                                            if (success) {
+                                              // Refresh meal plans
+                                              _mealPlanController.refresh();
+
+                                              // Update selected date if copying to a different date
+                                              if (normalizedDate !=
+                                                  normalizedSelectedDate) {
+                                                _selectDate(normalizedDate);
+                                              }
+
+                                              showTastySnackbar(
+                                                'Success',
+                                                'Meal copied to ${DateFormat('MMM dd, yyyy').format(normalizedDate)}',
+                                                context,
+                                              );
+                                            } else {
+                                              showTastySnackbar(
+                                                'Error',
+                                                'Failed to copy meal. Please try again.',
+                                                context,
+                                                backgroundColor: Colors.red,
+                                              );
+                                            }
                                           }
-                                        } else if (!isPastDate) {
-                                          _selectDate(date);
+                                        } catch (e) {
+                                          debugPrint('Error copying meal: $e');
+                                          if (mounted && context.mounted) {
+                                            showTastySnackbar(
+                                              'Error',
+                                              'Failed to copy meal: $e',
+                                              context,
+                                              backgroundColor: Colors.red,
+                                            );
+                                          }
                                         }
                                       },
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: isDraggingOver && !isPastDate
-                                              ? kAccentLight.withValues(
-                                                  alpha: 0.5)
-                                              : hasSpecialMeal
-                                                  ? getDayTypeColor(
+                                      builder: (context, candidateData,
+                                          rejectedData) {
+                                        final isDraggingOver =
+                                            candidateData.isNotEmpty;
+
+                                        return GestureDetector(
+                                          onTap: () {
+                                            if (hasSpecialMeal) {
+                                              if (isPastDate) {
+                                                _showSpecialDayDetails(context,
+                                                    normalizedDate, dayType);
+                                              } else {
+                                                _selectDate(date);
+                                              }
+                                            } else if (!isPastDate) {
+                                              _selectDate(date);
+                                            }
+                                          },
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: isDraggingOver &&
+                                                      !isPastDate
+                                                  ? kAccentLight.withValues(
+                                                      alpha: 0.5)
+                                                  : hasSpecialMeal
+                                                      ? getDayTypeColor(
+                                                              _mealPlanController
+                                                                      .dayTypes[
+                                                                          normalizedDate]
+                                                                      ?.replaceAll(
+                                                                          '_',
+                                                                          ' ') ??
+                                                                  'regular_day',
+                                                              isDarkMode)
+                                                          .withValues(
+                                                              alpha: 0.2)
+                                                      : hasMeal
+                                                          ? kLightGrey
+                                                              .withValues(
+                                                                  alpha: 0.2)
+                                                          : null,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: normalizedDate ==
+                                                      normalizedSelectedDate
+                                                  ? Border.all(
+                                                      color: kAccentLight,
+                                                      width: getPercentageWidth(
+                                                          0.25, context))
+                                                  : isDraggingOver &&
+                                                          !isPastDate
+                                                      ? Border.all(
+                                                          color: kAccent,
+                                                          width: 2)
+                                                      : null,
+                                            ),
+                                            child: Stack(
+                                              children: [
+                                                Center(
+                                                  child: Text(
+                                                    '${date.day}',
+                                                    style: textTheme.bodyLarge
+                                                        ?.copyWith(
+                                                      color: isPastDate
+                                                          ? isDarkMode
+                                                              ? Colors.white54
+                                                              : Colors.black54
+                                                          : !isCurrentMonth
+                                                              ? isDarkMode
+                                                                  ? Colors
+                                                                      .white38
+                                                                  : Colors
+                                                                      .black38
+                                                              : isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black,
+                                                      fontWeight: normalizedDate ==
+                                                              DateTime(
+                                                                  DateTime.now()
+                                                                      .year,
+                                                                  DateTime.now()
+                                                                      .month,
+                                                                  DateTime.now()
+                                                                      .day)
+                                                          ? FontWeight.bold
+                                                          : FontWeight.normal,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (hasSpecialMeal)
+                                                  Positioned(
+                                                    right: 2,
+                                                    top: 2,
+                                                    child: Icon(
+                                                      getDayTypeIcon(
+                                                          _mealPlanController
+                                                                  .dayTypes[
+                                                                      normalizedDate]
+                                                                  ?.replaceAll(
+                                                                      '_',
+                                                                      ' ') ??
+                                                              'regular_day'),
+                                                      size: getPercentageWidth(
+                                                          2.5, context),
+                                                      color: getDayTypeColor(
                                                           _mealPlanController
                                                                   .dayTypes[
                                                                       normalizedDate]
@@ -901,166 +1097,140 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                                                                       '_',
                                                                       ' ') ??
                                                               'regular_day',
-                                                          isDarkMode)
-                                                      .withValues(alpha: 0.2)
-                                                  : hasMeal
-                                                      ? kLightGrey.withValues(
-                                                          alpha: 0.2)
-                                                      : null,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border: normalizedDate ==
-                                                  normalizedSelectedDate
-                                              ? Border.all(
-                                                  color: kAccentLight,
-                                                  width: getPercentageWidth(
-                                                      0.25, context))
-                                              : isDraggingOver && !isPastDate
-                                                  ? Border.all(
-                                                      color: kAccent, width: 2)
-                                                  : null,
-                                        ),
-                                        child: Stack(
-                                          children: [
-                                            Center(
-                                              child: Text(
-                                                '${date.day}',
-                                                style: textTheme.bodyLarge
-                                                    ?.copyWith(
-                                                  color: isPastDate
-                                                      ? isDarkMode
-                                                          ? Colors.white54
-                                                          : Colors.black54
-                                                      : !isCurrentMonth
-                                                          ? isDarkMode
-                                                              ? Colors.white38
-                                                              : Colors.black38
-                                                          : isDarkMode
-                                                              ? Colors.white
-                                                              : Colors.black,
-                                                  fontWeight: normalizedDate ==
-                                                          DateTime(
-                                                              DateTime.now()
-                                                                  .year,
-                                                              DateTime.now()
-                                                                  .month,
-                                                              DateTime.now()
-                                                                  .day)
-                                                      ? FontWeight.bold
-                                                      : FontWeight.normal,
-                                                ),
-                                              ),
-                                            ),
-                                            if (hasSpecialMeal)
-                                              Positioned(
-                                                right: 2,
-                                                top: 2,
-                                                child: Icon(
-                                                  getDayTypeIcon(
-                                                      _mealPlanController
-                                                              .dayTypes[
-                                                                  normalizedDate]
-                                                              ?.replaceAll(
-                                                                  '_', ' ') ??
-                                                          'regular_day'),
-                                                  size: getPercentageWidth(
-                                                      2.5, context),
-                                                  color: getDayTypeColor(
-                                                      _mealPlanController
-                                                              .dayTypes[
-                                                                  normalizedDate]
-                                                              ?.replaceAll(
-                                                                  '_', ' ') ??
-                                                          'regular_day',
-                                                      isDarkMode),
-                                                ),
-                                              ),
-                                            if (hasBirthday &&
-                                                _mealPlanController
-                                                    .showSharedCalendars.value)
-                                              Positioned(
-                                                right: 2,
-                                                bottom: 2,
-                                                child: Icon(
-                                                  Icons.cake,
-                                                  size: getPercentageWidth(
-                                                      3, context),
-                                                  color: kAccent,
-                                                ),
-                                              ),
-                                            // Cycle phase indicator
-                                            if (_shouldShowCycleIndicator(
-                                                normalizedDate))
-                                              Positioned(
-                                                left: 2,
-                                                top: 2,
-                                                child: GestureDetector(
-                                                  onTap: () =>
-                                                      _showCycleGoalsDialog(
-                                                          context,
-                                                          normalizedDate),
-                                                  child: Text(
-                                                    _getCyclePhaseEmoji(
-                                                        normalizedDate),
-                                                    style: TextStyle(
-                                                      fontSize:
-                                                          getPercentageWidth(
-                                                              2.5, context),
-                                                      color:
-                                                          _getCyclePhaseColor(
-                                                              normalizedDate),
+                                                          isDarkMode),
                                                     ),
                                                   ),
-                                                ),
-                                              ),
-                                            if (isUserBirthday)
-                                              Positioned(
-                                                right: 2,
-                                                bottom: 2,
-                                                child: Icon(
-                                                  Icons.cake,
-                                                  size: getPercentageWidth(
-                                                      3, context),
-                                                  color: kAccent,
-                                                ),
-                                              ),
-                                            if (isDraggingOver && !isPastDate)
-                                              Positioned.fill(
-                                                child: Container(
-                                                  decoration: BoxDecoration(
-                                                    color: kAccent.withValues(
-                                                        alpha: 0.2),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                  ),
-                                                  child: Center(
+                                                if (hasBirthday &&
+                                                    _mealPlanController
+                                                        .showSharedCalendars
+                                                        .value)
+                                                  Positioned(
+                                                    right: 2,
+                                                    bottom: 2,
                                                     child: Icon(
-                                                      Icons.add_circle_outline,
-                                                      color: kAccent,
+                                                      Icons.cake,
                                                       size: getPercentageWidth(
-                                                          8, context),
+                                                          3, context),
+                                                      color: kAccent,
                                                     ),
                                                   ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
+                                                // Cycle phase indicator
+                                                if (_shouldShowCycleIndicator(
+                                                    normalizedDate))
+                                                  Positioned(
+                                                    left: 2,
+                                                    top: 2,
+                                                    child: GestureDetector(
+                                                      onTap: () =>
+                                                          _showCycleGoalsDialog(
+                                                              context,
+                                                              normalizedDate),
+                                                      child: Text(
+                                                        _getCyclePhaseEmoji(
+                                                            normalizedDate),
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              getPercentageWidth(
+                                                                  2.5, context),
+                                                          color:
+                                                              _getCyclePhaseColor(
+                                                                  normalizedDate),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                if (isUserBirthday)
+                                                  Positioned(
+                                                    right: 2,
+                                                    bottom: 2,
+                                                    child: Icon(
+                                                      Icons.cake,
+                                                      size: getPercentageWidth(
+                                                          3, context),
+                                                      color: kAccent,
+                                                    ),
+                                                  ),
+                                                // Shared entry indicator - show when in shared calendar mode and date has shared entries
+                                                if (_mealPlanController
+                                                        .showSharedCalendars
+                                                        .value &&
+                                                    hasSharedMeal)
+                                                  Positioned(
+                                                    left: 2,
+                                                    bottom: 2,
+                                                    child: Container(
+                                                      padding: EdgeInsets.all(
+                                                          getPercentageWidth(
+                                                              0.5, context)),
+                                                      decoration: BoxDecoration(
+                                                        color: kAccentLight
+                                                            .withValues(
+                                                                alpha: 0.9),
+                                                        shape: BoxShape.circle,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors.black
+                                                                .withValues(
+                                                                    alpha: 0.2),
+                                                            blurRadius: 2,
+                                                            offset:
+                                                                const Offset(
+                                                                    0, 1),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      child: Icon(
+                                                        Icons.people,
+                                                        size:
+                                                            getPercentageWidth(
+                                                                1.7, context),
+                                                        color: kWhite,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                if (isDraggingOver &&
+                                                    !isPastDate)
+                                                  Positioned.fill(
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        color:
+                                                            kAccent.withValues(
+                                                                alpha: 0.2),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                      ),
+                                                      child: Center(
+                                                        child: Icon(
+                                                          Icons
+                                                              .add_circle_outline,
+                                                          color: kAccent,
+                                                          size:
+                                                              getPercentageWidth(
+                                                                  8, context),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     );
                                   },
                                 );
                               },
-                            );
-                          },
-                          itemCount: 3, // Show 3 months
+                              itemCount: 3, // Show 3 months
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
           // Meals List Section
           _buildMealsList(),
@@ -1351,6 +1521,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
       selectedDate.month,
       selectedDate.day,
     );
+    final dateStr = DateFormat('yyyy-MM-dd').format(normalizedSelectedDate);
     final isDarkMode = getThemeProvider(context).isDarkMode;
     final isPersonalSpecialDay =
         _mealPlanController.specialMealDays[normalizedSelectedDate] ?? false;
@@ -1678,7 +1849,7 @@ class _MealDesignScreenState extends State<MealDesignScreen>
             ),
             child: Stack(
               children: [
-                // Main meal content
+                // Meal image (full card background)
                 InkWell(
                   onTap: () {
                     if (!mounted) return;
@@ -1703,83 +1874,88 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                       }
                     }
                   },
-                  child: Column(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Container(
-                          padding:
-                              EdgeInsets.all(getPercentageWidth(1, context)),
-                          child: AspectRatio(
-                            aspectRatio: 1,
-                            child: ClipOval(
-                              child: meal.mediaPaths.isNotEmpty
-                                  ? meal.mediaPaths.first.contains('https')
-                                      ? OptimizedImage(
-                                          imageUrl: meal.mediaPaths.first,
-                                          fit: BoxFit.cover,
-                                          borderRadius: BorderRadius.circular(
-                                              getPercentageWidth(100, context)),
-                                          width: double.infinity,
-                                          height: double.infinity,
-                                        )
-                                      : Image.asset(
-                                          getAssetImageForItem(
-                                              meal.mediaPaths.first),
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Container(
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[300],
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Icon(
-                                              Icons.restaurant,
-                                              size: getPercentageWidth(
-                                                  6, context),
-                                            ),
-                                          ),
-                                        )
-                                  : Image.asset(
-                                      getAssetImageForItem(
-                                          meal.category ?? 'default'),
-                                      fit: BoxFit.cover,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      children: [
+                        // Background image
+                        meal.mediaPaths.isNotEmpty
+                            ? meal.mediaPaths.first.contains('https')
+                                ? OptimizedImage(
+                                    imageUrl: meal.mediaPaths.first,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  )
+                                : Image.asset(
+                                    getAssetImageForItem(meal.mediaPaths.first),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                      ),
+                                      child: Icon(
+                                        Icons.restaurant,
+                                        size: getPercentageWidth(6, context),
+                                      ),
                                     ),
+                                  )
+                            : Image.asset(
+                                getAssetImageForItem(
+                                    meal.category ?? 'default'),
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
+                        // Gradient overlay for text readability
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.7),
+                              ],
+                              stops: const [0.3, 1.0],
                             ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: getPercentageWidth(1, context)),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Center(
-                                child: Text(
-                                  capitalizeFirstLetter(meal.title),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: getPercentageWidth(3, context)),
-                                ),
-                              ),
-                            ],
-                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Meal title positioned below meal type and delete button
+                Positioned(
+                  left: getPercentageWidth(1, context),
+                  right: getPercentageWidth(1, context),
+                  bottom: getPercentageWidth(1, context),
+                  child: Text(
+                    capitalizeFirstLetter(meal.title),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: getPercentageWidth(3, context),
+                      color: kWhite,
+                      shadows: [
+                        Shadow(
+                          offset: const Offset(0, 1),
+                          blurRadius: 3,
+                          color: Colors.black.withValues(alpha: 0.5),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 // Close button
                 Positioned(
                   top: 0,
-                  right: MediaQuery.of(context).size.height > 1100 ? -3 : -11,
+                  right: MediaQuery.of(context).size.height > 1100 ? 3 : -11,
                   child: IconButton(
                     icon: Icon(Icons.close,
                         size: getIconScale(6, context), color: kAccent),
@@ -2545,6 +2721,72 @@ class _MealDesignScreenState extends State<MealDesignScreen>
     );
   }
 
+  Widget _buildSharedCalendarDropdown(
+      BuildContext context, TextTheme textTheme, bool isDarkMode) {
+    return FutureBuilder<List<SharedCalendar>>(
+      future: () {
+        final userId = userService.userId;
+        if (userId == null || userId.isEmpty) {
+          return Future.value(<SharedCalendar>[]);
+        }
+        return calendarSharingService.fetchSharedCalendarsForUser(userId);
+      }(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              color: kAccent,
+              strokeWidth: 2,
+            ),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Text(
+            'No shared calendar',
+            style: textTheme.bodyMedium?.copyWith(
+                color: isDarkMode ? kWhite : kDarkGrey,
+                overflow: TextOverflow.ellipsis),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          );
+        }
+        final calendars = snapshot.data!;
+        return DropdownButton<String>(
+          isExpanded: true,
+          dropdownColor:
+              getThemeProvider(context).isDarkMode ? kAccent : kBackgroundColor,
+          iconEnabledColor: kAccent,
+          value: _mealPlanController.selectedSharedCalendarId.value,
+          hint: Text('Select Calendar',
+              style: textTheme.titleSmall
+                  ?.copyWith(color: isDarkMode ? kWhite : kDarkGrey)),
+          style: textTheme.bodyMedium?.copyWith(
+              color: isDarkMode ? kWhite : kDarkGrey,
+              overflow: TextOverflow.ellipsis),
+          items: calendars
+              .map((cal) => DropdownMenuItem(
+                    value: cal.calendarId,
+                    child: Text(capitalizeFirstLetter(cal.header)),
+                  ))
+              .toList(),
+          onChanged: (val) {
+            if (!mounted) return;
+            setState(() {
+              _mealPlanController.selectedSharedCalendarId.value = val;
+            });
+            if (val != null) {
+              sharingController.selectSharedCalendar(val);
+              sharingController.selectSharedDate(selectedDate);
+              _mealPlanController.refresh();
+            }
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildDateHeader(DateTime date, String birthdayName, bool isDarkMode,
       List<MealWithType> meals) {
     final currentDayType = _mealPlanController.dayTypes[date] ?? 'regular_day';
@@ -2626,15 +2868,25 @@ class _MealDesignScreenState extends State<MealDesignScreen>
                               final phaseEmoji = _getCyclePhaseEmoji(date);
                               final phaseColor = _getCyclePhaseColor(date);
 
+                              final double emojiSize =
+                                  getPercentageWidth(4, context);
+                              final double buttonSize =
+                                  getIconScale(6, context);
+
                               return IconButton(
                                 onPressed: () =>
                                     _showCycleGoalsDialog(context, date),
                                 icon: Text(
                                   phaseEmoji,
                                   style: TextStyle(
-                                    fontSize: getPercentageWidth(4, context),
+                                    fontSize: emojiSize,
                                     color: phaseColor,
                                   ),
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints(
+                                  minWidth: buttonSize,
+                                  minHeight: buttonSize,
                                 ),
                                 tooltip: 'View Cycle Goals',
                               );
@@ -3521,7 +3773,7 @@ class _CycleGoalsDialogState extends State<_CycleGoalsDialog> {
                             ),
                           ),
                           Text(
-                            'Select meals to add to your calendar',
+                            'Select meals to add to your Planner',
                             style: widget.textTheme.labelSmall?.copyWith(
                               color: widget.isDarkMode
                                   ? kBackgroundColor.withValues(alpha: 0.6)
