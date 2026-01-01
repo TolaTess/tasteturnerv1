@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as img;
 
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -89,12 +88,6 @@ class GeminiService {
   bool _useOpenRouterFallback = true; // Enable/disable OpenRouter fallback
 
   // OpenAI configuration
-  final String _openAIBaseUrl = 'https://api.openai.com/v1';
-  static int _consecutiveOpenAIErrors = 0;
-  String _preferredOpenAIModel = 'gpt-4.1';
-  DateTime? _lastOpenAIModelCheck;
-  String? _cachedOpenAIModel;
-  static const Duration _openAIModelCacheTtl = Duration(minutes: 30);
 
   // OpenRouter configuration
   static const Map<String, String> _openRouterModels = {
@@ -123,8 +116,6 @@ class GeminiService {
 
   // Enhanced error handling for production
   static const int _maxRetries = 3;
-  static const Duration _retryDelay = Duration(seconds: 2);
-  static const Duration _backoffMultiplier = Duration(seconds: 1);
 
   // Track API health for both providers
   static bool _isGeminiHealthy = true;
@@ -133,8 +124,6 @@ class GeminiService {
   static DateTime? _lastOpenRouterError;
   static int _consecutiveGeminiErrors = 0;
   static int _consecutiveOpenRouterErrors = 0;
-  static const int _maxConsecutiveErrors = 5;
-  static const Duration _apiRecoveryTime = Duration(minutes: 10);
 
   /// Check if current provider is healthy
   bool get isCurrentProviderHealthy {
@@ -322,7 +311,7 @@ class GeminiService {
       }
 
       final data = doc.data();
-      if (data == null || data is! Map<String, dynamic>) {
+      if (data == null) {
         throw Exception('Invalid document data format');
       }
       debugPrint(
@@ -387,8 +376,23 @@ class GeminiService {
       debugPrint(
           '[Cloud Function] $functionName completed in ${executionTime}ms');
 
-      if (result.data is Map<String, dynamic>) {
-        final response = result.data as Map<String, dynamic>;
+      // Safely convert result.data to Map<String, dynamic>
+      Map<String, dynamic>? response;
+      if (result.data is Map) {
+        try {
+          response = Map<String, dynamic>.from(result.data as Map);
+        } catch (e) {
+          debugPrint('[Cloud Function] Error converting response: $e');
+          // Try alternative conversion
+          final data = result.data;
+          if (data != null) {
+            response = Map<String, dynamic>.from((data as Map)
+                .map((key, value) => MapEntry(key.toString(), value)));
+          }
+        }
+      }
+
+      if (response != null) {
         if (response.isEmpty) {
           throw Exception('Empty response from cloud function');
         }
@@ -462,377 +466,54 @@ class GeminiService {
       }
     } catch (e) {
       debugPrint('[Cloud Function] $functionName failed: $e');
-      // Re-throw to trigger fallback to client-side AI
-      throw Exception('Cloud function failed: $e');
+      // Provide user-friendly error message instead of technical details
+      String errorMessage = 'Operation failed. Please try again.';
+
+      if (e is Exception) {
+        final errorStr = e.toString();
+        if (errorStr.contains('timeout') || errorStr.contains('deadline')) {
+          errorMessage = 'Request took too long. Please try again.';
+        } else if (errorStr.contains('unauthenticated')) {
+          errorMessage = 'Please sign in to continue.';
+        } else if (errorStr.contains('invalid-argument') ||
+            errorStr.contains('Validation failed')) {
+          errorMessage =
+              'Invalid request. Please check your input and try again.';
+        }
+      }
+
+      throw Exception(errorMessage);
     }
   }
 
   /// Make API call to Gemini
+  /// NOTE: Direct API calls are deprecated. All AI operations should use cloud functions.
+  /// This method will throw an error to force migration to cloud functions.
   Future<Map<String, dynamic>> _makeGeminiApiCall({
     required String endpoint,
     required Map<String, dynamic> body,
     required String operation,
     int retryCount = 0,
   }) async {
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('Gemini API key not configured');
-    }
-
-    // Check if Gemini is healthy
-    if (!_isGeminiHealthy) {
-      debugPrint(
-          'Gemini health check failed. Consecutive errors: $_consecutiveGeminiErrors');
-      debugPrint('Last error time: $_lastGeminiError');
-      throw Exception(
-          'Gemini API temporarily unavailable. Please try again later.');
-    }
-
-    try {
-      // Debug: log endpoint and minimal request info
-      try {
-        final preview = jsonEncode(body).toString();
-        final previewShort =
-            preview.length > 600 ? preview.substring(0, 600) + '…' : preview;
-        debugPrint('[Gemini] POST to $endpoint (retry=$retryCount)');
-        debugPrint(
-            '[Gemini] Request body preview (${preview.length} chars): $previewShort');
-      } catch (e) {
-        debugPrint('[Gemini] Error logging request preview: $e');
-      }
-
-      final response = await http
-          .post(
-            Uri.parse('$_geminiBaseUrl/$endpoint?key=$apiKey'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 90));
-
-      if (response.statusCode == 200) {
-        // Reset error tracking on success
-        _consecutiveGeminiErrors = 0;
-        _isGeminiHealthy = true;
-
-        // Check if response body is empty
-        if (response.body.isEmpty) {
-          throw Exception('Empty response from Gemini API');
-        }
-
-        // Debug: log response size and preview
-        try {
-          final bodyLen = response.body.length;
-          final bodyPreview = bodyLen > 1200
-              ? response.body.substring(0, 1200) + '…'
-              : response.body;
-          debugPrint('[Gemini] Response 200 OK, ${bodyLen} chars');
-          debugPrint('[Gemini] Response preview: $bodyPreview');
-        } catch (e) {
-          debugPrint('[Gemini] Error logging response preview: $e');
-        }
-
-        final decoded = jsonDecode(response.body);
-        return decoded;
-      } else {
-        // Handle specific error codes
-        String errorMessage = 'Unknown error';
-        try {
-          if (response.body.isNotEmpty) {
-            final errorResponse = jsonDecode(response.body);
-            errorMessage =
-                errorResponse['error']?['message'] ?? 'Unknown error';
-          }
-        } catch (e) {
-          errorMessage = 'Failed to parse error response: ${e.toString()}';
-        }
-        final errorCode = response.statusCode;
-
-        // Handle specific error types
-        switch (errorCode) {
-          case 503:
-            // Service overloaded - retry with exponential backoff
-            if (retryCount < _maxRetries) {
-              final delay = _retryDelay + (_backoffMultiplier * retryCount);
-              await Future.delayed(delay);
-              return _makeGeminiApiCall(
-                endpoint: endpoint,
-                body: body,
-                operation: operation,
-                retryCount: retryCount + 1,
-              );
-            }
-            _handleGeminiError(
-                'Service temporarily overloaded. Please try again in a few minutes.');
-            break;
-
-          case 429:
-            // Rate limited - retry with longer delay
-            if (retryCount < _maxRetries) {
-              await Future.delayed(Duration(seconds: 5 * (retryCount + 1)));
-              return _makeGeminiApiCall(
-                endpoint: endpoint,
-                body: body,
-                operation: operation,
-                retryCount: retryCount + 1,
-              );
-            }
-            _handleGeminiError('Rate limit exceeded. Please try again later.');
-            break;
-
-          case 401:
-            // Authentication error
-            _handleGeminiError(
-                'Authentication failed. Please check your API configuration.');
-            break;
-
-          case 400:
-            // Bad request - don't retry
-            throw Exception('Invalid request: $errorMessage');
-
-          default:
-            // Other errors - retry if appropriate
-            if (retryCount < _maxRetries && errorCode >= 500) {
-              await Future.delayed(_retryDelay);
-              return _makeGeminiApiCall(
-                endpoint: endpoint,
-                body: body,
-                operation: operation,
-                retryCount: retryCount + 1,
-              );
-            }
-            _handleGeminiError('Service error: $errorMessage');
-        }
-
-        throw Exception('Failed to $operation: $errorCode - $errorMessage');
-      }
-    } catch (e) {
-      _handleGeminiError('Connection error: ${e.toString()}');
-      throw Exception('Failed to $operation: ${e.toString()}');
-    }
+    // API keys are no longer available client-side for security
+    // All AI operations must go through cloud functions
+    debugPrint('Direct API call attempted for operation: $operation');
+    throw Exception('AI service temporarily unavailable. Please try again.');
   }
 
   /// Make API call to OpenRouter
+  /// NOTE: Direct API calls are deprecated. All AI operations should use cloud functions.
+  /// This method will throw an error to force migration to cloud functions.
   Future<Map<String, dynamic>> _makeOpenRouterApiCall({
     required String endpoint,
     required Map<String, dynamic> body,
     required String operation,
     int retryCount = 0,
   }) async {
-    debugPrint('Making OpenRouter API call to $endpoint');
-
-    // Smart body logging - show structure but not image data
-    if (body.containsKey('contents') && body['contents'] is List) {
-      final contents = body['contents'] as List;
-      if (contents.isNotEmpty && contents.first is Map) {
-        final firstContent = contents.first as Map;
-        if (firstContent.containsKey('parts') &&
-            firstContent['parts'] is List) {
-          final parts = firstContent['parts'] as List;
-          if (parts.isEmpty) {
-            debugPrint('[Gemini] Request body has empty parts array');
-          }
-          final hasImage = parts.any((part) =>
-              part is Map &&
-              (part['inline_data'] != null || part['image_url'] != null));
-
-          if (hasImage) {
-            debugPrint(
-                'Body: [Image analysis request with ${parts.length} parts]');
-          } else {
-            debugPrint('Body: $body');
-          }
-        } else {
-          debugPrint('Body: $body');
-        }
-      } else {
-        debugPrint('Body: $body');
-      }
-    } else {
-      debugPrint('Body: $body');
-    }
-
-    debugPrint('Operation: $operation');
-    debugPrint('Retry count: $retryCount');
-    final apiKey = dotenv.env['OPENROUTER_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('OpenRouter API key not configured');
-    }
-
-    // Check if OpenRouter is healthy
-    if (!_isOpenRouterHealthy) {
-      throw Exception(
-          'OpenRouter API temporarily unavailable. Please try again later.');
-    }
-
-    try {
-      // Convert Gemini format to OpenRouter format
-      final openRouterBody = _convertToOpenRouterFormat(body);
-
-      // OpenRouter always uses chat/completions endpoint
-      final url = '$_openRouterBaseUrl/chat/completions';
-      debugPrint('Making OpenRouter API call to: $url');
-      debugPrint('Using model: ${openRouterBody['model']}');
-
-      final response = await http
-          .post(
-            Uri.parse(url),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $apiKey',
-              'HTTP-Referer':
-                  'https://tasteturner.app', // Required by OpenRouter
-              'X-Title': 'TasteTurner', // Optional but recommended
-            },
-            body: jsonEncode(openRouterBody),
-          )
-          .timeout(const Duration(seconds: 90));
-
-      if (response.statusCode == 200) {
-        // Reset error tracking on success
-        _consecutiveOpenRouterErrors = 0;
-        _isOpenRouterHealthy = true;
-
-        final decoded = jsonDecode(response.body);
-        return _convertFromOpenRouterFormat(decoded);
-      } else {
-        // Handle specific error codes
-        final errorResponse = jsonDecode(response.body);
-        final errorCode = response.statusCode;
-        final errorMessage =
-            errorResponse['error']?['message'] ?? 'Unknown error';
-
-        // Handle specific error types
-        switch (errorCode) {
-          case 503:
-            // Service overloaded - retry with exponential backoff
-            if (retryCount < _maxRetries) {
-              final delay = _retryDelay + (_backoffMultiplier * retryCount);
-              await Future.delayed(delay);
-              return _makeOpenRouterApiCall(
-                endpoint: endpoint,
-                body: body,
-                operation: operation,
-                retryCount: retryCount + 1,
-              );
-            }
-            _handleOpenRouterError(
-                'Service temporarily overloaded. Please try again in a few minutes.');
-            break;
-
-          case 429:
-            // Rate limited - retry with longer delay
-            if (retryCount < _maxRetries) {
-              await Future.delayed(Duration(seconds: 5 * (retryCount + 1)));
-              return _makeOpenRouterApiCall(
-                endpoint: endpoint,
-                body: body,
-                operation: operation,
-                retryCount: retryCount + 1,
-              );
-            }
-            _handleOpenRouterError(
-                'Rate limit exceeded. Please try again later.');
-            break;
-
-          case 401:
-            // Authentication error
-            _handleOpenRouterError(
-                'Authentication failed. Please check your API configuration.');
-            break;
-
-          case 400:
-            // Bad request - don't retry
-            throw Exception('Invalid request: $errorMessage');
-
-          default:
-            // Other errors - retry if appropriate
-            if (retryCount < _maxRetries && errorCode >= 500) {
-              await Future.delayed(_retryDelay);
-              return _makeOpenRouterApiCall(
-                endpoint: endpoint,
-                body: body,
-                operation: operation,
-                retryCount: retryCount + 1,
-              );
-            }
-            _handleOpenRouterError('Service error: $errorMessage');
-        }
-
-        throw Exception('Failed to $operation: $errorCode - $errorMessage');
-      }
-    } catch (e) {
-      _handleOpenRouterError('Connection error: ${e.toString()}');
-      throw Exception('Failed to $operation: ${e.toString()}');
-    }
-  }
-
-  /// Convert Gemini request format to OpenRouter format
-  Map<String, dynamic> _convertToOpenRouterFormat(
-      Map<String, dynamic> geminiBody) {
-    final contentsRaw = geminiBody['contents'];
-    if (contentsRaw == null ||
-        contentsRaw is! List<dynamic> ||
-        contentsRaw.isEmpty) {
-      throw Exception('Invalid Gemini body: missing or empty contents');
-    }
-    final contents = contentsRaw as List<dynamic>;
-
-    final generationConfigRaw = geminiBody['generationConfig'];
-    final generationConfig = (generationConfigRaw is Map<String, dynamic>)
-        ? generationConfigRaw
-        : <String, dynamic>{};
-
-    // Extract messages from Gemini format
-    final messages = <Map<String, dynamic>>[];
-    for (final content in contents) {
-      final parts = content['parts'] as List<dynamic>;
-      for (final part in parts) {
-        if (part['text'] != null) {
-          messages.add({
-            'role': 'user',
-            'content': part['text'],
-          });
-        }
-      }
-    }
-
-    // Get the model name
-    final modelName = _getOpenRouterModelName();
-
-    return {
-      'model': modelName,
-      'messages': messages,
-      'max_tokens': generationConfig['maxOutputTokens'] ?? 1024,
-      'temperature': generationConfig['temperature'] ?? 0.7,
-      'top_p': generationConfig['topP'] ?? 0.95,
-      'stream': false,
-    };
-  }
-
-  /// Convert OpenRouter response format to Gemini format
-  Map<String, dynamic> _convertFromOpenRouterFormat(
-      Map<String, dynamic> openRouterResponse) {
-    final choices = openRouterResponse['choices'] as List<dynamic>? ?? [];
-    if (choices.isEmpty) {
-      throw Exception('No response from OpenRouter');
-    }
-
-    final choice = choices.first as Map<String, dynamic>;
-    final message = choice['message'] as Map<String, dynamic>? ?? {};
-    final content = message['content'] as String? ?? '';
-
-    // Convert to Gemini format
-    return {
-      'candidates': [
-        {
-          'content': {
-            'parts': [
-              {'text': content}
-            ]
-          }
-        }
-      ]
-    };
+    // API keys are no longer available client-side for security
+    // All AI operations must go through cloud functions
+    debugPrint('Direct API call attempted for operation: $operation');
+    throw Exception('AI service temporarily unavailable. Please try again.');
   }
 
   /// Get the OpenRouter model name
@@ -842,26 +523,6 @@ class GeminiService {
     debugPrint(
         'OpenRouter model selected: $modelName (preferred: $_preferredOpenRouterModel)');
     return modelName;
-  }
-
-  /// Handle Gemini API errors and update health status
-  void _handleGeminiError(String message) {
-    _consecutiveGeminiErrors++;
-    _lastGeminiError = DateTime.now();
-
-    if (_consecutiveGeminiErrors >= _maxConsecutiveErrors) {
-      _isGeminiHealthy = false;
-    }
-  }
-
-  /// Handle OpenRouter API errors and update health status
-  void _handleOpenRouterError(String message) {
-    _consecutiveOpenRouterErrors++;
-    _lastOpenRouterError = DateTime.now();
-
-    if (_consecutiveOpenRouterErrors >= _maxConsecutiveErrors) {
-      _isOpenRouterHealthy = false;
-    }
   }
 
   /// Force reset provider health status (for debugging/testing)
@@ -1012,195 +673,18 @@ class GeminiService {
   }
 
   /// Make a provider-level OpenAI API call (used by unified retry flow)
+  /// NOTE: Direct API calls are deprecated. All AI operations should use cloud functions.
+  /// This method will throw an error to force migration to cloud functions.
   Future<Map<String, dynamic>> _makeOpenAIApiCall({
     required String endpoint,
     required Map<String, dynamic> body,
     required String operation,
     int retryCount = 0,
   }) async {
-    final apiKey = dotenv.env['OPENAI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('OpenAI API key not configured');
-    }
-
-    // Convert Gemini-style request to OpenAI chat format
-    final openaiBody = _convertToOpenAIFormat(body);
-    openaiBody['model'] = await _getBestAvailableOpenAIModel();
-    final url = '$_openAIBaseUrl/chat/completions';
-    debugPrint('Making OpenAI API call to: $url');
-
-    try {
-      final response = await http
-          .post(
-            Uri.parse(url),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $apiKey',
-            },
-            body: jsonEncode(openaiBody),
-          )
-          .timeout(const Duration(seconds: 90));
-
-      if (response.statusCode == 200) {
-        _consecutiveOpenAIErrors = 0;
-        // OpenAI provider recovered
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        return _convertFromOpenAIFormat(decoded);
-      }
-
-      // Retry on 5xx
-      if (response.statusCode >= 500 && retryCount < _maxRetries) {
-        await Future.delayed(_retryDelay * (retryCount + 1));
-        return _makeOpenAIApiCall(
-          endpoint: endpoint,
-          body: body,
-          operation: operation,
-          retryCount: retryCount + 1,
-        );
-      }
-
-      _handleOpenAIError(
-          'Service error: ${response.statusCode} - ${response.body}');
-      throw Exception('OpenAI service error');
-    } catch (e) {
-      _handleOpenAIError('Connection error: ${e.toString()}');
-      rethrow;
-    }
-  }
-
-  Map<String, dynamic> _convertToOpenAIFormat(Map<String, dynamic> geminiBody) {
-    // Extract text from Gemini format
-    String text = '';
-    try {
-      final contentsRaw = geminiBody['contents'];
-      if (contentsRaw is List<dynamic> && contentsRaw.isNotEmpty) {
-        final firstContent = contentsRaw.first;
-        if (firstContent is Map<String, dynamic>) {
-          final partsRaw = firstContent['parts'];
-          if (partsRaw is List<dynamic> && partsRaw.isNotEmpty) {
-            final firstPart = partsRaw.first;
-            if (firstPart is Map<String, dynamic>) {
-              final textRaw = firstPart['text'];
-              if (textRaw is String) {
-                text = textRaw;
-              }
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('[Gemini] Error extracting text from response: $e');
-    }
-
-    final maxTokens =
-        (geminiBody['generationConfig']?['maxOutputTokens'] as int?) ?? 4000;
-    final temperature =
-        (geminiBody['generationConfig']?['temperature'] as num?)?.toDouble() ??
-            0.7;
-
-    return {
-      'model': 'gpt-4.1', // will be overridden by dynamic selector
-      'messages': [
-        {
-          'role': 'user',
-          'content': [
-            {'type': 'text', 'text': text}
-          ]
-        }
-      ],
-      'max_tokens': maxTokens,
-      'temperature': temperature,
-    };
-  }
-
-  Map<String, dynamic> _convertFromOpenAIFormat(
-      Map<String, dynamic> openaiResponse) {
-    final choices = openaiResponse['choices'] as List<dynamic>? ?? [];
-    if (choices.isEmpty) throw Exception('No response from OpenAI');
-    final message = choices.first['message'] as Map<String, dynamic>?;
-    final content = message?['content'];
-    if (content is String && content.isNotEmpty) {
-      // Return as Gemini-style response
-      return {
-        'candidates': [
-          {
-            'content': {
-              'parts': [
-                {'text': content}
-              ]
-            }
-          }
-        ]
-      };
-    }
-    throw Exception('Invalid OpenAI response');
-  }
-
-  void _handleOpenAIError(String message) {
-    _consecutiveOpenAIErrors++;
-    if (_consecutiveOpenAIErrors >= _maxConsecutiveErrors) {
-      // Provider marked as unhealthy - will be reset by recovery logic
-      debugPrint(
-          'OpenAI marked as unhealthy after $_consecutiveOpenAIErrors consecutive errors');
-    }
-    debugPrint('OpenAI error: $message');
-  }
-
-  /// Determine best available OpenAI model and cache the selection
-  Future<String> _getBestAvailableOpenAIModel() async {
-    // Use cached model if recent
-    if (_cachedOpenAIModel != null &&
-        _lastOpenAIModelCheck != null &&
-        DateTime.now().difference(_lastOpenAIModelCheck!) <
-            _openAIModelCacheTtl) {
-      return _cachedOpenAIModel!;
-    }
-
-    final apiKey = dotenv.env['OPENAI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      return _preferredOpenAIModel; // fallback to preferred if no key
-    }
-
-    try {
-      final response = await http.get(
-        Uri.parse('$_openAIBaseUrl/models'),
-        headers: {
-          'Authorization': 'Bearer $apiKey',
-        },
-      ).timeout(const Duration(seconds: 10));
-
-      final priority = <String>[
-        'gpt-4.1',
-        'gpt-4.1-mini',
-        'gpt-4o',
-        'gpt-4o-mini',
-        'gpt-4-turbo',
-        'gpt-4'
-      ];
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded['data'] as List<dynamic>? ?? [];
-        final ids = data
-            .map((m) => (m as Map<String, dynamic>)['id']?.toString() ?? '')
-            .toSet();
-        for (final m in priority) {
-          if (ids.contains(m)) {
-            _cachedOpenAIModel = m;
-            _lastOpenAIModelCheck = DateTime.now();
-            debugPrint('Selected OpenAI model: $m');
-            return m;
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('[OpenAI] Error checking available models: $e');
-    }
-
-    // Fallback to preferred
-    _cachedOpenAIModel = _preferredOpenAIModel;
-    _lastOpenAIModelCheck = DateTime.now();
-    return _preferredOpenAIModel;
+    // API keys are no longer available client-side for security
+    // All AI operations must go through cloud functions
+    debugPrint('Direct API call attempted for operation: $operation');
+    throw Exception('AI service temporarily unavailable. Please try again.');
   }
 
   /// Parse calories value ensuring it's a valid number
@@ -2919,7 +2403,7 @@ class GeminiService {
                 programDataRaw is! Map<String, dynamic>) {
               debugPrint('Invalid program data format for $programId');
             } else {
-              final programData = programDataRaw as Map<String, dynamic>;
+              final programData = programDataRaw;
 
               context.addAll({
                 'hasProgram': true,
@@ -3019,142 +2503,54 @@ class GeminiService {
       bool includeDietContext = true,
       bool includeProgramContext = true,
       List<Map<String, String>>? conversationHistory}) async {
-    // Initialize model if not already done
-    if (_activeModel == null) {
-      final initialized = await initializeModel();
-      if (!initialized) {
-        return 'Error: No suitable AI model available';
-      }
-    }
-
-    // Get comprehensive user context (optionally exclude diet and program for planning mode)
-    final aiContext = await _buildAIContext(
-      includeDiet: includeDietContext,
-      includeProgramContext: includeProgramContext,
-    );
-
-    // Add brevity instruction and context to the role/prompt
-    final briefingInstruction =
-        "Please provide brief, concise responses in 2-4 sentences maximum. ";
-    final contextPrefix = role != null
-        ? '$briefingInstruction\n${aiContext.isNotEmpty ? '$aiContext\n' : ''}$role\n'
-        : '$briefingInstruction\n${aiContext.isNotEmpty ? '$aiContext\n' : ''}';
-
-    // Build contents array with conversation history
-    // Gemini API expects alternating user/model messages without explicit roles
-    List<Map<String, dynamic>> contents = [];
-
-    // Add conversation history if provided
-    if (conversationHistory != null && conversationHistory.isNotEmpty) {
-      for (final msg in conversationHistory) {
-        contents.add({
-          "parts": [
-            {"text": msg['text'] ?? ''}
-          ]
-        });
-      }
-    }
-
-    // Add current user prompt with context
-    contents.add({
-      "parts": [
-        {"text": '$contextPrefix$prompt'}
-      ]
-    });
-
     try {
-      final response = await _makeApiCallWithRetry(
-        endpoint: '${_activeModel}:generateContent',
-        body: {
-          "contents": contents,
-          "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens":
-                maxTokens, // Buddy chat - respects user's preference
+      // Try cloud function first for better performance
+      try {
+        debugPrint(
+            '[Cloud Function] Attempting AI response via cloud function');
+
+        // Get comprehensive user context (optionally exclude diet and program for planning mode)
+        final aiContext = await _buildAIContext(
+          includeDiet: includeDietContext,
+          includeProgramContext: includeProgramContext,
+        );
+
+        // Prepare conversation history for cloud function
+        final conversationHistoryList = conversationHistory
+            ?.map((msg) => {'text': msg['text'] ?? ''})
+            .toList();
+
+        final cloudResult = await _callCloudFunction(
+          functionName: 'getAIResponse',
+          data: {
+            'prompt': prompt,
+            if (role != null) 'role': role,
+            'maxTokens': maxTokens,
+            'includeDietContext': includeDietContext,
+            'includeProgramContext': includeProgramContext,
+            if (conversationHistoryList != null &&
+                conversationHistoryList.isNotEmpty)
+              'conversationHistory': conversationHistoryList,
+            if (aiContext.isNotEmpty) 'aiContext': aiContext,
           },
-        },
-        operation: 'get response',
-      );
+          operation: 'get response',
+        );
 
-      if (response.containsKey('candidates') &&
-          response['candidates'] is List &&
-          response['candidates'].isNotEmpty) {
-        final candidate = response['candidates'][0];
-
-        if (candidate.containsKey('content') && candidate['content'] is Map) {
-          final content = candidate['content'] as Map<String, dynamic>;
-          final finishReason = candidate['finishReason'] as String?;
-
-          if (content.containsKey('parts') &&
-              content['parts'] is List &&
-              (content['parts'] as List).isNotEmpty) {
-            final parts = content['parts'] as List;
-            final part = parts[0] as Map<String, dynamic>;
-
-            if (part.containsKey('text')) {
-              final text = part['text'] as String?;
-
-              // If text is null or empty, check finish reason
-              if (text == null || text.trim().isEmpty) {
-                // Return empty string for MAX_TOKENS to allow caller to handle gracefully
-                if (finishReason == 'MAX_TOKENS') {
-                  debugPrint(
-                      '[Gemini] MAX_TOKENS with no text content - returning empty string');
-                  return '';
-                }
-                // For other cases with no text, return empty string
-                debugPrint(
-                    '[Gemini] No text content in response - returning empty string');
-                return '';
-              }
-
-              // Clean up any remaining newlines or extra spaces
-              final cleanedText = text
-                  .trim()
-                  .replaceAll(RegExp(r'\n+'), ' ')
-                  .replaceAll(RegExp(r'\s+'), ' ');
-
-              return cleanedText;
-            } else {
-              // No text field in part - return empty string for MAX_TOKENS, let caller handle
-              if (finishReason == 'MAX_TOKENS') {
-                debugPrint(
-                    '[Gemini] MAX_TOKENS with no text field - returning empty string');
-                return '';
-              }
-              debugPrint(
-                  '[Gemini] No text field in part - returning empty string');
-              return '';
-            }
-          } else {
-            // No content parts - return empty string for MAX_TOKENS, let caller handle
-            if (finishReason == 'MAX_TOKENS') {
-              debugPrint(
-                  '[Gemini] MAX_TOKENS with no content parts - returning empty string');
-              return '';
-            }
-            debugPrint(
-                '[Gemini] No content parts in response - returning empty string');
-            return '';
-          }
-        } else {
-          // No content in candidate - return empty string for MAX_TOKENS, let caller handle
-          final finishReason = candidate['finishReason'] as String?;
-          if (finishReason == 'MAX_TOKENS') {
-            debugPrint(
-                '[Gemini] MAX_TOKENS with no content - returning empty string');
-            return '';
-          }
+        if (cloudResult['success'] == true && cloudResult['response'] != null) {
+          final response = cloudResult['response'] as String;
           debugPrint(
-              '[Gemini] No content in candidate - returning empty string');
-          return '';
+              '[Cloud Function] Successfully got AI response via cloud function');
+          return response;
+        } else {
+          throw Exception('Cloud function returned unsuccessful result');
         }
-      } else {
-        return 'Error: No candidates in API response';
+      } catch (cloudError) {
+        debugPrint('[Cloud Function] AI response failed: $cloudError');
+        // Don't fallback to client-side - cloud function is the only way
+        return 'Error: Failed to connect to AI service. Please try again.';
       }
     } catch (e) {
+      debugPrint('Error in getResponse: $e');
       return 'Error: Failed to connect to AI service: $e';
     }
   }
@@ -3915,6 +3311,20 @@ class GeminiService {
   }
 
   /// Generate meal titles, types, and basic ingredients based on user context and requirements
+  /// Safely convert a distribution map from cloud function response
+  Map<String, dynamic>? _safeConvertDistribution(dynamic distData) {
+    if (distData == null) return null;
+    if (distData is Map) {
+      try {
+        return Map<String, dynamic>.from(distData);
+      } catch (e) {
+        debugPrint('[Cloud Function] Error converting distribution: $e');
+        return null;
+      }
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>> generateMealTitlesAndIngredients(
     String prompt,
     String contextInformation, {
@@ -3923,171 +3333,97 @@ class GeminiService {
     bool isIngredientBased = false,
   }) async {
     try {
-      // Initialize model if not already done
-      if (_activeModel == null) {
-        final initialized = await initializeModel();
-        if (!initialized) {
-          throw Exception('No suitable AI model available');
-        }
-      }
+      // Try cloud function first for better performance
+      try {
+        debugPrint(
+            '[Cloud Function] Attempting meal titles generation via cloud function');
 
-      // Get comprehensive user context
-      final aiContext = await _buildAIContext();
-      final userContext = await _getUserContext();
+        // Get comprehensive user context
+        final aiContext = await _buildAIContext();
+        final userContext = await _getUserContext();
 
-      // Determine meal count and distribution based on request type
-      final int targetMealCount = mealCount ?? (isIngredientBased ? 2 : 10);
-      final Map<String, int> distribution = customDistribution ??
-          (isIngredientBased
-              ? {"breakfast": 0, "lunch": 1, "dinner": 1, "snack": 0}
-              : {"breakfast": 2, "lunch": 3, "dinner": 3, "snack": 2});
+        // Determine meal count and distribution based on request type
+        final int targetMealCount = mealCount ?? (isIngredientBased ? 2 : 10);
+        final Map<String, int> distribution = customDistribution ??
+            (isIngredientBased
+                ? {"breakfast": 0, "lunch": 1, "dinner": 1, "snack": 0}
+                : {"breakfast": 2, "lunch": 3, "dinner": 3, "snack": 2});
 
-      // Generate dynamic instructions based on request type
-      final String dynamicInstructions = _generateDynamicInstructions(
-          targetMealCount, distribution, isIngredientBased);
+        // Generate dynamic instructions based on request type
+        final String dynamicInstructions = _generateDynamicInstructions(
+            targetMealCount, distribution, isIngredientBased);
 
-      // New explicit attempt order for client-side fallback:
-      // 1) OpenAI (primary for client-side fallback)
-      // 2) Gemini (secondary fallback)
-      // 3) OpenAI (retry)
-      // 4) Gemini (retry)
+        final cloudResult = await _callCloudFunction(
+          functionName: 'generateMealTitlesAndIngredients',
+          data: {
+            'prompt': prompt,
+            'contextInformation': contextInformation,
+            'mealCount': targetMealCount,
+            'customDistribution': distribution,
+            'isIngredientBased': isIngredientBased,
+            'aiContext': aiContext,
+            'userContext': jsonEncode(userContext),
+            'dynamicInstructions': dynamicInstructions,
+          },
+          operation: 'generate meal titles and ingredients',
+        );
 
-      Future<Map<String, dynamic>> parseGeminiStyleResponse(
-          Map<String, dynamic> response) async {
-        if (response['candidates'] == null || response['candidates'].isEmpty) {
-          throw Exception('No response from AI model');
+        if (cloudResult['success'] == true) {
+          final mealTitles = cloudResult['mealTitles'] as List<dynamic>? ?? [];
+          final mealPlanRaw = cloudResult['mealPlan'] as List<dynamic>? ?? [];
+
+          // Safely convert mealPlan items and their nested maps
+          final mealPlan = mealPlanRaw.map((meal) {
+            if (meal is Map) {
+              try {
+                final convertedMeal = Map<String, dynamic>.from(meal);
+                // Convert nested maps safely
+                if (convertedMeal['ingredients'] is Map) {
+                  convertedMeal['ingredients'] = Map<String, dynamic>.from(
+                      convertedMeal['ingredients'] as Map);
+                }
+                if (convertedMeal['nutritionalInfo'] is Map) {
+                  convertedMeal['nutritionalInfo'] = Map<String, dynamic>.from(
+                      convertedMeal['nutritionalInfo'] as Map);
+                }
+                return convertedMeal;
+              } catch (e) {
+                debugPrint('[Cloud Function] Error converting meal: $e');
+                return meal;
+              }
+            }
+            return meal;
+          }).toList();
+
+          // Safely convert distribution map
+          final responseDistribution =
+              _safeConvertDistribution(cloudResult['distribution']) ??
+                  distribution;
+
+          debugPrint(
+              '[Cloud Function] Successfully generated ${mealTitles.length} meal titles via cloud function');
+
+          return {
+            'mealTitles': mealTitles.map((title) => title.toString()).toList(),
+            'mealPlan': mealPlan,
+            'distribution': responseDistribution,
+            'source': 'cloud_function',
+          };
+        } else {
+          throw Exception('Cloud function returned unsuccessful result');
         }
-        final candidate = response['candidates'][0];
-        final content = candidate['content'];
-        if (content == null ||
-            content['parts'] == null ||
-            content['parts'].isEmpty) {
-          throw Exception('Invalid response structure from AI model');
-        }
-        final text = content['parts'][0]['text'];
-        if (text == null || text.isEmpty) {
-          throw Exception('Empty response from AI model');
-        }
-        debugPrint('[AI] Raw text length: ${text.length}');
-        try {
-          final snippet =
-              text.length > 800 ? text.substring(0, 800) + '…' : text;
-          debugPrint('[AI] Raw text preview: $snippet');
-        } catch (e) {
-          debugPrint('[AI] Error logging text preview: $e');
-        }
-        Map<String, dynamic> jsonResponse;
-        try {
-          jsonResponse = _extractJsonObject(text);
-        } catch (parseError) {
-          throw Exception('Invalid JSON response from AI: $parseError');
-        }
-        final mealPlan = jsonResponse['mealPlan'] as List<dynamic>? ?? [];
-        final mealTitles =
-            mealPlan.map((meal) => meal['title'] as String).toList();
+      } catch (cloudError) {
+        debugPrint(
+            '[Cloud Function] Meal titles generation failed: $cloudError');
+        // Don't fallback to client-side - cloud function is the only way
         return {
-          'mealTitles': mealTitles,
-          'mealPlan': mealPlan,
-          'distribution':
-              jsonResponse['distribution'] as Map<String, dynamic>? ??
-                  {'breakfast': 2, 'lunch': 2, 'dinner': 2, 'snack': 2}
+          'mealTitles': [],
+          'mealPlan': [],
+          'distribution': {},
+          'source': 'failed',
+          'message': 'AI service temporarily unavailable. Please try again.'
         };
       }
-
-      Map<String, dynamic> buildGeminiBody() => {
-            "contents": [
-              {
-                "parts": [
-                  {
-                    "text": '''
-You are a professional nutritionist and meal planner.
-
-$aiContext
-
-$prompt
-
-$contextInformation
-
-$userContext
-
-$dynamicInstructions
-'''
-                  }
-                ]
-              }
-            ],
-            "generationConfig": {
-              "temperature": 0.7,
-              "topK": 40,
-              "topP": 0.95,
-              "maxOutputTokens": 8000, // Increased for complex meal planning
-            },
-          };
-
-      // Attempt 1: Gemini
-      try {
-        debugPrint('Attempt 1: Gemini (8192 tokens)');
-        final resp = await _makeGeminiApiCall(
-          endpoint: '${_activeModel}:generateContent',
-          body: buildGeminiBody(),
-          operation: 'generate meal titles and ingredients',
-          retryCount: 0,
-        );
-        return await parseGeminiStyleResponse(resp);
-      } catch (e) {
-        debugPrint('Attempt 1 (Gemini) failed: $e');
-      }
-
-      // Attempt 2: OpenAI
-      try {
-        debugPrint('Attempt 2: OpenAI');
-        final resp = await _makeOpenAIApiCall(
-          endpoint: 'chat/completions',
-          body: buildGeminiBody(),
-          operation: 'generate meal titles and ingredients (OpenAI)',
-          retryCount: 0,
-        );
-        return await parseGeminiStyleResponse(resp);
-      } catch (e) {
-        debugPrint('Attempt 2 (OpenAI) failed: $e');
-      }
-
-      // Attempt 3: Gemini
-      try {
-        debugPrint('Attempt 3: Gemini (3000 tokens)');
-        final resp = await _makeGeminiApiCall(
-          endpoint: '${_activeModel}:generateContent',
-          body: buildGeminiBody(),
-          operation: 'generate meal titles and ingredients (2nd)',
-          retryCount: 0,
-        );
-        return await parseGeminiStyleResponse(resp);
-      } catch (e) {
-        debugPrint('Attempt 3 (Gemini) failed: $e');
-      }
-
-      // Attempt 4: OpenAI
-      try {
-        debugPrint('Attempt 4: OpenAI');
-        final resp = await _makeOpenAIApiCall(
-          endpoint: 'chat/completions',
-          body: buildGeminiBody(),
-          operation: 'generate meal titles and ingredients (OpenAI 2nd)',
-          retryCount: 0,
-        );
-        return await parseGeminiStyleResponse(resp);
-      } catch (e) {
-        debugPrint('Attempt 4 (OpenAI) failed: $e');
-      }
-
-      // All attempts failed; do not try further
-      return {
-        'mealTitles': [],
-        'mealPlan': [],
-        'distribution': {},
-        'source': 'failed',
-        'message': 'AI service temporarily unavailable. Please try again.'
-      };
     } catch (e) {
       debugPrint('generateMealTitlesAndIngredients failed with error: $e');
       return {
@@ -4243,7 +3579,7 @@ Generate $mealCount meals. Return JSON only:
         final meals = cloudResult['meals'] as List<dynamic>? ?? [];
         final mealPlan = meals; // Use meals as mealPlan for compatibility
         final responseDistribution =
-            cloudResult['distribution'] as Map<String, dynamic>? ??
+            _safeConvertDistribution(cloudResult['distribution']) ??
                 {'breakfast': 2, 'lunch': 3, 'dinner': 3, 'snack': 2};
 
         // Extract meal titles for compatibility with existing logic
@@ -4272,183 +3608,62 @@ Generate $mealCount meals. Return JSON only:
               cloudResult['existingMealIds'] ?? [], // Include existing meal IDs
         };
       } catch (cloudError) {
-        debugPrint(
-            '[Cloud Function] Meal generation failed, falling back to client-side: $cloudError');
-        // Fall through to existing client-side logic
-      }
+        debugPrint('[Cloud Function] Meal generation failed: $cloudError');
+        // Don't fallback to client-side - cloud function is the only way
+        // Provide user-friendly error message
+        String errorMessage = 'Unable to generate meals. Please try again.';
 
-      // Step 1: Generate meal titles, types, and basic ingredients (fallback)
-      // Calculate distribution based on mealCount for fallback
-      Map<String, int> fallbackDistribution;
-      if (mealCount == 1) {
-        fallbackDistribution = {
-          'breakfast': 1,
-          'lunch': 0,
-          'dinner': 0,
-          'snack': 0
-        };
-      } else if (mealCount <= 3) {
-        final perType = (mealCount / 3).ceil();
-        fallbackDistribution = {
-          'breakfast': perType,
-          'lunch': perType,
-          'dinner': perType,
-          'snack': 0
-        };
-      } else {
-        fallbackDistribution = {
-          'breakfast': (mealCount * 0.2).round(),
-          'lunch': (mealCount * 0.3).round(),
-          'dinner': (mealCount * 0.3).round(),
-          'snack': (mealCount * 0.2).round()
-        };
-        final total = fallbackDistribution.values.reduce((a, b) => a + b);
-        if (total != mealCount) {
-          final diff = mealCount - total;
-          fallbackDistribution['lunch'] =
-              (fallbackDistribution['lunch'] ?? 0) + diff;
-        }
-      }
-
-      final mealData = await generateMealTitlesAndIngredients(
-        prompt,
-        contextInformation,
-        mealCount: mealCount,
-        customDistribution: fallbackDistribution,
-      );
-      final mealTitles = List<String>.from(
-          (mealData['mealTitles'] as List?) ?? const <String>[]);
-      debugPrint('Generated meal titles: ${mealTitles}');
-      final mealPlan = mealData['mealPlan'] as List<dynamic>;
-
-      if (mealTitles.isEmpty) {
-        throw Exception('Failed to generate meal titles');
-      }
-
-      // Step 2: Check which titles already exist in database
-      final existingMeals = await checkExistingMealsByTitles(mealTitles);
-      debugPrint('Found ${existingMeals.length} existing meals');
-
-      // Step 3: Identify missing meals with their meal types and basic ingredients
-      final missingMeals = <Map<String, dynamic>>[];
-      for (final meal in mealPlan) {
-        final title = meal['title'] as String;
-        final mealType = meal['mealType'] as String;
-        final calories = _parseCalories(meal['calories']);
-        final type = meal['type'] as String;
-
-        // Debug logging to see what's in the meal data
-        debugPrint('Processing meal: $title');
-        debugPrint('Meal data keys: ${meal.keys.toList()}');
-        debugPrint('Meal data: $meal');
-
-        // Check for ingredients in multiple possible field names
-        Map<String, dynamic> basicIngredients = {};
-        if (meal['ingredients'] != null) {
-          basicIngredients = meal['ingredients'] as Map<String, dynamic>;
-        } else if (meal['basicIngredients'] != null) {
-          // Handle case where AI returns basicIngredients instead of ingredients
-          final basicList = meal['basicIngredients'] as List<dynamic>?;
-          if (basicList != null) {
-            // Convert list to map with default amounts
-            for (final ingredient in basicList) {
-              basicIngredients[ingredient.toString()] = '1 serving';
-            }
+        // Extract user-friendly error message if available
+        if (cloudError is Exception) {
+          final errorStr = cloudError.toString();
+          if (errorStr.contains('timeout') || errorStr.contains('deadline')) {
+            errorMessage = 'Meal generation took too long. Please try again.';
+          } else if (errorStr.contains('unauthenticated')) {
+            errorMessage = 'Please sign in to generate meals.';
           }
         }
 
-        debugPrint('Extracted ingredients: $basicIngredients');
-
-        if (!existingMeals.containsKey(title)) {
-          missingMeals.add({
-            'title': title,
-            'mealType': mealType,
-            'calories': calories,
-            'type': type,
-            'ingredients': basicIngredients,
-            'nutritionalInfo': meal['nutritionalInfo'] ?? {},
-          });
-        }
-      }
-
-      debugPrint('Need to generate ${missingMeals.length} new meals');
-      debugPrint('Missing meals: $missingMeals');
-
-      // Step 4: Save basic meals to Firestore with 'pending' status for Firebase Functions processing
-      Map<String, dynamic> saveResult = {};
-      if (missingMeals.isNotEmpty) {
-        saveResult = await saveBasicMealsToFirestore(missingMeals, cuisine,
-            partOfWeeklyMeal: partOfWeeklyMeal,
-            weeklyPlanContext: weeklyPlanContext);
-        debugPrint(
-            'Saved ${missingMeals.length} basic meals to Firestore with pending status');
-      }
-
-      // Step 5: Return minimal payload for immediate UI use
-      final minimalMeals = <Map<String, dynamic>>[];
-      final collectedMealIds = <String>[];
-
-      for (final meal in mealPlan) {
-        final title = meal['title'] as String;
-        final mealType = meal['mealType'] as String;
-        String? id;
-        String status = 'pending';
-
-        if (existingMeals.containsKey(title)) {
-          id = existingMeals[title]!.mealId;
-          status = 'completed';
-        } else {
-          final mealIds = (saveResult['mealIds'] as Map<String, String>?);
-          id = mealIds != null ? mealIds[title] : null;
-        }
-
-        if (id != null && id.isNotEmpty) {
-          minimalMeals.add({
-            'id': id,
-            'title': title,
-            'mealType': mealType,
-            'status': status,
-          });
-          collectedMealIds.add(id);
-        }
-      }
-
-      if (minimalMeals.isEmpty) {
+        // Return error response
         return {
           'meals': [],
           'source': 'failed',
-          'message': 'Failed to generate meals. Please try again.',
-          'error': true
+          'count': 0,
+          'message': errorMessage,
+          'error': true,
+          'existingCount': 0,
+          'newCount': 0,
+          'pendingCount': 0,
+          'firebaseProcessing': {
+            'active': false,
+            'total': 0,
+            'pending': 0,
+            'completed': 0,
+            'failed': 0,
+          },
         };
       }
 
-      return {
-        'meals': minimalMeals,
-        'mealIds': collectedMealIds,
-        'source': 'mixed',
-        'count': minimalMeals.length,
-        'message':
-            'Generated ${missingMeals.length} new meals and found ${existingMeals.length} existing meals. Details will be populated asynchronously by Firebase Functions.',
-        'existingCount': existingMeals.length,
-        'newCount': missingMeals.length,
-        'pendingCount': missingMeals.length,
-        'firebaseProcessing': {
-          'active': missingMeals.isNotEmpty,
-          'total': missingMeals.length,
-          'pending': missingMeals.length,
-          'completed': 0,
-          'failed': 0,
-        },
-      };
+      // This code should never be reached, but kept for safety
+      throw Exception('Meal generation failed. Please try again.');
     } catch (e) {
       debugPrint('Error in generateMealsIntelligently: $e');
-      // Return error response instead of falling back to generateMealPlan
-      // which has a different data structure
+      // Return error response - all operations must go through cloud functions
+      String errorMessage = 'Unable to generate meals. Please try again.';
+
+      if (e is Exception) {
+        final errorStr = e.toString();
+        if (errorStr.contains('timeout') || errorStr.contains('deadline')) {
+          errorMessage = 'Meal generation took too long. Please try again.';
+        } else if (errorStr.contains('unauthenticated')) {
+          errorMessage = 'Please sign in to generate meals.';
+        }
+      }
+
       return {
         'meals': [],
         'source': 'failed',
         'count': 0,
-        'message': 'Failed to generate meals. Please try again.',
+        'message': errorMessage,
         'error': true,
         'existingCount': 0,
         'newCount': 0,
@@ -4697,138 +3912,26 @@ Generate $mealCount meals. Return JSON only:
         'mealIds': cloudResult['mealIds'] ?? [], // Include meal IDs
       };
     } catch (cloudError) {
-      debugPrint(
-          '[Cloud Function] Fridge image analysis failed, falling back to client-side: $cloudError');
-      // Fall through to existing client-side logic
-    }
+      debugPrint('[Cloud Function] Fridge image analysis failed: $cloudError');
+      // Don't fallback to client-side - cloud function is the only way
+      // Provide user-friendly error message
+      String errorMessage = 'Unable to analyze fridge image. Please try again.';
 
-    // Fallback to client-side analysis
-    // Initialize model if not already done
-    if (_activeModel == null) {
-      final initialized = await initializeModel();
-      if (!initialized) {
-        throw Exception('No suitable AI model available');
-      }
-    }
-
-    // Ensure we start with Gemini for image analysis
-    if (_currentProvider != AIProvider.gemini) {
-      debugPrint('Starting fridge image analysis with Gemini provider');
-      _currentProvider = AIProvider.gemini;
-    }
-
-    try {
-      // Read and encode the image
-      final Uint8List imageBytes = await imageFile.readAsBytes();
-      final String base64Image = base64Encode(imageBytes);
-
-      // Get comprehensive user context
-      final aiContext = await _buildAIContext();
-
-      String contextualPrompt =
-          'Analyze this fridge image to identify raw ingredients that can be used for cooking.';
-
-      if (dietaryRestrictions != null && dietaryRestrictions.isNotEmpty) {
-        contextualPrompt +=
-            ' Consider dietary restrictions: $dietaryRestrictions.';
-      }
-
-      final prompt = '''
-$aiContext
-
-$contextualPrompt
-
-Identify all visible raw ingredients in this fridge that can be used for cooking.
-
-CRITICAL: Return ONLY raw JSON data. Do not wrap in ```json``` or ``` code blocks. Do not add any markdown formatting. Return pure JSON only with the following structure:
-
-{
-  "ingredients": [
-    {
-      "name": "ingredient name",
-      "category": "vegetable|protein|dairy|grain|fruit|herb|spice|other",
-    }
-  ],
-  "suggestedMeals": [
-    {
-      "title": "meal name",
-      "cookingTime": "30 minutes",
-      "difficulty": "easy|medium|hard",
-      "calories": 0,
-    }
-  ]
-}
-
-Important guidelines:
-- Return valid, complete JSON only. Do not include markdown or code blocks.
-- Focus on ingredients that can be used for cooking main meals.
-- Provide 2 diverse (1 medium and 1 hard) meal suggestions using the identified ingredients.
-- All nutritional values must be numbers (not strings).
-- Category must be one of the following: vegetable|protein|dairy|grain|fruit|herb|spice|other
-''';
-
-      // Use Gemini's image analysis
-      final response = await _makeApiCallWithRetry(
-        endpoint: '${_activeModel}:generateContent',
-        body: {
-          "contents": [
-            {
-              "parts": [
-                {"text": prompt},
-                {
-                  "inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": base64Image
-                  }
-                }
-              ]
-            }
-          ],
-          "generationConfig": {
-            "temperature": 0.2,
-            "topK": 20,
-            "topP": 0.8,
-            "maxOutputTokens":
-                8192, // Fridge analysis - complex with multiple ingredients + meal suggestions
-          },
-        },
-        operation: 'analyze fridge image',
-      );
-
-      if (response.containsKey('candidates') &&
-          response['candidates'] is List &&
-          response['candidates'].isNotEmpty) {
-        final candidate = response['candidates'][0];
-
-        if (candidate.containsKey('content') && candidate['content'] is Map) {
-          final content = candidate['content'] as Map<String, dynamic>;
-          final parts = content['parts'] as List<dynamic>?;
-
-          if (parts != null && parts.isNotEmpty) {
-            final text = parts[0]['text'] as String?;
-
-            if (text != null && text.isNotEmpty) {
-              try {
-                final result = _processAIResponse(text, 'fridge_analysis');
-                return result;
-              } catch (e) {
-                throw Exception('Failed to parse fridge analysis JSON: $e');
-              }
-            } else {
-              throw Exception('No text content in Gemini response');
-            }
-          } else {
-            throw Exception('No parts in Gemini response content');
-          }
-        } else {
-          throw Exception('No content in Gemini response candidate');
+      // Extract user-friendly error message if available
+      if (cloudError is Exception) {
+        final errorStr = cloudError.toString();
+        if (errorStr.contains('invalid-argument') ||
+            errorStr.contains('Validation failed')) {
+          errorMessage = 'Invalid image. Please try a different image.';
+        } else if (errorStr.contains('timeout') ||
+            errorStr.contains('deadline')) {
+          errorMessage = 'Analysis took too long. Please try again.';
+        } else if (errorStr.contains('unauthenticated')) {
+          errorMessage = 'Please sign in to analyze images.';
         }
-      } else {
-        throw Exception('No candidates in Gemini response');
       }
-    } catch (e) {
-      debugPrint('analyzeFridgeImage failed with error: $e');
-      rethrow;
+
+      throw Exception(errorMessage);
     }
   }
 
@@ -4844,141 +3947,67 @@ Important guidelines:
     List<dynamic> recentSymptoms,
   ) async {
     try {
-      // Initialize model if not already done
-      if (_activeModel == null) {
-        final initialized = await initializeModel();
-        if (!initialized) {
-          throw Exception('No suitable AI model available');
-        }
-      }
+      // Try cloud function first for better performance
+      try {
+        debugPrint(
+            '[Cloud Function] Attempting symptom pattern analysis via cloud function');
 
-      // Get user context
-      final aiContext = await _buildAIContext();
-      final userContext = await _getUserContext();
+        // Get user context
+        final aiContext = await _buildAIContext();
+        final userContext = await _getUserContext();
 
-      // Format symptoms for analysis
-      final symptomsText = recentSymptoms.map((symptom) {
-        if (symptom is Map<String, dynamic>) {
-          final type = symptom['type'] ?? 'unknown';
-          final severity = symptom['severity'] ?? 0;
-          final ingredients =
-              (symptom['ingredients'] as List<dynamic>?)?.join(', ') ??
-                  'unknown';
-          final mealName = symptom['mealName'] ?? 'unknown meal';
-          final mealType = symptom['mealType'] ?? 'unknown';
-          final timestamp = symptom['timestamp'] ?? 'unknown time';
+        // Format symptoms for analysis
+        final symptomsText = recentSymptoms.map((symptom) {
+          if (symptom is Map<String, dynamic>) {
+            final type = symptom['type'] ?? 'unknown';
+            final severity = symptom['severity'] ?? 0;
+            final ingredients =
+                (symptom['ingredients'] as List<dynamic>?)?.join(', ') ??
+                    'unknown';
+            final mealName = symptom['mealName'] ?? 'unknown meal';
+            final mealType = symptom['mealType'] ?? 'unknown';
+            final timestamp = symptom['timestamp'] ?? 'unknown time';
 
-          return '- $type (severity: $severity/5) after $mealName ($mealType) containing: $ingredients at $timestamp';
-        }
-        return '- ${symptom.toString()}';
-      }).join('\n');
-
-      final prompt = '''
-You are a nutrition and wellness AI assistant helping a user identify food triggers and patterns from their symptom logs.
-
-User Context:
-$userContext
-
-Recent Symptoms (last 30 days):
-$symptomsText
-
-Please analyze these symptoms and provide:
-1. **Potential Food Triggers**: Identify ingredients that frequently appear with negative symptoms
-2. **Patterns**: Notice any patterns in meal timing, meal types, or ingredient combinations
-3. **Recommendations**: Provide 3-5 actionable dietary recommendations
-4. **Insights**: Share any observations about potential food intolerances or sensitivities
-
-Format your response as JSON with this structure:
-{
-  "triggers": ["ingredient1", "ingredient2"],
-  "patterns": "Brief description of patterns observed",
-  "recommendations": ["recommendation1", "recommendation2", "recommendation3"],
-  "insights": "Overall insights about potential food sensitivities or dietary patterns",
-  "confidence": "high|medium|low"
-}
-
-Be concise but helpful. Focus on actionable advice.
-''';
-
-      final response = await _makeApiCallWithRetry(
-        endpoint: '${_activeModel}:generateContent',
-        body: {
-          "contents": [
-            {
-              "parts": [
-                {"text": '$aiContext\n\n$prompt'}
-              ]
-            }
-          ],
-          "generationConfig": {
-            "temperature": 0.3,
-            "topK": 20,
-            "topP": 0.8,
-            "maxOutputTokens": 2000,
-          },
-        },
-        operation: 'analyze symptom patterns',
-      );
-
-      if (response.containsKey('candidates') &&
-          response['candidates'] is List &&
-          response['candidates'].isNotEmpty) {
-        final candidate = response['candidates'][0];
-
-        if (candidate.containsKey('content') && candidate['content'] is Map) {
-          final content = candidate['content'] as Map<String, dynamic>;
-          final parts = content['parts'] as List<dynamic>?;
-
-          if (parts != null && parts.isNotEmpty) {
-            final text = parts[0]['text'] as String?;
-
-            if (text != null && text.isNotEmpty) {
-              try {
-                // Try to extract JSON from the response
-                final jsonMatch =
-                    RegExp(r'\{[^{}]*\}', multiLine: true).firstMatch(text);
-                if (jsonMatch != null) {
-                  final jsonStr = jsonMatch.group(0)!;
-                  final result = json.decode(jsonStr) as Map<String, dynamic>;
-                  return {
-                    'success': true,
-                    'analysis': result,
-                    'rawResponse': text,
-                  };
-                } else {
-                  // If no JSON found, return the text as insights
-                  return {
-                    'success': true,
-                    'analysis': {
-                      'insights': text,
-                      'recommendations': [],
-                    },
-                    'rawResponse': text,
-                  };
-                }
-              } catch (e) {
-                debugPrint('Error parsing AI symptom analysis: $e');
-                // Return text as insights if JSON parsing fails
-                return {
-                  'success': true,
-                  'analysis': {
-                    'insights': text,
-                    'recommendations': [],
-                  },
-                  'rawResponse': text,
-                };
-              }
-            } else {
-              throw Exception('No text content in Gemini response');
-            }
-          } else {
-            throw Exception('No parts in Gemini response content');
+            return '- $type (severity: $severity/5) after $mealName ($mealType) containing: $ingredients at $timestamp';
           }
+          return '- ${symptom.toString()}';
+        }).join('\n');
+
+        final cloudResult = await _callCloudFunction(
+          functionName: 'analyzeSymptomPatternsAI',
+          data: {
+            'symptoms': recentSymptoms,
+            'aiContext': aiContext,
+            'userContext': jsonEncode(userContext),
+            'symptomsText': symptomsText,
+          },
+          operation: 'analyze symptom patterns',
+        );
+
+        if (cloudResult['success'] == true) {
+          final analysis =
+              cloudResult['analysis'] as Map<String, dynamic>? ?? {};
+          final rawResponse = cloudResult['rawResponse'] as String?;
+
+          debugPrint(
+              '[Cloud Function] Successfully analyzed symptom patterns via cloud function');
+
+          return {
+            'success': true,
+            'analysis': analysis,
+            if (rawResponse != null) 'rawResponse': rawResponse,
+          };
         } else {
-          throw Exception('No content in Gemini response candidate');
+          throw Exception('Cloud function returned unsuccessful result');
         }
-      } else {
-        throw Exception('No candidates in Gemini response');
+      } catch (cloudError) {
+        debugPrint(
+            '[Cloud Function] Symptom pattern analysis failed: $cloudError');
+        // Don't fallback to client-side - cloud function is the only way
+        return {
+          'success': false,
+          'error': cloudError.toString(),
+        };
       }
     } catch (e) {
       debugPrint('analyzeSymptomPatternsAI failed with error: $e');
@@ -5032,296 +4061,26 @@ Be concise but helpful. Focus on actionable advice.
         'mealIds': cloudResult['mealIds'] ?? [], // Include meal IDs
       };
     } catch (cloudError) {
-      debugPrint(
-          '[Cloud Function] Food image analysis failed, falling back to client-side: $cloudError');
-      // Fall through to existing client-side logic
-    }
+      debugPrint('[Cloud Function] Food image analysis failed: $cloudError');
+      // Don't fallback to client-side - cloud function is the only way
+      // Provide user-friendly error message
+      String errorMessage = 'Unable to analyze food image. Please try again.';
 
-    // Fallback to client-side analysis
-    debugPrint('Active model: $_activeModel');
-    debugPrint('Current provider: ${_currentProvider.name}');
-    debugPrint('Gemini healthy: $_isGeminiHealthy');
-    debugPrint('OpenRouter healthy: $_isOpenRouterHealthy');
-
-    // Initialize model if not already done
-    if (_activeModel == null) {
-      debugPrint('No active model, initializing...');
-      final initialized = await initializeModel();
-      if (!initialized) {
-        debugPrint('Model initialization failed!');
-        throw Exception(
-            'No suitable AI model available - check API keys and provider health');
-      }
-      debugPrint('Model initialized successfully: $_activeModel');
-    }
-
-    // Ensure we start with Gemini for image analysis (retry logic will handle fallback if needed)
-    if (_currentProvider != AIProvider.gemini) {
-      debugPrint('Starting image analysis with Gemini provider');
-      _currentProvider = AIProvider.gemini;
-    }
-
-    try {
-      debugPrint('Reading image file...');
-
-      // Compress image before sending to API for faster upload
-      Uint8List imageBytes = await imageFile.readAsBytes();
-      debugPrint(
-          'Original image size: ${imageBytes.length} bytes (${(imageBytes.length / 1024).toStringAsFixed(2)} KB)');
-
-      // If image is large, compress it to speed up analysis
-      if (imageBytes.length > 500 * 1024) {
-        // > 500KB
-        debugPrint('Compressing large image for faster API call...');
-        final img.Image? image = img.decodeImage(imageBytes);
-
-        if (image != null) {
-          // Resize to max 1024px on longest side
-          final img.Image resized = image.width > image.height
-              ? img.copyResize(image, width: 1024)
-              : img.copyResize(image, height: 1024);
-
-          // Compress with quality 85
-          imageBytes = Uint8List.fromList(img.encodeJpg(resized, quality: 85));
-          debugPrint(
-              'Compressed image size: ${imageBytes.length} bytes (${(imageBytes.length / 1024).toStringAsFixed(2)} KB)');
+      // Extract user-friendly error message if available
+      if (cloudError is Exception) {
+        final errorStr = cloudError.toString();
+        if (errorStr.contains('invalid-argument') ||
+            errorStr.contains('Validation failed')) {
+          errorMessage = 'Invalid image. Please try a different image.';
+        } else if (errorStr.contains('timeout') ||
+            errorStr.contains('deadline')) {
+          errorMessage = 'Analysis took too long. Please try again.';
+        } else if (errorStr.contains('unauthenticated')) {
+          errorMessage = 'Please sign in to analyze images.';
         }
       }
 
-      final String base64Image = base64Encode(imageBytes);
-
-      // Build minimal context for image analysis (not the full AI context to save tokens)
-      String contextualPrompt =
-          'Analyze this food and provide nutritional info.';
-
-      if (mealType != null) {
-        contextualPrompt += ' Type: $mealType.';
-      }
-
-      if (dietaryRestrictions != null && dietaryRestrictions.isNotEmpty) {
-        contextualPrompt += ' Diet: $dietaryRestrictions.';
-      }
-
-      final prompt = '''
-$contextualPrompt
-
-Return ONLY this JSON structure (no markdown, no explanations):
-
-{
-  "foodItems": [
-    {
-      "name": "food item name",
-      "estimatedWeight": "weight in grams",
-      "confidence": "high|medium|low",
-      "nutritionalInfo": {
-        "calories": 0,
-        "protein": 0,
-        "carbs": 0,
-        "fat": 0,
-        "fiber": 0,
-        "sugar": 0,
-        "sodium": 0
-      }
-    }
-  ],
-  "totalNutrition": {
-    "calories": 0,
-    "protein": 0,
-    "carbs": 0,
-    "fat": 0,
-    "fiber": 0,
-    "sugar": 0,
-    "sodium": 0
-  },
-  "ingredients": {
-        "ingredient1": "amount with unit (e.g., '1 cup', '200g')",
-        "ingredient2": "amount with unit"
-    },
-  "confidence": "high|medium|low",
-  "suggestions": {
-    "improvements": ["suggestion1", "suggestion2", ...],
-    "alternatives": ["alternative1", "alternative2", ...],
-    "additions": ["addition1", "addition2", ...]
-  },
-  "healthScore": 5
-}
-
-Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
-
-      // For image analysis, we need to handle both Gemini and OpenRouter differently
-      // since OpenRouter has different image handling capabilities
-      if (_currentProvider == AIProvider.gemini) {
-        // Use Gemini's image analysis with retry and fallback support
-        final response = await _makeApiCallWithRetry(
-          endpoint: '${_activeModel}:generateContent',
-          body: {
-            "contents": [
-              {
-                "parts": [
-                  {"text": prompt},
-                  {
-                    "inline_data": {
-                      "mime_type": "image/jpeg",
-                      "data": base64Image
-                    }
-                  }
-                ]
-              }
-            ],
-            "generationConfig": {
-              "temperature": 0.1,
-              "topK": 20,
-              "topP": 0.8,
-              "maxOutputTokens":
-                  8192, // Food analysis - increased for complex analysis
-            },
-          },
-          operation: 'analyze food image',
-        );
-
-        if (response.containsKey('candidates') &&
-            response['candidates'] is List &&
-            response['candidates'].isNotEmpty) {
-          final candidate = response['candidates'][0];
-
-          // Check for safety/blocked content
-          if (candidate.containsKey('finishReason')) {
-            final finishReason = candidate['finishReason'];
-            debugPrint('API finish reason: $finishReason');
-
-            if (finishReason == 'SAFETY' || finishReason == 'RECITATION') {
-              debugPrint('⚠️ Content blocked by safety filters');
-              debugPrint('Full response: $response');
-              throw Exception(
-                  'Content blocked by safety filters. Try a different image or angle.');
-            }
-
-            if (finishReason == 'MAX_TOKENS') {
-              debugPrint('⚠️ Response hit token limit - prompt was too long');
-              debugPrint('Full response: $response');
-              // Retry with increased token limit (6000)
-              return await _makeApiCallWithRetry(
-                endpoint: '${_activeModel}:generateContent',
-                body: {
-                  "contents": [
-                    {
-                      "parts": [
-                        {"text": prompt}
-                      ]
-                    }
-                  ],
-                  "generationConfig": {
-                    "temperature": 0.1,
-                    "topK": 20,
-                    "topP": 0.8,
-                    "maxOutputTokens": 8192, // Increased token limit
-                  },
-                },
-                operation: 'analyze food image (retry with 6000 tokens)',
-              );
-            }
-          }
-
-          if (candidate.containsKey('content') && candidate['content'] is Map) {
-            final content = candidate['content'];
-
-            if (content.containsKey('parts') &&
-                content['parts'] is List &&
-                content['parts'].isNotEmpty) {
-              final part = content['parts'][0];
-
-              if (part.containsKey('text')) {
-                final text = part['text'];
-
-                try {
-                  final result = _processAIResponse(text, 'tasty_analysis');
-                  return result;
-                } catch (e) {
-                  throw Exception('Failed to parse food analysis JSON: $e');
-                }
-              } else {
-                debugPrint('❌ No text in part. Part content: $part');
-                throw Exception('No text content in API response');
-              }
-            } else {
-              debugPrint('❌ No parts in content. Content: $content');
-              debugPrint('Full candidate: $candidate');
-              throw Exception(
-                  'No content parts in API response. Possible safety block or empty response.');
-            }
-          } else {
-            debugPrint('❌ No content in candidate. Candidate: $candidate');
-            throw Exception('No content in API response');
-          }
-        } else {
-          debugPrint('❌ No candidates. Response: $response');
-          throw Exception('No candidates in API response');
-        }
-      } else {
-        // Use OpenRouter for image analysis with retry support
-        final response = await _makeApiCallWithRetry(
-          endpoint: 'chat/completions',
-          body: {
-            "model": _getOpenRouterModelName(),
-            "messages": [
-              {
-                "role": "user",
-                "content": [
-                  {"type": "text", "text": prompt},
-                  {
-                    "type": "image_url",
-                    "image_url": {"url": "data:image/jpeg;base64,$base64Image"}
-                  }
-                ]
-              }
-            ],
-            "max_tokens":
-                6000, // Food analysis (OpenRouter) - increased for complex analysis
-            "temperature": 0.1,
-          },
-          operation: 'analyze food image with OpenRouter',
-        );
-
-        if (response.containsKey('choices') &&
-            response['choices'] is List &&
-            response['choices'].isNotEmpty) {
-          final choice = response['choices'][0];
-          final message = choice['message'] as Map<String, dynamic>?;
-
-          if (message != null && message.containsKey('content')) {
-            final text = message['content'] as String?;
-
-            if (text != null && text.isNotEmpty) {
-              try {
-                final result = _processAIResponse(text, 'tasty_analysis');
-                return result;
-              } catch (e) {
-                throw Exception('Failed to parse food analysis JSON: $e');
-              }
-            } else {
-              throw Exception('No text content in OpenRouter response');
-            }
-          } else {
-            throw Exception('No message content in OpenRouter response');
-          }
-        } else {
-          throw Exception('No choices in OpenRouter response');
-        }
-      }
-    } catch (e) {
-      debugPrint('=== Food image analysis error ===');
-      debugPrint('Error: $e');
-      debugPrint('Stack trace: ${StackTrace.current}');
-      // Show snackbar to user
-      Get.snackbar(
-        'Food Analysis Failed',
-        'Please try again later',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: Duration(seconds: 3),
-      );
-      throw Exception('Failed to analyze food image: $e');
+      throw Exception(errorMessage);
     }
   }
 
@@ -5329,6 +4088,8 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
       List<dynamic> displayedItems, BuildContext parentContext, bool isDineIn,
       {String? cuisineFilter}) async {
     try {
+      debugPrint(
+          'generateMealsFromIngredients called with isDineIn: $isDineIn');
       showLoadingDialog(parentContext, loadingText: loadingTextSearchMeals);
 
       // Extract ingredient names
@@ -5364,9 +4125,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                   'title': meal.title,
                   'categories': meal.categories,
                   'ingredients': meal.ingredients,
-                  'calories': meal.calories is int
-                      ? meal.calories
-                      : int.tryParse(meal.calories.toString()) ?? 0,
+                  'calories': meal.calories,
                   'instructions': meal.instructions,
                   'source': 'existing_database',
                 })
@@ -5384,7 +4143,8 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
         // Build prompt with cuisine filter if provided
         String prompt =
             'Generate 2 meals using these ingredients: ${ingredientNames.join(', ')}';
-        String contextInfo = 'Stay within the ingredients provided';
+        String contextInfo =
+            'Stay within the ingredients provided. IMPORTANT: Each meal must use ALL or ALL-1 of the provided ingredients. Do not skip more than one ingredient per meal.';
 
         if (cuisineFilter != null && cuisineFilter.isNotEmpty) {
           prompt += ' in the style of $cuisineFilter cuisine';
@@ -5431,20 +4191,50 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
         final saveResult = await saveBasicMealsToFirestore(
           formattedMeals,
           'ingredient_based', // cuisine/category
+          isDineInMeal:
+              isDineIn, // Pass the isDineIn flag to preserve ingredients
         );
         final mealIds = saveResult['mealIds'] as Map<String, String>;
-        debugPrint('Saved meals with IDs: $mealIds');
 
         // Update the meals with their Firestore IDs
         final mealsWithIds = <Map<String, dynamic>>[];
+        debugPrint('MealIds map keys: ${mealIds.keys.toList()}');
+        debugPrint('MealIds map values: ${mealIds.values.toList()}');
+
         for (final meal in formattedMeals) {
           final title = meal['title'] as String;
-          final mealId = mealIds[title];
+          String? mealId = mealIds[title];
 
-          if (mealId != null) {
+          // Try exact match first
+          if (mealId == null || mealId.isEmpty) {
+            // Try case-insensitive and trimmed match
+            final normalizedTitle = title.trim().toLowerCase();
+            String? matchedKey;
+            for (final key in mealIds.keys) {
+              if (key.trim().toLowerCase() == normalizedTitle) {
+                matchedKey = key;
+                break;
+              }
+            }
+
+            if (matchedKey != null) {
+              mealId = mealIds[matchedKey];
+              debugPrint(
+                  'Found mealId for "$title" using normalized match with "$matchedKey": $mealId');
+            } else {
+              debugPrint('WARNING: Could not find mealId for title: "$title"');
+              debugPrint('Available keys in mealIds: ${mealIds.keys.toList()}');
+            }
+          } else {
+            debugPrint('Found mealId for "$title" using exact match: $mealId');
+          }
+
+          if (mealId != null && mealId.isNotEmpty) {
             final mealWithId = Map<String, dynamic>.from(meal);
             mealWithId['id'] = mealId; // Add the Firestore ID
             mealsWithIds.add(mealWithId);
+          } else {
+            debugPrint('Skipping meal "$title" - no mealId found');
           }
         }
 
@@ -5487,9 +4277,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
                           'title': meal.title,
                           'categories': meal.categories,
                           'ingredients': meal.ingredients,
-                          'calories': meal.calories is int
-                              ? meal.calories
-                              : int.tryParse(meal.calories.toString()) ?? 0,
+                          'calories': meal.calories,
                           'instructions': meal.instructions,
                           'source': 'existing_database',
                         })
@@ -5629,52 +4417,165 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
 
                                     // Use the meal ID (either existing database meal or pre-saved AI meal)
                                     selectedMealId = meal['id'];
+
+                                    // If mealId is missing, try to find it by searching Firestore by title
+                                    if (selectedMealId == null ||
+                                        selectedMealId.isEmpty) {
+                                      debugPrint(
+                                          'Meal ID is missing, searching by title: $title');
+                                      try {
+                                        // Search for meal by title, prioritizing ai_generated meals
+                                        final querySnapshot = await firestore
+                                            .collection('meals')
+                                            .where('title', isEqualTo: title)
+                                            .where('source',
+                                                isEqualTo: 'ai_generated')
+                                            .limit(1)
+                                            .get();
+
+                                        if (querySnapshot.docs.isNotEmpty) {
+                                          selectedMealId =
+                                              querySnapshot.docs.first.id;
+                                          debugPrint(
+                                              'Found mealId by title: $selectedMealId');
+                                        } else {
+                                          // Try without source filter as fallback
+                                          final fallbackQuery = await firestore
+                                              .collection('meals')
+                                              .where('title', isEqualTo: title)
+                                              .limit(1)
+                                              .get();
+
+                                          if (fallbackQuery.docs.isNotEmpty) {
+                                            selectedMealId =
+                                                fallbackQuery.docs.first.id;
+                                            debugPrint(
+                                                'Found mealId by title (fallback): $selectedMealId');
+                                          } else {
+                                            debugPrint(
+                                                'Warning: Could not find mealId for title: $title');
+                                          }
+                                        }
+                                      } catch (e) {
+                                        debugPrint(
+                                            'Error searching for meal by title: $e');
+                                      }
+                                    }
+
+                                    // Get mealType from meal data and convert to suffix
+                                    final mealType = meal['mealType']
+                                            as String? ??
+                                        'lunch'; // Default to lunch if missing
+                                    String mealTypeSuffix;
+                                    switch (mealType.toLowerCase()) {
+                                      case 'breakfast':
+                                        mealTypeSuffix = 'bf';
+                                        break;
+                                      case 'lunch':
+                                        mealTypeSuffix = 'lh';
+                                        break;
+                                      case 'dinner':
+                                        mealTypeSuffix = 'dn';
+                                        break;
+                                      case 'snack':
+                                      case 'snacks':
+                                        mealTypeSuffix = 'sk';
+                                        break;
+                                      default:
+                                        mealTypeSuffix =
+                                            'bf'; // Default to breakfast
+                                    }
+
                                     // Get existing meals first
                                     final docRef = firestore
                                         .collection('mealPlans')
                                         .doc(userId)
                                         .collection('date')
                                         .doc(date);
-                                    // Add new meal ID if not null
-                                    if (selectedMealId != null) {
+
+                                    // Only add to calendar if we have a valid mealId
+                                    if (selectedMealId != null &&
+                                        selectedMealId.isNotEmpty) {
+                                      // Format mealId with mealType suffix (e.g., "mealId/lh" for lunch)
+                                      // This format is required by meal_plan_controller.dart
+                                      final formattedMealId =
+                                          '$selectedMealId/$mealTypeSuffix';
+
+                                      debugPrint(
+                                          'Saving meal to calendar: $formattedMealId (mealType: $mealType -> $mealTypeSuffix)');
+
                                       await docRef.set({
                                         'userId': userId,
                                         'dayType': 'chef_turner',
                                         'isSpecial': true,
                                         'date': date,
                                         'meals': FieldValue.arrayUnion(
-                                            [selectedMealId]),
+                                            [formattedMealId]),
                                       }, SetOptions(merge: true));
-                                    }
 
-                                    if (context.mounted) {
-                                      // Hide the SnackBar
-                                      ScaffoldMessenger.of(context)
-                                          .hideCurrentSnackBar();
+                                      if (context.mounted) {
+                                        // Hide the loading SnackBar
+                                        ScaffoldMessenger.of(context)
+                                            .hideCurrentSnackBar();
 
-                                      // Show success SnackBar
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Successfully saved "$title" to your calendar!',
-                                            style: const TextStyle(
-                                              color: kWhite,
-                                              fontWeight: FontWeight.w500,
+                                        // Show success SnackBar
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Successfully saved "$title" to your calendar!',
+                                              style: const TextStyle(
+                                                color: kWhite,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            backgroundColor: kAccent,
+                                            duration:
+                                                const Duration(seconds: 2),
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                           ),
-                                          backgroundColor: kAccent,
-                                          duration: const Duration(seconds: 2),
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                        ),
-                                      );
+                                        );
 
-                                      Navigator.of(context)
-                                          .pop(meal); // Close selection dialog
+                                        Navigator.of(context).pop(
+                                            meal); // Close selection dialog
+                                      }
+                                    } else {
+                                      // No mealId found - show error
+                                      if (context.mounted) {
+                                        // Hide the loading SnackBar
+                                        ScaffoldMessenger.of(context)
+                                            .hideCurrentSnackBar();
+
+                                        setState(() {
+                                          isProcessing = false;
+                                        });
+
+                                        // Show error SnackBar
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Could not find meal details. Please try again.',
+                                              style: const TextStyle(
+                                                color: kWhite,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            backgroundColor: kRed,
+                                            duration:
+                                                const Duration(seconds: 3),
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                        );
+                                      }
                                     }
                                   } catch (e) {
                                     // Reset loading state on error
@@ -5742,6 +4643,7 @@ Rules: JSON only, numbers for nutrition, keep brief, max 3 suggestions each.''';
 Stay within the ingredients provided.
 IMPORTANT: Do NOT generate these existing meals: ${existingMealTitles.join(', ')}
 Generate completely new and different meal ideas using the same ingredients.
+CRITICAL: Each meal must use ALL or ALL-1 of the provided ingredients. Do not skip more than one ingredient per meal.
 ''';
 
                                 // Add cuisine filter to context if provided
@@ -5829,23 +4731,54 @@ Generate completely new and different meal ideas using the same ingredients.
                                     await saveBasicMealsToFirestore(
                                   generatedMeals.cast<Map<String, dynamic>>(),
                                   'ingredient_based', // cuisine/category
+                                  isDineInMeal:
+                                      isDineIn, // Pass the isDineIn flag to preserve ingredients
                                 );
                                 final mealIds = saveResult['mealIds']
                                     as Map<String, String>;
-                                debugPrint('Saved meals with IDs: $mealIds');
 
                                 // Update the meals with their new IDs for selection
                                 final mealsWithIds = <Map<String, dynamic>>[];
+                                debugPrint(
+                                    'MealIds map keys (dialog update): ${mealIds.keys.toList()}');
+
                                 for (final meal in generatedMeals) {
                                   final mealMap =
                                       Map<String, dynamic>.from(meal);
                                   final title = mealMap['title'] as String;
-                                  final mealId = mealIds[title];
+                                  String? mealId = mealIds[title];
 
-                                  if (mealId != null) {
+                                  // Try exact match first
+                                  if (mealId == null || mealId.isEmpty) {
+                                    // Try case-insensitive and trimmed match
+                                    final normalizedTitle =
+                                        title.trim().toLowerCase();
+                                    String? matchedKey;
+                                    for (final key in mealIds.keys) {
+                                      if (key.trim().toLowerCase() ==
+                                          normalizedTitle) {
+                                        matchedKey = key;
+                                        break;
+                                      }
+                                    }
+
+                                    if (matchedKey != null) {
+                                      mealId = mealIds[matchedKey];
+                                      debugPrint(
+                                          'Found mealId for "$title" using normalized match with "$matchedKey": $mealId');
+                                    } else {
+                                      debugPrint(
+                                          'WARNING: Could not find mealId for title: "$title"');
+                                    }
+                                  }
+
+                                  if (mealId != null && mealId.isNotEmpty) {
                                     mealMap['id'] =
                                         mealId; // Add the Firestore ID
                                     mealsWithIds.add(mealMap);
+                                  } else {
+                                    debugPrint(
+                                        'Skipping meal "$title" - no mealId found');
                                   }
                                 }
 
@@ -5944,6 +4877,7 @@ Generate completely new and different meal ideas using the same ingredients.
 Stay within the ingredients provided.
 IMPORTANT: Do NOT generate these existing meals: ${existingMealTitles.join(', ')}
 Generate completely new and different meal ideas using the same ingredients.
+CRITICAL: Each meal must use ALL or ALL-1 of the provided ingredients. Do not skip more than one ingredient per meal.
 ''';
 
                                   // Add cuisine filter to context if provided
@@ -6031,23 +4965,54 @@ Generate completely new and different meal ideas using the same ingredients.
                                       await saveBasicMealsToFirestore(
                                     generatedMeals.cast<Map<String, dynamic>>(),
                                     'ingredient_based', // cuisine/category
+                                    isDineInMeal:
+                                        isDineIn, // Pass the isDineIn flag to preserve ingredients
                                   );
                                   final mealIds = saveResult['mealIds']
                                       as Map<String, String>;
-                                  debugPrint('Saved meals with IDs: $mealIds');
 
                                   // Update the meals with their new IDs for selection
                                   final mealsWithIds = <Map<String, dynamic>>[];
+                                  debugPrint(
+                                      'MealIds map keys (dialog update): ${mealIds.keys.toList()}');
+
                                   for (final meal in generatedMeals) {
                                     final mealMap =
                                         Map<String, dynamic>.from(meal);
                                     final title = mealMap['title'] as String;
-                                    final mealId = mealIds[title];
+                                    String? mealId = mealIds[title];
 
-                                    if (mealId != null) {
+                                    // Try exact match first
+                                    if (mealId == null || mealId.isEmpty) {
+                                      // Try case-insensitive and trimmed match
+                                      final normalizedTitle =
+                                          title.trim().toLowerCase();
+                                      String? matchedKey;
+                                      for (final key in mealIds.keys) {
+                                        if (key.trim().toLowerCase() ==
+                                            normalizedTitle) {
+                                          matchedKey = key;
+                                          break;
+                                        }
+                                      }
+
+                                      if (matchedKey != null) {
+                                        mealId = mealIds[matchedKey];
+                                        debugPrint(
+                                            'Found mealId for "$title" using normalized match with "$matchedKey": $mealId');
+                                      } else {
+                                        debugPrint(
+                                            'WARNING: Could not find mealId for title: "$title"');
+                                      }
+                                    }
+
+                                    if (mealId != null && mealId.isNotEmpty) {
                                       mealMap['id'] =
                                           mealId; // Add the Firestore ID
                                       mealsWithIds.add(mealMap);
+                                    } else {
+                                      debugPrint(
+                                          'Skipping meal "$title" - no mealId found');
                                     }
                                   }
 
@@ -6145,12 +5110,23 @@ Generate completely new and different meal ideas using the same ingredients.
         },
       );
 
-      return selectedMeal ?? {}; // Return empty map if user cancelled
+      // Return both the selected meal and the meals list for _fridgeRecipes display
+      return {
+        'selectedMeal': selectedMeal ?? {},
+        'meals': mealsToShow, // Include all meals that were shown in dialog
+        'source': source,
+      };
     } catch (e) {
       if (parentContext.mounted) {
         handleError(e, parentContext);
       }
-      return {};
+      return {
+        'selectedMeal': {},
+        'meals': [],
+        'source': 'failed',
+        'error': true,
+        'message': e.toString(),
+      };
     }
   }
 
@@ -6736,12 +5712,19 @@ Generate completely new and different meal ideas using the same ingredients.
   /// Save basic meals to Firestore with minimal data for Firebase Functions processing
   Future<Map<String, dynamic>> saveBasicMealsToFirestore(
       List<Map<String, dynamic>> newMeals, String cuisine,
-      {bool partOfWeeklyMeal = false, String weeklyPlanContext = ''}) async {
+      {bool partOfWeeklyMeal = false,
+      String weeklyPlanContext = '',
+      bool isDineInMeal = false}) async {
     try {
       final userId = userService.userId ?? '';
       if (userId.isEmpty) {
         throw Exception('User ID not available');
       }
+
+      debugPrint(
+          'saveBasicMealsToFirestore called with isDineInMeal: $isDineInMeal');
+      debugPrint(
+          'Saving ${newMeals.length} meals, isDineInMeal flag: $isDineInMeal');
 
       final mealIds = <String, String>{};
       final batch = firestore.batch();
@@ -6750,6 +5733,14 @@ Generate completely new and different meal ideas using the same ingredients.
         final mealRef = firestore.collection('meals').doc();
         final mealId = mealRef.id;
 
+        // Get original ingredients if this is a Dine-In meal
+        final originalIngredients = isDineInMeal
+            ? (meal['ingredients'] as Map<String, dynamic>? ?? {})
+            : null;
+
+        debugPrint(
+            'Meal: ${meal['title']}, isDineInMeal: $isDineInMeal, originalIngredients: ${originalIngredients?.keys.toList()}');
+
         // Create basic meal document with status 'pending' for Firebase Functions processing
         final basicMealData = {
           'title': meal['title'],
@@ -6757,7 +5748,9 @@ Generate completely new and different meal ideas using the same ingredients.
           'calories': meal['calories'],
           'categories': [cuisine],
           'nutritionalInfo': {},
-          'ingredients': {},
+          'ingredients': isDineInMeal
+              ? (meal['ingredients'] as Map<String, dynamic>? ?? {})
+              : {},
           'status': 'pending', // Firebase Functions will process this
           'createdAt': FieldValue.serverTimestamp(),
           'type': meal['type'],
@@ -6773,13 +5766,19 @@ Generate completely new and different meal ideas using the same ingredients.
               partOfWeeklyMeal, // Flag for weekly meal plan context
           'weeklyPlanContext':
               weeklyPlanContext, // Context about the weekly meal plan
+          'isDineInMeal': isDineInMeal, // Flag to mark Dine-In meals
+          if (originalIngredients != null)
+            'originalIngredients':
+                originalIngredients, // Preserve original ingredients
         };
 
         // Debug logging to check ingredients and calories
         debugPrint('Saving meal: ${meal['title']}');
         debugPrint('Calories: ${meal['calories']}');
         debugPrint('Ingredients: ${meal['ingredients']}');
-        debugPrint('Basic meal data: $basicMealData');
+        debugPrint('isDineInMeal flag in meal data: $isDineInMeal');
+        debugPrint(
+            'originalIngredients: ${originalIngredients?.keys.toList()}');
 
         batch.set(mealRef, basicMealData);
         mealIds[meal['title']] = mealId;
@@ -6821,109 +5820,51 @@ Generate completely new and different meal ideas using the same ingredients.
     CyclePhase phase,
   ) async {
     try {
-      // Initialize model if not already done
-      if (_activeModel == null) {
-        final initialized = await initializeModel();
-        if (!initialized) {
-          throw Exception('No suitable AI model available');
+      // Try cloud function first for better performance
+      try {
+        debugPrint(
+            '[Cloud Function] Attempting craving alternatives via cloud function');
+
+        // Get comprehensive user context
+        final aiContext = await _buildAIContext();
+        final userContext = await _getUserContext();
+
+        // Get phase name for context
+        final phaseName = _getCyclePhaseName(phase);
+
+        final cloudResult = await _callCloudFunction(
+          functionName: 'suggestCravingAlternatives',
+          data: {
+            'craving': craving,
+            'phase': phaseName,
+            'aiContext': aiContext,
+            'userContext': jsonEncode(userContext),
+            'phaseName': phaseName,
+          },
+          operation: 'suggest craving alternatives',
+        );
+
+        if (cloudResult['success'] == true &&
+            cloudResult['alternatives'] != null) {
+          final alternatives =
+              cloudResult['alternatives'] as List<dynamic>? ?? [];
+          final allAlternatives = alternatives
+              .map((alt) => Map<String, dynamic>.from(alt as Map))
+              .toList();
+
+          debugPrint(
+              '[Cloud Function] Successfully got ${allAlternatives.length} alternatives via cloud function');
+
+          // Limit to 2 alternatives
+          return allAlternatives.take(2).toList();
+        } else {
+          throw Exception('Cloud function returned unsuccessful result');
         }
+      } catch (cloudError) {
+        debugPrint('[Cloud Function] Craving alternatives failed: $cloudError');
+        // Return fallback suggestions
+        return _getFallbackCravingAlternatives(craving, phase);
       }
-
-      // Get comprehensive user context
-      final aiContext = await _buildAIContext();
-      final userContext = await _getUserContext();
-
-      // Get phase name for context
-      final phaseName = _getCyclePhaseName(phase);
-
-      final prompt = '''
-$aiContext
-
-$userContext
-
-The user is currently in the $phaseName phase of their menstrual cycle and is craving: $craving
-
-Please suggest exactly 2 healthier alternatives that:
-1. Satisfy the craving in a nutritious way
-2. Are appropriate for the $phaseName phase (considering hormonal needs)
-3. Align with the user's dietary preferences and program goals
-4. Provide similar satisfaction but with better nutritional value
-
-For each alternative, provide:
-- The alternative food/item name
-- A brief explanation of why it's a good alternative
-- Key nutritional benefits
-- How it addresses the craving
-
-Return ONLY valid JSON in this exact format (no markdown, no code blocks):
-{
-  "alternatives": [
-    {
-      "name": "alternative name",
-      "why": "brief explanation",
-      "benefits": "nutritional benefits",
-      "satisfies": "how it addresses the craving"
-    }
-  ]
-}
-''';
-
-      // Build request body
-      final body = {
-        'contents': [
-          {
-            'parts': [
-              {'text': prompt}
-            ]
-          }
-        ],
-        'generationConfig': {
-          'temperature': 0.7,
-          'topK': 40,
-          'topP': 0.95,
-          'maxOutputTokens': 2000,
-        },
-      };
-
-      // Make API call with retry
-      final response = await _makeApiCallWithRetry(
-        endpoint: '${_activeModel}:generateContent',
-        body: body,
-        operation: 'suggest craving alternatives',
-        retryCount: 0,
-      );
-
-      // Parse response
-      String responseText = '';
-      if (response['candidates'] != null && response['candidates'].isNotEmpty) {
-        final candidate = response['candidates'][0];
-        if (candidate['content'] != null &&
-            candidate['content']['parts'] != null &&
-            candidate['content']['parts'].isNotEmpty) {
-          responseText = candidate['content']['parts'][0]['text'] ?? '';
-        }
-      }
-
-      if (responseText.isEmpty) {
-        throw Exception('Empty response from AI');
-      }
-
-      // Clean response text (remove markdown if present)
-      responseText = responseText
-          .replaceAll(RegExp(r'```json\s*'), '')
-          .replaceAll(RegExp(r'```\s*'), '')
-          .trim();
-
-      // Parse JSON
-      final jsonData = jsonDecode(responseText) as Map<String, dynamic>;
-      final alternatives = jsonData['alternatives'] as List<dynamic>? ?? [];
-
-      final allAlternatives = alternatives
-          .map((alt) => Map<String, dynamic>.from(alt as Map))
-          .toList();
-
-      // Limit to 2 alternatives
-      return allAlternatives.take(2).toList();
     } catch (e) {
       debugPrint('Error suggesting craving alternatives: $e');
       // Return fallback suggestions

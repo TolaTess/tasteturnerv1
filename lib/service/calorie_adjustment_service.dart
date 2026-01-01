@@ -202,4 +202,97 @@ class CalorieAdjustmentService extends GetxController {
   Map<String, int> getAllAdjustments() {
     return Map.from(mealAdjustments);
   }
+
+  // Remove adjustment for a specific meal type
+  Future<void> removeAdjustmentForMeal(String mealType) async {
+    // Check if it's a new day and clear adjustments if needed
+    await _checkAndClearForNewDay();
+
+    final key = mealType.toLowerCase();
+    if (mealAdjustments.containsKey(key)) {
+      mealAdjustments.remove(key);
+      update(); // Trigger GetBuilder rebuilds
+
+      // Remove from SharedPreferences
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        final prefKey = '${key}_adjustment_$today';
+        await prefs.remove(prefKey);
+      } catch (e) {
+        debugPrint('DEBUG: Error removing adjustment from SharedPreferences: $e');
+      }
+    }
+  }
+
+  // Determine which meal type was adjusted based on the meal type that went over
+  // Returns a list because Dinner can adjust either Snacks or Fruits
+  List<String> _getAdjustedMealTypes(String mealType, String? notAllowedMealType) {
+    switch (mealType.toLowerCase()) {
+      case 'breakfast':
+        return ['Lunch'];
+      case 'lunch':
+        return ['Dinner'];
+      case 'dinner':
+        // Dinner can adjust either Snacks or Fruits depending on notAllowedMealType
+        // If notAllowedMealType is not provided, check both
+        if (notAllowedMealType == 'snack') {
+          return ['Fruits'];
+        } else if (notAllowedMealType == 'fruit') {
+          return ['Snacks'];
+        } else {
+          // Check both if we don't know which one was adjusted
+          return ['Snacks', 'Fruits'];
+        }
+      default:
+        return [];
+    }
+  }
+
+  // Check if adjustment should be removed and remove it if needed
+  Future<void> checkAndRemoveAdjustmentIfNeeded(
+    String mealType,
+    int currentCalories, {
+    String? notAllowedMealType,
+    Map<String, dynamic>? selectedUser,
+    BuildContext? context,
+  }) async {
+    try {
+      // Get recommended calorie range for the meal type
+      final recommendation = getRecommendedCalories(mealType, 'addFood',
+          notAllowedMealType: notAllowedMealType, selectedUser: selectedUser);
+      final range = extractCalorieRange(recommendation);
+
+      if (range['min']! > 0 && range['max']! > 0) {
+        // Check if current calories are now under the max recommended
+        if (currentCalories <= range['max']!) {
+          // Determine which meal types could have been adjusted (next in sequence)
+          final adjustedMealTypes =
+              _getAdjustedMealTypes(mealType, notAllowedMealType);
+
+          // Check each possible adjusted meal type and remove adjustment if found
+          for (final adjustedMealType in adjustedMealTypes) {
+            if (hasAdjustment(adjustedMealType)) {
+              // Remove the adjustment
+              await removeAdjustmentForMeal(adjustedMealType);
+
+              // Show confirmation snackbar if context is provided
+              if (context != null && context.mounted) {
+                showTastySnackbar(
+                  'Adjustment Removed',
+                  '$adjustedMealType calories restored to original recommendation',
+                  context,
+                  backgroundColor: kAccentLight,
+                );
+              }
+              // Only remove one adjustment (the first one found)
+              break;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('DEBUG: Error checking and removing adjustment: $e');
+    }
+  }
 }

@@ -244,16 +244,68 @@ class ChatItem extends StatelessWidget {
                   );
                 } else if (extractedItems.isNotEmpty &&
                     extractedItems.last == 'post') {
+                  // Extract post ID from message content
+                  // Format: "Chef, shared this post, click to view the post. /id /screen /private"
+                  // extractSlashedItems returns: [id, screen, "private"]
+                  // So ID is at index 0
+                  final postId =
+                      extractedItems.isNotEmpty ? extractedItems[0] : '';
+
+                  // Debug: Log extracted data
+                  debugPrint('=== CHAT ITEM -> CHALLENGE DETAIL DEBUG ===');
+                  debugPrint('Message Content: ${dataSrc.messageContent}');
+                  debugPrint('Extracted Items: $extractedItems');
+                  debugPrint('Post ID from extracted items (index 0): $postId');
+
+                  final postData = dataSrc.toMap();
+                  // Add post ID to the data map
+                  if (postId.isNotEmpty) {
+                    postData['id'] = postId;
+                    debugPrint('✅ Post ID added to data: $postId');
+                  } else {
+                    debugPrint('⚠️ WARNING: Post ID is empty!');
+                  }
+
+                  debugPrint('Post Data with ID: $postData');
+                  debugPrint('==========================================');
+
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
                       builder: (context) => ChallengeDetailScreen(
-                        dataSrc: dataSrc.toMap(),
+                        dataSrc: postData,
                         screen: 'myPost',
                       ),
                     ),
                   );
                 } else {
+                  // Extract post ID from message content for regular post shares
+                  // Format: "Chef, shared this post, click to view the post. /id /screen /private"
+                  // extractSlashedItems returns: [id, screen, "private"]
+                  // So ID is at index 0
+                  final postId =
+                      extractedItems.isNotEmpty ? extractedItems[0] : '';
+
+                  // Debug: Log extracted data
+                  debugPrint(
+                      '=== CHAT ITEM -> CHALLENGE DETAIL DEBUG (Regular) ===');
+                  debugPrint('Message Content: ${dataSrc.messageContent}');
+                  debugPrint('Extracted Items: $extractedItems');
+                  debugPrint('Post ID from extracted items (index 0): $postId');
+
+                  final postData = dataSrc.toMap();
+                  // Add post ID to the data map
+                  if (postId.isNotEmpty) {
+                    postData['id'] = postId;
+                    debugPrint('✅ Post ID added to data: $postId');
+                  } else {
+                    debugPrint('⚠️ WARNING: Post ID is empty!');
+                  }
+
+                  debugPrint('Post Data with ID: $postData');
+                  debugPrint(
+                      '==================================================');
+
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
@@ -261,7 +313,7 @@ class ChatItem extends StatelessWidget {
                         screen: extractedItems.isNotEmpty
                             ? extractedItems.last
                             : 'post',
-                        dataSrc: dataSrc.toMap(),
+                        dataSrc: postData,
                         isMessage: true,
                       ),
                     ),
@@ -610,6 +662,16 @@ class ChatItem extends StatelessWidget {
     // If message is empty, don't display anything
     if (messageText.isEmpty) {
       return const SizedBox.shrink();
+    }
+
+    // For post shares (containing 'private' and 'post'), show only the user-friendly part
+    // Message format: "Chef, shared this post, click to view the post. /id /screen /private"
+    if (extractedItems.contains('private') && extractedItems.contains('post')) {
+      // Extract text before the first slash (user-friendly message)
+      final slashIndex = messageText.indexOf(' /');
+      if (slashIndex > 0) {
+        messageText = messageText.substring(0, slashIndex).trim();
+      }
     }
 
     return Padding(

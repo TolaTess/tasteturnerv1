@@ -43,8 +43,12 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
     if (widget.children.isEmpty) return const SizedBox();
 
     // Create a list of indices sorted by selection status
+    // Ensure selectedIndex is valid before using it
+    if (selectedIndex != null && selectedIndex! >= widget.children.length) {
+      selectedIndex = null;
+    }
     final sortedIndices = List.generate(widget.children.length, (i) => i);
-    if (selectedIndex != null) {
+    if (selectedIndex != null && selectedIndex! < widget.children.length) {
       sortedIndices.remove(selectedIndex);
       sortedIndices.add(selectedIndex!);
     }
@@ -74,6 +78,10 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: sortedIndices.map((index) {
+                        // Safety check: ensure index is valid
+                        if (index >= widget.children.length) {
+                          return const SizedBox.shrink();
+                        }
                         final child = widget.children[index];
                         final isSelected = selectedIndex == index;
                         final isTopCard = index == sortedIndices.last;
@@ -163,6 +171,10 @@ class _OverlappingCardsViewState extends State<OverlappingCardsView> {
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: sortedIndices.map((index) {
+                      // Safety check: ensure index is valid
+                      if (index >= widget.children.length) {
+                        return const SizedBox.shrink();
+                      }
                       final child = widget.children[index];
                       final isSelected = selectedIndex == index;
                       final isTopCard = index == sortedIndices.last;

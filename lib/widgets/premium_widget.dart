@@ -4,6 +4,7 @@ import '../constants.dart';
 import '../helper/utils.dart';
 import '../helper/ump_consent_helper.dart';
 import '../screens/premium_screen.dart';
+import '../service/config_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:io';
 
@@ -47,10 +48,21 @@ class _PremiumSectionState extends State<PremiumSection> {
   }
 
   Future<void> _getBannerId() async {
-    if (Platform.isIOS) {
-      _bannerId = dotenv.env['ADMOB_BANNER_ID_IOS'] ?? '';
-    } else if (Platform.isAndroid) {
-      _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID'] ?? '';
+    try {
+      final configService = ConfigService.instance;
+      if (Platform.isIOS) {
+        _bannerId = await configService.getAdMobBannerId(isIOS: true) ?? '';
+      } else if (Platform.isAndroid) {
+        _bannerId = await configService.getAdMobBannerId(isIOS: false) ?? '';
+      }
+    } catch (e) {
+      debugPrint('Error getting AdMob banner ID from ConfigService: $e');
+      // Fallback to .env
+      if (Platform.isIOS) {
+        _bannerId = dotenv.env['ADMOB_BANNER_ID_IOS'] ?? '';
+      } else if (Platform.isAndroid) {
+        _bannerId = dotenv.env['ADMOB_BANNER_ID_ANDROID'] ?? '';
+      }
     }
     await _loadBannerAd();
   }

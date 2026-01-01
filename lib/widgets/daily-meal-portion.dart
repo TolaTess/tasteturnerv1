@@ -5,7 +5,7 @@ import '../helper/notifications_helper.dart';
 import '../helper/utils.dart';
 import '../helper/helper_functions.dart';
 import '../data_models/program_model.dart';
-import '../service/cycle_adjustment_service.dart';
+import '../service/goal_adjustment_service.dart';
 
 class DailyMealPortion extends StatefulWidget {
   final Program? userProgram;
@@ -219,68 +219,50 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
     final selectedUser = widget.selectedUser;
     final currentUser = userService.currentUser.value;
 
-    // Get food goal and fitness goal from selected user or current user
-    String? foodGoalValue;
-    String? fitnessGoal;
-
-    if (selectedUser != null) {
-      foodGoalValue =
-          selectedUser['foodGoal'] ?? currentUser?.settings?['foodGoal'];
-      fitnessGoal = selectedUser['fitnessGoal'] as String? ??
-          currentUser?.settings?['fitnessGoal'] as String?;
-    } else {
-      foodGoalValue = currentUser?.settings?['foodGoal'];
-      fitnessGoal = currentUser?.settings?['fitnessGoal'] as String?;
-    }
-
-    final fitnessGoalFinal = fitnessGoal ?? '';
-
-    final baseTargetCalories =
-        (parseToNumber(foodGoalValue) ?? 2000).toDouble();
-
-    // Calculate adjusted total target based on fitness goal FIRST
     double adjustedTotalTarget;
-    switch (fitnessGoalFinal.toLowerCase()) {
-      case 'lose weight':
-      case 'weight loss':
-        adjustedTotalTarget = baseTargetCalories * 0.8; // 80% for weight loss
-        break;
-      case 'gain muscle':
-      case 'muscle gain':
-      case 'build muscle':
-        adjustedTotalTarget = baseTargetCalories * 1.0; // 120% for muscle gain
-        break;
-      default:
-        adjustedTotalTarget = baseTargetCalories; // 100% for maintenance
-        break;
-    }
 
-    // Apply cycle adjustments if enabled (only for current user, not family members)
+    // For current user, use GoalAdjustmentService to get fully adjusted calories
     if (selectedUser == null && currentUser != null) {
-      final cycleDataRaw = currentUser.settings['cycleTracking'];
-      if (cycleDataRaw != null && cycleDataRaw is Map) {
-        final cycleData = Map<String, dynamic>.from(cycleDataRaw);
-        if (cycleData['isEnabled'] as bool? ?? false) {
-          final lastPeriodStartStr = cycleData['lastPeriodStart'] as String?;
-          if (lastPeriodStartStr != null) {
-            final lastPeriodStart = DateTime.tryParse(lastPeriodStartStr);
-            if (lastPeriodStart != null) {
-              final cycleLength = (cycleData['cycleLength'] as num?)?.toInt() ?? 28;
-              final cycleService = CycleAdjustmentService.instance;
-              final phase = cycleService.getCurrentPhase(lastPeriodStart, cycleLength);
-              
-              final baseGoals = {
-                'calories': adjustedTotalTarget,
-                'protein': 0.0,
-                'carbs': 0.0,
-                'fat': 0.0,
-              };
-              
-              final adjustedGoals = cycleService.getAdjustedGoals(baseGoals, phase);
-              adjustedTotalTarget = adjustedGoals['calories'] ?? adjustedTotalTarget;
-            }
-          }
-        }
+      final goalService = GoalAdjustmentService.instance;
+      final adjustedGoals = goalService.getAdjustedGoals(
+        currentUser.settings,
+        DateTime.now(),
+      );
+      adjustedTotalTarget = adjustedGoals['calories'] ?? 2000.0;
+    } else {
+      // For family members (selectedUser), calculate basic fitness goal adjustment
+      // Get food goal and fitness goal from selected user or current user
+      String? foodGoalValue;
+      String? fitnessGoal;
+
+      if (selectedUser != null) {
+        foodGoalValue =
+            selectedUser['foodGoal'] ?? currentUser?.settings['foodGoal'];
+        fitnessGoal = selectedUser['fitnessGoal'] as String? ??
+            currentUser?.settings['fitnessGoal'] as String?;
+      } else {
+        foodGoalValue = currentUser?.settings['foodGoal'];
+        fitnessGoal = currentUser?.settings['fitnessGoal'] as String?;
+      }
+
+      final fitnessGoalFinal = fitnessGoal ?? '';
+      final baseTargetCalories =
+          (parseToNumber(foodGoalValue) ?? 2000).toDouble();
+
+      // Calculate adjusted total target based on fitness goal
+      switch (fitnessGoalFinal.toLowerCase()) {
+        case 'lose weight':
+        case 'weight loss':
+          adjustedTotalTarget = baseTargetCalories * 0.8; // 80% for weight loss
+          break;
+        case 'gain muscle':
+        case 'muscle gain':
+        case 'build muscle':
+          adjustedTotalTarget = baseTargetCalories * 1.1; // 110% for muscle gain
+          break;
+        default:
+          adjustedTotalTarget = baseTargetCalories; // 100% for maintenance
+          break;
       }
     }
 
@@ -657,6 +639,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
       ),
       child: Padding(
         padding: EdgeInsets.all(getPercentageWidth(2.5, context)),
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -769,6 +752,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                   );
             }()),
           ],
+          ),
         ),
       ),
     );
@@ -908,7 +892,7 @@ class _DailyMealPortionState extends State<DailyMealPortion> {
                               settings?['fitnessGoal'] as String? ?? '';
 
                           String targetText = '(${baseTarget.round()} kcal)';
-                          final fitnessGoalStr = fitnessGoal?.toString() ?? '';
+                          final fitnessGoalStr = fitnessGoal.toString();
                           if (fitnessGoalStr.toLowerCase().contains('weight')) {
                             final adjustedTarget = (baseTarget * 0.8).round();
                             targetText =

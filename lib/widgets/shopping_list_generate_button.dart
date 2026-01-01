@@ -32,7 +32,7 @@ class ShoppingListGenerateButton extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.symmetric(
-        vertical: getPercentageHeight(showInEmptyState ? 3 : 2, context),
+        vertical: getPercentageHeight(showInEmptyState ? 3 : 1.5, context),
         horizontal: getPercentageWidth(4, context),
       ),
       child: Obx(() => Center(
@@ -141,18 +141,18 @@ class ShoppingListGenerateButton extends StatelessWidget {
                                   : (newItemsCount.value > 0
                                       ? 'Update with new ' +
                                           (newItemsCount.value == 1
-                                              ? 'menu'
-                                              : 'menus')
+                                              ? 'dish'
+                                              : 'dishes')
                                       : 'Generate from Menu Plan')),
                           style: const TextStyle(color: kWhite),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (newItemsCount.value > 0 && !isGenerating) ...[
-                        const SizedBox(width: 8),
+                        SizedBox(width: getPercentageWidth(2, context)),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: getPercentageWidth(2, context), vertical: getPercentageHeight(0.5, context)),
                           decoration: BoxDecoration(
                             color: kRed,
                             borderRadius: BorderRadius.circular(12),
@@ -178,8 +178,8 @@ class ShoppingListGenerateButton extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: hasPremiumAccess ? kAccent : Colors.grey,
                     padding: EdgeInsets.symmetric(
-                      horizontal: getPercentageWidth(6, context),
-                      vertical: getPercentageHeight(1.5, context),
+                      horizontal: getPercentageWidth(3, context),
+                      vertical: getPercentageHeight(1, context),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),

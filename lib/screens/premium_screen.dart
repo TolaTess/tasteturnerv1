@@ -145,7 +145,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
     }
     if (normalizedFeature.contains('weekly shopping list') ||
         normalizedFeature.contains('shopping list generation')) {
-      return 'Automated Inventory Management';
+      return 'Automated Stockpile Management';
     }
     if (normalizedFeature.contains('personalized meal plan')) {
       return 'Personalized Menu Curation';
@@ -189,7 +189,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       // The Logistics
       case 'Unlimited Menu Design':
         return 'Generate unlimited 7-day menu plans customized to your goals';
-      case 'Automated Inventory Management':
+      case 'Automated Stockpile Management':
         return 'Automatically generate weekly shopping lists from your meal plans';
       case 'Personalized Menu Curation':
         return 'Get meal plans tailored specifically to your dietary needs and preferences';
@@ -447,7 +447,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       BuildContext context, bool isDarkMode, TextTheme textTheme) async {
     final platform = Platform.isIOS ? 'iOS' : 'Android';
     final instructions = Platform.isIOS
-        ? 'To cancel your subscription:\n\n1. Open Settings\n2. Tap your name at the top\n3. Tap Subscriptions\n4. Find TasteTurner and tap Cancel'
+        ? 'To cancel your subscription:\n\n1. Open iOS Settings\n2. Tap your name at the top\n3. Tap Subscriptions\n4. Find TasteTurner and tap Cancel'
         : 'To cancel your subscription:\n\n1. Open Google Play Store\n2. Tap Menu (☰) → Subscriptions\n3. Find TasteTurner\n4. Tap Cancel subscription';
 
     await showDialog(

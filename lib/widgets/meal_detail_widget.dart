@@ -8,6 +8,7 @@ import '../service/nutrition_controller.dart';
 import '../service/meal_move_service.dart';
 import '../service/plant_detection_service.dart';
 import '../service/meal_manager.dart';
+import '../service/calorie_adjustment_service.dart';
 import 'plant_count_badge.dart';
 
 class MealDetailWidget extends StatefulWidget {
@@ -38,6 +39,7 @@ class MealDetailWidget extends StatefulWidget {
 
 class _MealDetailWidgetState extends State<MealDetailWidget> {
   final nutritionController = Get.find<NutritionController>();
+  final calorieAdjustmentService = Get.find<CalorieAdjustmentService>();
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +154,7 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
     if (!widget.showCalories) {
       return const SizedBox.shrink();
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -288,43 +290,12 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      capitalizeFirstLetter(meal.name),
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        color: isDarkMode ? kWhite : kDarkGrey,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  // Plant count badge
-                                  if (meal.mealId.isNotEmpty &&
-                                      meal.mealId != 'Add Food')
-                                    FutureBuilder<int>(
-                                      future: _getPlantCountForMeal(meal.mealId),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState ==
-                                            ConnectionState.waiting) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        final plantCount = snapshot.data ?? 0;
-                                        if (plantCount == 0) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        return Padding(
-                                          padding: EdgeInsets.only(
-                                            left: getPercentageWidth(2, context),
-                                          ),
-                                          child: PlantCountBadge(
-                                            plantCount: plantCount,
-                                            size: getIconScale(3.5, context),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                ],
+                              Text(
+                                capitalizeFirstLetter(meal.name),
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode ? kWhite : kDarkGrey,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               SizedBox(
                                   height: getPercentageHeight(0.3, context)),
@@ -341,6 +312,32 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
                             ],
                           ),
                         ),
+
+                        // Plant count badge - aligned with action buttons
+                        if (meal.mealId.isNotEmpty && meal.mealId != 'Add Food')
+                          FutureBuilder<int>(
+                            future: _getPlantCountForMeal(meal.mealId),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const SizedBox.shrink();
+                              }
+                              final plantCount = snapshot.data ?? 0;
+                              if (plantCount == 0) {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  right: getPercentageWidth(1, context),
+                                ),
+                                child: PlantCountBadge(
+                                  plantCount: plantCount,
+                                  screen: 'meal_detail',
+                                  size: getIconScale(3.5, context),
+                                ),
+                              );
+                            },
+                          ),
 
                         // Move to Date button
                         if (widget.currentDate != null)
@@ -498,6 +495,26 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
                   if (mounted) {
                     Navigator.pop(context); // Close confirmation dialog
                     Navigator.pop(context); // Close meal detail modal
+
+                    // Calculate new calories after removal
+                    // Wait a moment for the reactive update to complete
+                    await Future.delayed(const Duration(milliseconds: 300));
+
+                    final mealsAfterRemoval =
+                        nutritionController.userMealList[widget.mealType] ?? [];
+                    final caloriesAfterRemoval = mealsAfterRemoval.fold<int>(
+                        0, (sum, m) => sum + m.calories);
+
+                    // Check if adjustment should be removed
+                    // Note: notAllowedMealType is not available here, but the check method
+                    // will handle Dinner case by checking both Snacks and Fruits if needed
+                    await calorieAdjustmentService
+                        .checkAndRemoveAdjustmentIfNeeded(
+                      widget.mealType,
+                      caloriesAfterRemoval,
+                      context: context,
+                    );
+
                     showTastySnackbar(
                       'Success',
                       'Removed "${capitalizeFirstLetter(meal.name)}" from ${widget.mealType}',
@@ -555,7 +572,7 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
 
   void _moveMealToDate(UserMeal meal) {
     if (widget.currentDate == null) return;
-    
+
     // Store parent context before showing dialog
     final parentContext = context;
 
@@ -597,47 +614,53 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(dialogContext); // Close dialog first
-                
+
                 // Wait a frame to ensure dialog is fully closed
                 await Future.delayed(const Duration(milliseconds: 100));
-                
+
                 if (!mounted) return;
-                
+
                 // Show date picker using parent context
                 final selectedDate = await showDatePicker(
                   context: parentContext,
                   initialDate: widget.currentDate!.add(const Duration(days: 1)),
                   firstDate: DateTime.now().subtract(const Duration(days: 365)),
                   lastDate: DateTime.now().add(const Duration(days: 365)),
-                  helpText: 'Select date to move meal to',
+                  helpText: 'Select date to copy meal to',
+                  builder: (context, child) {
+                    return Theme(
+                      data: getDatePickerTheme(context, isDarkMode),
+                      child: child!,
+                    );
+                  },
                 );
 
                 if (selectedDate == null || !mounted) return;
 
-                // Move the meal
+                // Copy the meal (don't remove from current date)
                 try {
-                  final success = await MealMoveService.instance.moveMeal(
+                  final success = await MealMoveService.instance.copyMeal(
                     userId: userService.userId ?? '',
                     instanceId: meal.instanceId,
-                    oldDate: widget.currentDate!,
-                    newDate: selectedDate,
+                    sourceDate: widget.currentDate!,
+                    targetDate: selectedDate,
                     mealType: widget.mealType,
                     mealData: meal,
                   );
 
                   if (!mounted) return;
-                  
+
                   if (success) {
                     // Close meal detail modal first
                     Navigator.pop(parentContext);
-                    
+
                     // Wait a frame before showing snackbar
                     await Future.delayed(const Duration(milliseconds: 100));
-                    
+
                     if (mounted) {
                       showTastySnackbar(
                         'Success',
-                        'Moved "${capitalizeFirstLetter(meal.name)}" to ${DateFormat('MMM dd, yyyy').format(selectedDate)}',
+                        'Copied "${capitalizeFirstLetter(meal.name)}" to ${DateFormat('MMM dd, yyyy').format(selectedDate)}',
                         parentContext,
                       );
                     }
@@ -645,7 +668,7 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
                     if (mounted) {
                       showTastySnackbar(
                         'Error',
-                        'Failed to move meal',
+                        'Failed to copy meal',
                         parentContext,
                         backgroundColor: kRed,
                       );
@@ -655,7 +678,7 @@ class _MealDetailWidgetState extends State<MealDetailWidget> {
                   if (mounted) {
                     showTastySnackbar(
                       'Error',
-                      'Failed to move meal: $e',
+                      'Failed to copy meal: $e',
                       parentContext,
                       backgroundColor: kRed,
                     );

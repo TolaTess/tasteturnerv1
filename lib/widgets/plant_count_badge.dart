@@ -8,12 +8,14 @@ class PlantCountBadge extends StatelessWidget {
   final int plantCount;
   final double? size;
   final bool showIcon;
+  final String screen;
 
   const PlantCountBadge({
     super.key,
     required this.plantCount,
     this.size,
     this.showIcon = true,
+    this.screen = 'home',
   });
 
   @override
@@ -50,7 +52,9 @@ class PlantCountBadge extends StatelessWidget {
             SizedBox(width: getPercentageWidth(1, context)),
           ],
           Text(
-            '$plantCount ${plantCount == 1 ? 'plant' : 'plants'}',
+            screen == 'meal_detail'
+                ? '${plantCount}'
+                : '$plantCount ${plantCount == 1 ? 'plant' : 'plants'}',
             style: textTheme.bodySmall?.copyWith(
               color: kAccent,
               fontWeight: FontWeight.w600,

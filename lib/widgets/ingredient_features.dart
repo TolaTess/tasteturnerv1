@@ -706,7 +706,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Inventory',
+                  'Stockpile',
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     fontSize: getTextScale(5, context),
@@ -1395,7 +1395,7 @@ class _IngredientFeaturesState extends State<IngredientFeatures> {
     return parts.join(', ');
   }
 
-  // Inventory Card for Grid View
+  // Stockpile Card for Grid View
   Widget _buildInventoryCard(MacroData item, bool isDarkMode) {
     final bool isSelected = _selectedIngredients.contains(item.title);
     final imagePath = item.mediaPaths.isNotEmpty
