@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import '../helper/utils.dart';
@@ -66,27 +68,75 @@ class _SplashScreenState extends State<SplashScreen>
 
     debugPrint('=== SplashScreen: Starting auth check ===');
 
+    // On Android, check if we have a saved userId in SharedPreferences
+    // This helps with persistence in release builds where Firebase Auth might not restore immediately
+    String? savedUserId;
+    if (Platform.isAndroid) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        savedUserId = prefs.getString('savedUserId');
+        if (savedUserId != null) {
+          debugPrint(
+              '📱 Android: Found saved userId in SharedPreferences: $savedUserId');
+        } else {
+          debugPrint('📱 Android: No saved userId found in SharedPreferences');
+        }
+      } catch (e) {
+        debugPrint('Error reading saved userId: $e');
+      }
+    } else {
+      debugPrint('📱 iOS: Skipping saved userId check (iOS uses Firebase Auth persistence)');
+    }
+
     // On Android, Firebase Auth needs time to restore the session from disk
     // Use authStateChanges() stream to wait for Firebase Auth to initialize
     // This ensures we get the correct auth state even if currentUser is null initially
+    // If we have a saved userId on Android, wait longer for Firebase Auth to restore
     try {
       debugPrint('Waiting for Firebase Auth state to initialize...');
 
       // Wait for authStateChanges() to emit (with timeout)
-      // This ensures Firebase Auth has restored the session from disk on Android
+      // On Android with saved userId, wait longer (10 seconds instead of 5)
+      final timeoutDuration = (Platform.isAndroid && savedUserId != null)
+          ? const Duration(seconds: 10)
+          : const Duration(seconds: 5);
+
       User? authState;
       try {
         authState = await firebaseAuth
             .authStateChanges()
-            .timeout(const Duration(seconds: 5))
+            .timeout(timeoutDuration)
             .first;
       } on TimeoutException {
         debugPrint('⚠️ Auth state stream timeout - using fallback check');
         authState = firebaseAuth.currentUser;
+
+        // On Android, if we have saved userId but currentUser is still null,
+        // wait a bit more for Firebase Auth to restore
+        if (Platform.isAndroid && savedUserId != null && authState == null) {
+          debugPrint(
+              '📱 Android: Saved userId exists but currentUser is null, waiting additional 3 seconds...');
+          await Future.delayed(const Duration(seconds: 3));
+          authState = firebaseAuth.currentUser;
+          if (authState != null) {
+            debugPrint(
+                '✅ Android: User restored after additional wait: ${authState.uid}');
+          }
+        }
       }
 
       debugPrint(
           'Firebase Auth state received: ${authState != null ? "User authenticated (${authState.uid})" : "No user"}');
+
+      // On Android, verify the restored user matches saved userId
+      if (Platform.isAndroid && savedUserId != null && authState != null) {
+        if (authState.uid != savedUserId) {
+          debugPrint(
+              '⚠️ Android: Restored user (${authState.uid}) does not match saved userId ($savedUserId)');
+        } else {
+          debugPrint('✅ Android: Restored user matches saved userId');
+        }
+      }
 
       if (authState != null) {
         // User is authenticated - let AuthController handle navigation
@@ -133,6 +183,19 @@ class _SplashScreenState extends State<SplashScreen>
         _navigateToMainApp();
       }
       return;
+    }
+
+    // On Android, if we have saved userId but no currentUser, clear the saved userId
+    // as it's likely invalid or the user was logged out
+    if (Platform.isAndroid && savedUserId != null) {
+      debugPrint(
+          '⚠️ Android: Saved userId exists but user is not authenticated, clearing saved userId');
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('savedUserId');
+      } catch (e) {
+        debugPrint('Error clearing saved userId: $e');
+      }
     }
 
     // User is not authenticated - navigate to signup

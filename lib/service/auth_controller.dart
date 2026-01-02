@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -30,6 +31,8 @@ class AuthController extends GetxController {
 
   // Shared Preferences key for login state
   final String _isLoggedInKey = 'isLoggedIn';
+  // Shared Preferences key for userId (Android only - for persistence in release builds)
+  final String _userIdKey = 'savedUserId';
 
   @override
   void onReady() async {
@@ -68,6 +71,10 @@ class AuthController extends GetxController {
     if (user == null) {
       // User not authenticated
       await _setLoggedIn(false);
+      // Clear saved userId on Android
+      if (Platform.isAndroid) {
+        await _clearSavedUserId();
+      }
       _userDataSubscription?.cancel();
       userService.clearUser();
       Get.offAll(() => const SplashScreen());
@@ -76,6 +83,11 @@ class AuthController extends GetxController {
 
     // Set the stable User ID as soon as authentication is confirmed.
     userService.setUserId(user.uid);
+
+    // Save userId to SharedPreferences on Android for persistence in release builds
+    if (Platform.isAndroid) {
+      await _saveUserId(user.uid);
+    }
 
     try {
       final userDoc = await _fetchUserDocWithRetry(user.uid);
@@ -327,6 +339,30 @@ class AuthController extends GetxController {
     await prefs.setBool(_isLoggedInKey, value);
   }
 
+  /// Save userId to SharedPreferences (Android only)
+  Future<void> _saveUserId(String userId) async {
+    if (!Platform.isAndroid) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_userIdKey, userId);
+      debugPrint('✅ Saved userId to SharedPreferences (Android): $userId');
+    } catch (e) {
+      debugPrint('Error saving userId to SharedPreferences: $e');
+    }
+  }
+
+  /// Clear saved userId from SharedPreferences (Android only)
+  Future<void> _clearSavedUserId() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_userIdKey);
+      debugPrint('✅ Cleared saved userId from SharedPreferences (Android)');
+    } catch (e) {
+      debugPrint('Error clearing userId from SharedPreferences: $e');
+    }
+  }
+
   Future<void> registerUser(
       BuildContext context, String email, String password) async {
     try {
@@ -339,6 +375,10 @@ class AuthController extends GetxController {
 
         String userId = cred.user!.uid;
         await _setLoggedIn(true);
+        // Save userId to SharedPreferences on Android for persistence in release builds
+        if (Platform.isAndroid) {
+          await _saveUserId(userId);
+        }
         Get.offAll(() => OnboardingScreen(
             userId: userId,
             displayName: null,
@@ -689,6 +729,10 @@ class AuthController extends GetxController {
       await prefs.setBool('prompt_profile_shown', false);
       await prefs.setBool('has_completed_homepage_guidance_dine_in', false);
       await prefs.setBool('has_seen_family_nutrition_dialog', false);
+      // Clear saved userId on Android
+      if (Platform.isAndroid) {
+        await _clearSavedUserId();
+      }
       // _userDataSubscription is cancelled by the _handleAuthState listener
       await FirebaseAuth.instance.signOut();
     } catch (e) {

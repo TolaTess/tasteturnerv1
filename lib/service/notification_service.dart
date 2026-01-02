@@ -463,7 +463,7 @@ class NotificationService {
           body,
           scheduledTime,
           notificationDetails(),
-          androidScheduleMode: AndroidScheduleMode.alarmClock,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.time,
           payload: payload != null
               ? json.encode(_convertPayloadToJsonSafe(payload))
@@ -511,7 +511,7 @@ class NotificationService {
     required Duration delay,
     Map<String, dynamic>? payload,
   }) async {
-    // Use alarmClock for all delays - it's the most reliable on Android 14+
+    // Use exactAllowWhileIdle for reliable notification scheduling on Android
     await scheduleDelayedNotification(
       id: id,
       title: title,
@@ -574,14 +574,14 @@ class NotificationService {
         }
       }
 
-      // Use alarmClock for Android 14+ compatibility, works for all delays
+      // Use exactAllowWhileIdle for reliable notification scheduling on Android
       await notificationPlugin.zonedSchedule(
         id,
         title,
         body,
         scheduledTime,
         notificationDetails(),
-        androidScheduleMode: AndroidScheduleMode.alarmClock,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
         payload: payload != null
             ? json.encode(_convertPayloadToJsonSafe(payload))
@@ -668,11 +668,8 @@ class NotificationService {
         }
       }
 
-      // For exact alarms, we need to direct users to system settings
-      await notificationPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestExactAlarmsPermission();
+      // Note: SCHEDULE_EXACT_ALARM permission is declared in manifest
+      // and doesn't require runtime permission request on Android 12+
     }
     // Use provided timezone or fall back to user's timezone
     String targetTimeZone;
@@ -704,7 +701,7 @@ class NotificationService {
       body,
       scheduledTime,
       notificationDetails(),
-      androidScheduleMode: AndroidScheduleMode.alarmClock,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
